@@ -1,7 +1,10 @@
 export { SECTIONS, type Section, type SectionData } from "./domain/section.js";
 export { sectionsFedBy } from "./domain/fedBy.js";
 export type { SectionReader } from "./ports/SectionReader.js";
-export { ProjectState, type ChangeListener } from "./application/ProjectState.js";
+export {
+  ProjectState,
+  type ChangeListener,
+} from "./application/ProjectState.js";
 export {
   commandLine,
   shown,
@@ -12,3 +15,5 @@ export {
 } from "./domain/command.js";
 export type { ProcessRunner } from "./ports/ProcessRunner.js";
 export { Commands, type EventListener } from "./application/Commands.js";
+export type { Finding } from "./domain/finding.js";
+export type { SpecgatePort, SpecgateAnswer } from "./ports/SpecgatePort.js";

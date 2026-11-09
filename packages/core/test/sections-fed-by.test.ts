@@ -9,7 +9,10 @@ test("REQ-003: each file of the specification feeds its sections, in the order o
   const cases: Array<[string, string[]]> = [
     ["docs/specs/changes/draft-pedidos/questions.md", ["questions", "matrix"]],
     ["features/auth/REQ-010.feature", ["matrix"]],
-    ["docs/specs/changes/draft-pedidos/specs/pedidos/spec.md", ["home", "changes", "matrix"]],
+    [
+      "docs/specs/changes/draft-pedidos/specs/pedidos/spec.md",
+      ["home", "changes", "matrix"],
+    ],
     ["docs/specs/changes/draft-pedidos/proposal.md", ["changes"]],
     ["docs/specs/changes/draft-pedidos/review.md", ["changes"]],
     ["docs/specs/traceability.md", ["home", "matrix", "report"]],
@@ -19,5 +22,6 @@ test("REQ-003: each file of the specification feeds its sections, in the order o
     ["src/orders.ts", []],
     ["README.md", []],
   ];
-  for (const [file, sections] of cases) assert.deepEqual(sectionsFedBy(file), sections, file);
+  for (const [file, sections] of cases)
+    assert.deepEqual(sectionsFedBy(file), sections, file);
 });

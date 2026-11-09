@@ -38,7 +38,7 @@ export class Commands {
     try {
       this.emit({ type: "started", run, command: text });
       const exitCode = await this.runner.run(line.args, (chunk) =>
-        this.emit({ type: "output", run, chunk })
+        this.emit({ type: "output", run, chunk }),
       );
       this.emit({ type: "ended", run, exitCode });
       return { ok: true, run, exitCode };

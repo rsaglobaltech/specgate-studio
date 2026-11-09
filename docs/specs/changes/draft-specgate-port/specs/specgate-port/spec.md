@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-011 — The core knows specgate only through SpecgatePort
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL reach specgate from the core only through the `SpecgatePort` interface, and the architecture check SHALL fail when `packages/core` imports the specgate package.
 
