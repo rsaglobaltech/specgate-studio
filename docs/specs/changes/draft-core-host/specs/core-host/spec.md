@@ -4,9 +4,9 @@
 
 ### Requirement: REQ-001 — One core host per open project, over typed JSON-RPC
 
-<!-- specgate:trace status="Needs Clarification" actor=Developer kind=functional -->
+<!-- specgate:trace status=Draft actor=Developer kind=functional -->
 
-The system SHALL start one core host for the project a Developer opens, and the UI SHALL talk to it only through typed JSON-RPC requests and notifications.
+The system SHALL start one core host for the project a Developer opens, and the UI SHALL talk to it only through typed JSON-RPC requests and notifications over a WebSocket on 127.0.0.1 — the same transport in the desktop app, where the host runs as a sidecar, and in the browser.
 
 > Brief: "When a Developer opens a project, one core host starts for it, and the UI talks to it over a typed JSON-RPC transport."
 
@@ -14,7 +14,7 @@ The system SHALL start one core host for the project a Developer opens, and the 
 
 - GIVEN the desktop app with no project open
 - WHEN the Developer opens the folder `~/mvp/sprich-platform/sprich`
-- THEN one core host runs for sprich, and Home shows sprich's state, received as the answer to the JSON-RPC request `project.open`
+- THEN one core host runs for sprich as a sidecar listening on a WebSocket on 127.0.0.1, and Home shows sprich's state, received as the answer to the JSON-RPC request `project.open`
 
 #### Scenario: SCN-002 — Two browser tabs share one host
 

@@ -11,3 +11,4 @@ confirm by the person reviewing the draft.
 | A4 | `questions.md` feeds Questions and the matrix; a `.feature` file feeds the matrix only | REQ-003 | The files each section reads in specgate today | to confirm |
 | A5 | Exit code 0 is success and 1 a refusal, as specgate returns them | REQ-005 | specgate's own exit codes | to confirm |
 | A6 | The example project is sprich at `~/mvp/sprich-platform/sprich`, and `C:\Users\Juan Perez\shop` on Windows | REQ-001 … REQ-007 | A real project measured at 1.9 s; a path with a space, as specgate's REQ-431 | to confirm |
+| A7 | WebSocket on 127.0.0.1 for both: the desktop sidecar listens like the web host, one transport | REQ-001 | Q1 | decided |
