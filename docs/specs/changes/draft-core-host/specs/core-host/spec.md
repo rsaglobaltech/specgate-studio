@@ -24,7 +24,7 @@ The system SHALL start one core host for the project a Developer opens, and the 
 
 ### Requirement: REQ-002 — The project's state kept in memory after the first read
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL read the project's requirements, changes, questions, matrix and gate once, keep them in memory, and answer later requests from memory without running specgate again.
 
