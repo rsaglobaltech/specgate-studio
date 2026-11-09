@@ -18,7 +18,7 @@
     "clean": "tsc -b --clean packages/core packages/protocol packages/host"
   },
   "devDependencies": {
-    "@rsaglobaltech/specgate": "^0.30.0",
+    "@rsaglobaltech/specgate": "^0.31.0",
     "@types/node": "^22.20.5",
     "@types/ws": "^8.18.2",
     "dependency-cruiser": "^16.10.4",
