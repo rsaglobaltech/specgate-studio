@@ -12,10 +12,10 @@
     "node": ">=22"
   },
   "scripts": {
-    "build": "tsc -b packages/core packages/protocol packages/host",
+    "build": "tsc -b packages/core packages/protocol packages/adapter-specgate-cli packages/host",
     "test": "npm run build && node --test \"packages/*/dist/test/**/*.test.js\"",
     "arch": "depcruise packages --config .dependency-cruiser.cjs",
-    "clean": "tsc -b --clean packages/core packages/protocol packages/host",
+    "clean": "tsc -b --clean packages/core packages/protocol packages/adapter-specgate-cli packages/host",
     "format": "prettier --write \"packages/*/src/**/*.ts\" \"packages/*/test/**/*.ts\"",
     "format:check": "prettier --check \"packages/*/src/**/*.ts\" \"packages/*/test/**/*.ts\""
   },

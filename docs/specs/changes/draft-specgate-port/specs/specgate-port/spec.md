@@ -24,7 +24,7 @@ The system SHALL reach specgate from the core only through the `SpecgatePort` in
 
 ### Requirement: REQ-012 — The CLI adapter: specgate with --json, parsed
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL provide a `SpecgatePort` adapter that runs the specgate CLI with `--json`, parses its standard output into typed data, and returns specgate's findings with their code and fix instead of its prose.
 
