@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-001 — One core host per open project, over typed JSON-RPC
 
-<!-- specgate:trace status=Draft actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL start one core host for the project a Developer opens, and the UI SHALL talk to it only through typed JSON-RPC requests and notifications over a WebSocket on 127.0.0.1 — the same transport in the desktop app, where the host runs as a sidecar, and in the browser.
 
@@ -64,7 +64,7 @@ The system SHALL, when a file of the specification changes, read again only the 
 
 ### Requirement: REQ-004 — A section's data in under 50 ms after the first read
 
-<!-- specgate:trace actor=Developer kind=non-functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=non-functional -->
 
 The system SHALL answer a request for a section's data in under 50 ms once the project has been read the first time.
 

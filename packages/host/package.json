@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@specgate-studio/core": "*",
-    "@specgate-studio/protocol": "*"
+    "@specgate-studio/protocol": "*",
+    "ws": "^8.22.2"
   }
 }
