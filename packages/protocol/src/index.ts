@@ -55,4 +55,6 @@ export const RPC_ERRORS = {
   invalid: -32600,
   method: -32601,
   params: -32602,
+  /** The installed specgate is missing or older than the studio needs (REQ-013). */
+  specgate: -32001,
 } as const;

@@ -44,7 +44,7 @@ The system SHALL provide a `SpecgatePort` adapter that runs the specgate CLI wit
 
 ### Requirement: REQ-013 — The installed specgate checked at start
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL, when the host starts, read the installed specgate's version and, when it is older than the version the studio needs, say both versions and the command that updates it, and run no other specgate command.
 

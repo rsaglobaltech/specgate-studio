@@ -173,3 +173,36 @@ for (const [scn, section] of [
     }
   });
 }
+
+// ── REQ-013: the installed specgate checked at start ───────────────────
+
+for (const [scn, where] of [
+  ["SCN-035", "the desktop app"],
+  ["SCN-036", "the browser"],
+] as const) {
+  test(`REQ-013 ${scn}: 0.29.1 installed, 0.30.0 needed — ${where} is told both and the command, and no section is read`, async () => {
+    const sg = specgate();
+    const host = await startHost({
+      projectDir: "/tmp/sprich",
+      reader: sg.reader,
+      runner: sg.runner,
+      port: 0,
+      specgate: { version: async () => "0.29.1" },
+      needs: "0.30.0",
+    });
+    try {
+      const ui = await client(host.url);
+      const opened = await ui.ask("project.open");
+      assert.equal(opened.error?.code, -32001);
+      assert.match(
+        opened.error?.message ?? "",
+        /specgate 0\.29\.1 is installed; the studio needs 0\.30\.0/,
+      );
+      assert.match(opened.error?.message ?? "", /npm i -g @rsaglobaltech\/specgate@0\.30\.0/);
+      assert.equal(sg.reads.length, 0, "no section read");
+      ui.close();
+    } finally {
+      await host.close();
+    }
+  });
+}
