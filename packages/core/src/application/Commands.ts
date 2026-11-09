@@ -14,7 +14,9 @@ export type EventListener = (event: CommandEvent) => void;
  *
  * Every run is told as events — started, each chunk of output, ended with its
  * exit code (REQ-005). While a write runs, another write is refused with
- * `write_busy`, naming the one that runs (REQ-006); reads still run.
+ * `write_busy`, naming the one that runs (REQ-006); reads still run. A name
+ * the port does not offer is refused with `command_unknown` before any process
+ * starts (REQ-016).
  */
 export class Commands {
   private next = 1;
@@ -25,6 +27,14 @@ export class Commands {
 
   async run(command: SpecgateCommand): Promise<RunResult> {
     const line = commandLine(command);
+    if (!line) {
+      const name = String((command as { name?: unknown } | null)?.name);
+      return {
+        ok: false,
+        code: "command_unknown",
+        message: `specgate has no command ${JSON.stringify(name)} the studio may run.`,
+      };
+    }
     if (line.write && this.writing) {
       return {
         ok: false,

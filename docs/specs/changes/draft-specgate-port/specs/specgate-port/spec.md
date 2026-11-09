@@ -104,7 +104,7 @@ The system SHALL run the same contract tests of `SpecgatePort` against the CLI a
 
 ### Requirement: REQ-016 — A command the port does not offer is refused before anything runs
 
-<!-- specgate:trace actor=Developer kind=business-rule -->
+<!-- specgate:trace status=Implemented actor=Developer kind=business-rule -->
 
 The system SHALL refuse, before starting any process, a command the port does not offer, with the code `command_unknown` and the name the UI asked for.
 

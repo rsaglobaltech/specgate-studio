@@ -206,3 +206,35 @@ for (const [scn, where] of [
     }
   });
 }
+
+// ── REQ-016: a command the port does not offer, refused before anything runs ──
+
+for (const [scn, where, asked, named] of [
+  ["SCN-041", "the desktop UI", { name: "init", force: true }, "init"],
+  ["SCN-042", "a browser tab", { name: "rm -rf ." }, "rm -rf ."],
+] as const) {
+  test(`REQ-016 ${scn}: ${JSON.stringify(asked)} from ${where} is refused with command_unknown naming ${named}; no process starts`, async () => {
+    const sg = specgate();
+    let runs = 0;
+    const runner: ProcessRunner = { run: async () => (runs++, 0) };
+    const host = await startHost({ projectDir: "/tmp/sprich", reader: sg.reader, runner, port: 0 });
+    try {
+      const ui = await client(host.url);
+      const answer = await ui.ask("command.run", asked);
+      const result = answer.result as { ok: boolean; code?: string; message?: string };
+      assert.equal(result.ok, false, JSON.stringify(answer));
+      assert.equal(result.code, "command_unknown");
+      assert.ok(result.message?.includes(`"${named}"`), result.message);
+      await new Promise((ok) => setTimeout(ok, 20));
+      assert.equal(runs, 0, "no process started");
+      assert.deepEqual(
+        ui.notes.filter((n) => n.method === "command.event"),
+        [],
+        "no run was announced",
+      );
+      ui.close();
+    } finally {
+      await host.close();
+    }
+  });
+}
