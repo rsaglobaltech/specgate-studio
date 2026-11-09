@@ -5,7 +5,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import WebSocket from "ws";
-import { SECTIONS, type ProcessRunner, type Section, type SectionReader } from "@specgate-studio/core";
+import {
+  SECTIONS,
+  type ProcessRunner,
+  type Section,
+  type SectionReader,
+} from "@specgate-studio/core";
 import { startHost } from "../src/index.js";
 
 /** A specgate that takes 40 ms per section and answers 5,000 rows, counting reads. */
@@ -50,7 +55,12 @@ async function client(url: string) {
 
 test("REQ-001 SCN-001: opening sprich starts one host on a WebSocket on 127.0.0.1, and project.open answers sprich's state", async () => {
   const sg = specgate();
-  const host = await startHost({ projectDir: "/tmp/sprich", reader: sg.reader, runner: sg.runner, port: 0 });
+  const host = await startHost({
+    projectDir: "/tmp/sprich",
+    reader: sg.reader,
+    runner: sg.runner,
+    port: 0,
+  });
   try {
     assert.match(host.url, /^ws:\/\/127\.0\.0\.1:\d+\/$/);
     const ui = await client(host.url);
@@ -66,7 +76,12 @@ test("REQ-001 SCN-001: opening sprich starts one host on a WebSocket on 127.0.0.
 
 test("REQ-001 SCN-002: two browser tabs share one host — the project is read once", async () => {
   const sg = specgate();
-  const host = await startHost({ projectDir: "/tmp/sprich", reader: sg.reader, runner: sg.runner, port: 0 });
+  const host = await startHost({
+    projectDir: "/tmp/sprich",
+    reader: sg.reader,
+    runner: sg.runner,
+    port: 0,
+  });
   try {
     const tab1 = await client(host.url);
     const tab2 = await client(host.url);
@@ -81,7 +96,12 @@ test("REQ-001 SCN-002: two browser tabs share one host — the project is read o
 
 test("REQ-001: a method the protocol does not name is refused as JSON-RPC -32601", async () => {
   const sg = specgate();
-  const host = await startHost({ projectDir: "/tmp/sprich", reader: sg.reader, runner: sg.runner, port: 0 });
+  const host = await startHost({
+    projectDir: "/tmp/sprich",
+    reader: sg.reader,
+    runner: sg.runner,
+    port: 0,
+  });
   try {
     const ui = await client(host.url);
     const answer = await ui.ask("shell.exec", { cmd: "rm -rf ." });
@@ -94,7 +114,12 @@ test("REQ-001: a method the protocol does not name is refused as JSON-RPC -32601
 
 test("REQ-001: command events reach every connected UI", async () => {
   const sg = specgate();
-  const host = await startHost({ projectDir: "/tmp/sprich", reader: sg.reader, runner: sg.runner, port: 0 });
+  const host = await startHost({
+    projectDir: "/tmp/sprich",
+    reader: sg.reader,
+    runner: sg.runner,
+    port: 0,
+  });
   try {
     const tab1 = await client(host.url);
     const tab2 = await client(host.url);
@@ -102,8 +127,10 @@ test("REQ-001: command events reach every connected UI", async () => {
     await new Promise((ok) => setTimeout(ok, 20));
     for (const tab of [tab1, tab2]) {
       assert.deepEqual(
-        tab.notes.filter((n) => n.method === "command.event").map((n) => (n.params as { type: string }).type),
-        ["started", "ended"]
+        tab.notes
+          .filter((n) => n.method === "command.event")
+          .map((n) => (n.params as { type: string }).type),
+        ["started", "ended"],
       );
     }
     tab1.close();
@@ -121,7 +148,12 @@ for (const [scn, section] of [
 ] as const) {
   test(`REQ-004 ${scn}: once read, ${section} is answered by section.get in under 50 ms`, async () => {
     const sg = specgate();
-    const host = await startHost({ projectDir: "/tmp/sprich", reader: sg.reader, runner: sg.runner, port: 0 });
+    const host = await startHost({
+      projectDir: "/tmp/sprich",
+      reader: sg.reader,
+      runner: sg.runner,
+      port: 0,
+    });
     try {
       const ui = await client(host.url);
       await ui.ask("project.open");

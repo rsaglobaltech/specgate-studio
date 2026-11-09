@@ -34,8 +34,7 @@ export function commandLine(c: SpecgateCommand): CommandLine {
 }
 
 /** How a command is shown to the person: what they would type. */
-export const shown = (args: readonly string[]) =>
-  ["specgate", ...args].join(" ");
+export const shown = (args: readonly string[]) => ["specgate", ...args].join(" ");
 
 /** What the UI follows of a run (REQ-005). */
 export type CommandEvent =
@@ -44,5 +43,4 @@ export type CommandEvent =
   | { type: "ended"; run: number; exitCode: number };
 
 export type RunResult =
-  | { ok: true; run: number; exitCode: number }
-  | { ok: false; code: "write_busy"; message: string };
+  { ok: true; run: number; exitCode: number } | { ok: false; code: "write_busy"; message: string };

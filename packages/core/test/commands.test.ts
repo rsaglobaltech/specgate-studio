@@ -34,7 +34,7 @@ const gate = () =>
   fakeRunner((args) =>
     args[0] === "apply"
       ? { chunks: ["✖ REQ-007 has no test that names it yet\n"], exit: 1 }
-      : { chunks: ["✔ Specification\n", "✔ Tests\n", "✔ Gate passed\n"], exit: 0 }
+      : { chunks: ["✔ Specification\n", "✔ Tests\n", "✔ Gate passed\n"], exit: 0 },
   );
 
 function follow(commands: Commands) {
@@ -53,12 +53,12 @@ test("REQ-005 SCN-009: Check is followed as started, each stage as output, and e
   assert.equal(result.ok, true);
   assert.deepEqual(
     events.map((e) => e.type),
-    ["started", "output", "output", "output", "ended"]
+    ["started", "output", "output", "output", "ended"],
   );
   assert.equal(events[0]?.type === "started" && events[0].command, "specgate check");
   assert.deepEqual(
     events.filter((e) => e.type === "output").map((e) => (e.type === "output" ? e.chunk : "")),
-    ["✔ Specification\n", "✔ Tests\n", "✔ Gate passed\n"]
+    ["✔ Specification\n", "✔ Tests\n", "✔ Gate passed\n"],
   );
   const ended = events.at(-1);
   assert.equal(ended?.type === "ended" && ended.exitCode, 0);
@@ -101,11 +101,17 @@ test("REQ-006 SCN-012: a preference saved from another client while apply runs i
   const saved = await commands.run({ name: "config-set", key: "test_cmd", value: "pnpm test" });
   assert.equal(!saved.ok && saved.code, "write_busy");
   assert.match(!saved.ok ? saved.message : "", /specgate apply REQ-007/);
-  assert.equal(fake.seen.some((a) => a[0] === "config"), false);
+  assert.equal(
+    fake.seen.some((a) => a[0] === "config"),
+    false,
+  );
   fake.release();
   await applying;
   // Once it ended, the next write runs.
-  assert.equal((await commands.run({ name: "config-set", key: "test_cmd", value: "pnpm test" })).ok, true);
+  assert.equal(
+    (await commands.run({ name: "config-set", key: "test_cmd", value: "pnpm test" })).ok,
+    true,
+  );
 });
 
 test("REQ-006: a read command runs while a write runs", async () => {

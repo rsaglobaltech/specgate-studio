@@ -11,13 +11,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const REPO = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "..",
-  "..",
-  "..",
-  "..",
-);
+const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
 const DEPCRUISE = path.join(
   REPO,
   "node_modules",
@@ -37,24 +31,14 @@ function cruise(files: Record<string, string>) {
     path.join(REPO, ".dependency-cruiser.cjs"),
     path.join(dir, ".dependency-cruiser.cjs"),
   );
-  fs.copyFileSync(
-    path.join(REPO, "tsconfig.base.json"),
-    path.join(dir, "tsconfig.base.json"),
-  );
+  fs.copyFileSync(path.join(REPO, "tsconfig.base.json"), path.join(dir, "tsconfig.base.json"));
   fs.copyFileSync(
     path.join(REPO, "tsconfig.depcruise.json"),
     path.join(dir, "tsconfig.depcruise.json"),
   );
   const r = spawnSync(
     process.execPath,
-    [
-      DEPCRUISE,
-      "packages",
-      "--config",
-      ".dependency-cruiser.cjs",
-      "--output-type",
-      "err",
-    ],
+    [DEPCRUISE, "packages", "--config", ".dependency-cruiser.cjs", "--output-type", "err"],
     { cwd: dir, encoding: "utf8" },
   );
   fs.rmSync(dir, { recursive: true, force: true });

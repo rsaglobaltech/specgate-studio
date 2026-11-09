@@ -58,7 +58,8 @@ export async function startHost(options: HostOptions): Promise<Host> {
     },
     "section.get": async (params) => {
       const section = (params as { section?: unknown } | null)?.section;
-      if (!SECTIONS.includes(section as Section)) throw rpcError(RPC_ERRORS.params, "unknown section");
+      if (!SECTIONS.includes(section as Section))
+        throw rpcError(RPC_ERRORS.params, "unknown section");
       return state.section(section as Section);
     },
     "command.run": async (params) => commands.run(params as SpecgateCommand),
@@ -68,7 +69,11 @@ export async function startHost(options: HostOptions): Promise<Host> {
     ws.on("message", async (raw) => {
       let id: number | null = null;
       try {
-        const message = JSON.parse(String(raw)) as { id?: unknown; method?: unknown; params?: unknown };
+        const message = JSON.parse(String(raw)) as {
+          id?: unknown;
+          method?: unknown;
+          params?: unknown;
+        };
         id = typeof message.id === "number" ? message.id : null;
         if (id === null || typeof message.method !== "string") {
           throw rpcError(RPC_ERRORS.invalid, "not a JSON-RPC request");

@@ -4,8 +4,5 @@
  * exit code. The Node adapter spawns the CLI; the in-process one calls its API.
  */
 export interface ProcessRunner {
-  run(
-    args: readonly string[],
-    onOutput: (chunk: string) => void,
-  ): Promise<number>;
+  run(args: readonly string[], onOutput: (chunk: string) => void): Promise<number>;
 }
