@@ -84,7 +84,7 @@ The system SHALL provide a second `SpecgatePort` adapter that calls specgate's p
 
 ### Requirement: REQ-015 — One contract test suite for every adapter
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL run the same contract tests of `SpecgatePort` against the CLI adapter, the in-process adapter and the in-memory fake, and SHALL let an adapter be used only when it passes them.
 
