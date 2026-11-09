@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": { "@specgate-studio/*": ["packages/*/src/index.ts"] }
+  }
+}
