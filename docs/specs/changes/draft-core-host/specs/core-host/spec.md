@@ -124,7 +124,7 @@ The system SHALL refuse a write command while another write command runs, and th
 
 ### Requirement: REQ-007 — Arguments as an array, never a shell
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL pass every argument of a command it runs as one element of an array, and SHALL never start a shell to run it.
 
@@ -140,4 +140,4 @@ The system SHALL pass every argument of a command it runs as one element of an a
 
 - GIVEN `specgate-studio serve` on Windows for `C:\Users\Juan Perez\shop`
 - WHEN the Developer presses Check
-- THEN specgate receives `C:\Users\Juan Perez\shop` as one `--project-dir` argument and the gate runs in that folder
+- THEN specgate receives `C:\Users\Juan Perez\shop` as one argument — the folder `specgate check [dir]` takes — and the gate runs in that folder
