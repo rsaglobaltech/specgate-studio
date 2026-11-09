@@ -84,7 +84,7 @@ The system SHALL answer a request for a section's data in under 50 ms once the p
 
 ### Requirement: REQ-005 — A command followed as events
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL report every command the host runs to the UI as events: `started` with the command, `output` with each chunk as it is written, and `ended` with the exit code.
 
@@ -104,7 +104,7 @@ The system SHALL report every command the host runs to the UI as events: `starte
 
 ### Requirement: REQ-006 — One write command at a time
 
-<!-- specgate:trace actor=Developer kind=business-rule -->
+<!-- specgate:trace status=Implemented actor=Developer kind=business-rule -->
 
 The system SHALL refuse a write command while another write command runs, and the refusal SHALL name the command that runs.
 
