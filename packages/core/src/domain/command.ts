@@ -16,7 +16,11 @@ export interface CommandLine {
   write: boolean;
 }
 
-export function commandLine(c: SpecgateCommand): CommandLine {
+/**
+ * The argument array of a command the port offers, or null for any other name
+ * (REQ-016): the UI's request comes over the wire, so its name is not trusted.
+ */
+export function commandLine(c: SpecgateCommand): CommandLine | null {
   switch (c.name) {
     case "check":
       return { args: ["check"], write: false };
@@ -30,6 +34,8 @@ export function commandLine(c: SpecgateCommand): CommandLine {
       return { args: ["archive", c.change], write: true };
     case "config-set":
       return { args: ["config", "set", c.key, c.value], write: true };
+    default:
+      return null;
   }
 }
 
@@ -44,4 +50,4 @@ export type CommandEvent =
 
 export type RunResult =
   | { ok: true; run: number; exitCode: number }
-  | { ok: false; code: "write_busy"; message: string };
+  | { ok: false; code: "write_busy" | "command_unknown"; message: string };

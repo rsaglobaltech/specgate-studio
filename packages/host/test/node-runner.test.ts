@@ -21,7 +21,7 @@ function fakeSpecgate(dir: string): string {
       'fs.writeFileSync(path.join(__dirname, "argv.json"), JSON.stringify(process.argv.slice(2)));',
       'process.stdout.write("✔ first\\n");',
       'setTimeout(() => { process.stdout.write("✔ second\\n"); process.exit(0); }, 30);',
-    ].join("\n")
+    ].join("\n"),
   );
   return file;
 }

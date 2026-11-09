@@ -2,7 +2,9 @@ import * as path from "node:path";
 import { WebSocketServer, type WebSocket } from "ws";
 import {
   Commands,
+  checkSpecgate,
   ProjectState,
+  type SpecgatePort,
   SECTIONS,
   type ProcessRunner,
   type Section,
@@ -17,6 +19,10 @@ export interface HostOptions {
   runner: ProcessRunner;
   /** 0 picks a free port. */
   port: number;
+  /** The specgate whose version is checked before anything is read (REQ-013). */
+  specgate?: Pick<SpecgatePort, "version">;
+  /** The specgate version the studio needs. */
+  needs?: string;
 }
 
 export interface Host {
@@ -36,7 +42,12 @@ export interface Host {
 export async function startHost(options: HostOptions): Promise<Host> {
   const state = new ProjectState(options.reader);
   const commands = new Commands(options.runner);
-  const opening = state.open();
+  // The installed specgate first: an older one reads nothing (REQ-013).
+  const checked =
+    options.specgate && options.needs
+      ? await checkSpecgate(options.specgate, options.needs)
+      : ({ ok: true } as const);
+  const opening = checked.ok ? state.open() : Promise.resolve();
   opening.catch(() => undefined);
 
   const server = new WebSocketServer({ host: "127.0.0.1", port: options.port });
@@ -51,14 +62,19 @@ export async function startHost(options: HostOptions): Promise<Host> {
 
   const handlers: Record<string, (params: unknown) => Promise<unknown>> = {
     "project.open": async () => {
+      if (!checked.ok)
+        throw rpcError(RPC_ERRORS.specgate, `${checked.message}. Fix: ${checked.fix}`);
       await opening;
       const sections: ProjectOpened["sections"] = {};
       for (const s of SECTIONS) sections[s] = await state.section(s);
       return { project: path.basename(options.projectDir), sections } satisfies ProjectOpened;
     },
     "section.get": async (params) => {
+      if (!checked.ok)
+        throw rpcError(RPC_ERRORS.specgate, `${checked.message}. Fix: ${checked.fix}`);
       const section = (params as { section?: unknown } | null)?.section;
-      if (!SECTIONS.includes(section as Section)) throw rpcError(RPC_ERRORS.params, "unknown section");
+      if (!SECTIONS.includes(section as Section))
+        throw rpcError(RPC_ERRORS.params, "unknown section");
       return state.section(section as Section);
     },
     "command.run": async (params) => commands.run(params as SpecgateCommand),
@@ -68,7 +84,11 @@ export async function startHost(options: HostOptions): Promise<Host> {
     ws.on("message", async (raw) => {
       let id: number | null = null;
       try {
-        const message = JSON.parse(String(raw)) as { id?: unknown; method?: unknown; params?: unknown };
+        const message = JSON.parse(String(raw)) as {
+          id?: unknown;
+          method?: unknown;
+          params?: unknown;
+        };
         id = typeof message.id === "number" ? message.id : null;
         if (id === null || typeof message.method !== "string") {
           throw rpcError(RPC_ERRORS.invalid, "not a JSON-RPC request");

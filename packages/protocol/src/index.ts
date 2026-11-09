@@ -50,4 +50,11 @@ export interface RpcNotification<N extends keyof Notifications = keyof Notificat
 }
 
 /** JSON-RPC 2.0 error codes the host answers with. */
-export const RPC_ERRORS = { parse: -32700, invalid: -32600, method: -32601, params: -32602 } as const;
+export const RPC_ERRORS = {
+  parse: -32700,
+  invalid: -32600,
+  method: -32601,
+  params: -32602,
+  /** The installed specgate is missing or older than the studio needs (REQ-013). */
+  specgate: -32001,
+} as const;

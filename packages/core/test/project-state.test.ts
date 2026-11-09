@@ -71,7 +71,8 @@ test("REQ-003 SCN-005: questions.md saved — only Questions and the matrix are 
   assert.deepEqual([...reads].sort(), ["matrix", "questions"]);
   assert.deepEqual(told, [["questions", "matrix"]]);
   // Changes, Home and Report were not read again.
-  for (const untouched of ["changes", "home", "report"] as const) assert.ok(!reads.includes(untouched));
+  for (const untouched of ["changes", "home", "report"] as const)
+    assert.ok(!reads.includes(untouched));
 });
 
 test("REQ-003 SCN-006: a feature file saved — only the matrix is read again", async () => {
@@ -83,10 +84,10 @@ test("REQ-003 SCN-006: a feature file saved — only the matrix is read again", 
 
 test("REQ-003: a Windows path is read as the same file", async () => {
   const { state, reads } = await opened();
-  assert.deepEqual(
-    await state.fileChanged("docs\\specs\\changes\\draft-pedidos\\questions.md"),
-    ["questions", "matrix"]
-  );
+  assert.deepEqual(await state.fileChanged("docs\\specs\\changes\\draft-pedidos\\questions.md"), [
+    "questions",
+    "matrix",
+  ]);
   assert.deepEqual([...reads].sort(), ["matrix", "questions"]);
 });
 
