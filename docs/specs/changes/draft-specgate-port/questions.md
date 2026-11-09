@@ -1,0 +1,6 @@
+# Questions — draft-specgate-port
+
+| # | Question | Blocks | Options seen | Answer | Status |
+|---|---|---|---|---|---|
+| Q1 | Which specgate commands lack a `--json` output today? | REQ-012 | Measured on 0.30.0: `status`, `change list`, `change show`, `change validate`, `config list`, `questions`, `matrix`, `report`, `doctor`, `plan`, `apply`, `answer`, `archive`, `propose` all print JSON with `--json` |  | open |
+| Q2 | Which specgate release publishes the in-process API, and with which commands first? | REQ-014 | A change in the specgate repo exporting `@rsaglobaltech/specgate/api` with `status`, `questions`, `matrix` first (the sections read most) |  | open |
