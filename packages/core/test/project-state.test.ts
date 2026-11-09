@@ -51,3 +51,55 @@ test("REQ-002: requests made while the first read runs share it", async () => {
   assert.deepEqual(a, b);
   assert.equal(specgate.reads.filter((s) => s === "changes").length, 1);
 });
+
+// ── REQ-003: a changed file refreshes only what it feeds ─────────────────
+
+async function opened(ms = 1) {
+  const specgate = slowSpecgate(ms);
+  const state = new ProjectState(specgate.reader);
+  await state.open();
+  specgate.reads.length = 0;
+  const told: Section[][] = [];
+  state.onChange((sections) => told.push(sections));
+  return { state, reads: specgate.reads, told };
+}
+
+test("REQ-003 SCN-005: questions.md saved — only Questions and the matrix are read again, and the UI is told so", async () => {
+  const { state, reads, told } = await opened();
+  const changed = await state.fileChanged("docs/specs/changes/draft-pedidos/questions.md");
+  assert.deepEqual(changed, ["questions", "matrix"]);
+  assert.deepEqual([...reads].sort(), ["matrix", "questions"]);
+  assert.deepEqual(told, [["questions", "matrix"]]);
+  // Changes, Home and Report were not read again.
+  for (const untouched of ["changes", "home", "report"] as const) assert.ok(!reads.includes(untouched));
+});
+
+test("REQ-003 SCN-006: a feature file saved — only the matrix is read again", async () => {
+  const { state, reads, told } = await opened();
+  assert.deepEqual(await state.fileChanged("features/auth/REQ-010.feature"), ["matrix"]);
+  assert.deepEqual(reads, ["matrix"]);
+  assert.deepEqual(told, [["matrix"]]);
+});
+
+test("REQ-003: a Windows path is read as the same file", async () => {
+  const { state, reads } = await opened();
+  assert.deepEqual(
+    await state.fileChanged("docs\\specs\\changes\\draft-pedidos\\questions.md"),
+    ["questions", "matrix"]
+  );
+  assert.deepEqual([...reads].sort(), ["matrix", "questions"]);
+});
+
+test("REQ-003: a file outside the specification reads nothing and tells nothing", async () => {
+  const { state, reads, told } = await opened();
+  assert.deepEqual(await state.fileChanged("packages/core/src/index.ts"), []);
+  assert.deepEqual(reads, []);
+  assert.deepEqual(told, []);
+});
+
+test("REQ-003: the new data is what a later request gets", async () => {
+  const { state } = await opened();
+  const before = await state.section("matrix");
+  await state.fileChanged("features/auth/REQ-010.feature");
+  assert.notDeepEqual(await state.section("matrix"), before);
+});

@@ -44,7 +44,7 @@ The system SHALL read the project's requirements, changes, questions, matrix and
 
 ### Requirement: REQ-003 — A changed file refreshes only what it feeds
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL, when a file of the specification changes, read again only the parts of the state that file feeds, and tell the UI which parts changed.
 
