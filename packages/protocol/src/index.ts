@@ -6,6 +6,9 @@ import type {
   Annotations,
   ActionId,
   CommandEvent,
+  FolderKind,
+  GitState,
+  RecentProject,
   Explanation,
   HelpVars,
   Lang,
@@ -14,11 +17,15 @@ import type {
   Section,
   SectionData,
   SpecgateCommand,
+  UncommittedGroup,
+  WorkspaceState,
 } from "@specgate-studio/core";
 
 export type { CommandEvent, RunResult, Section, SectionData, SpecgateCommand };
 /** What the editor shows over a file (draft-editor). */
 export type { Annotations };
+/** The open folder (draft-workspace): its kind, git state and the recent projects. */
+export type { FolderKind, GitState, RecentProject, UncommittedGroup, WorkspaceState };
 /** What every action says about itself (draft-help). */
 export type { ActionId, Explanation, HelpVars, Lang, Notice };
 
@@ -27,6 +34,12 @@ export interface Requests {
   "project.open": { params: Record<string, never>; result: ProjectOpened };
   "section.get": { params: { section: Section }; result: SectionData };
   "command.run": { params: SpecgateCommand; result: RunResult };
+  /** What kind of folder is open, its branch, team, ticket and uncommitted files (REQ-021 … REQ-025). */
+  "workspace.get": { params: Record<string, never>; result: WorkspaceState };
+  /** The Developer's last 10 projects, the most recent first (REQ-026). */
+  "recent.list": { params: Record<string, never>; result: RecentProject[] };
+  /** Open a recent project in its own host, or answer the one already open (REQ-026). */
+  "recent.open": { params: { path: string }; result: { url: string; reused: boolean } };
   /** The project's files, relative with `/`, as Explorer lists them (draft-workbench REQ-032). */
   "files.list": { params: Record<string, never>; result: string[] };
   /** The "?" of an action: its five parts and their labels; runs nothing (draft-help REQ-061). */
@@ -46,6 +59,8 @@ export interface Requests {
 export interface Notifications {
   "state.changed": { sections: Section[] };
   "command.event": CommandEvent;
+  /** The folder changed: its new state (REQ-023). */
+  "workspace.changed": { state: WorkspaceState };
 }
 
 export interface ProjectOpened {
