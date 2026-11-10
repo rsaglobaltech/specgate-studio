@@ -7,3 +7,4 @@ retire_capabilities: false
 req_range: [REQ-051, REQ-060]
 scn_range: [SCN-151, SCN-180]
 brief: docs/brief.md
+approved: 2026-11-10
