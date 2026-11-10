@@ -7,6 +7,7 @@ import type {
   Lang as NoticeLang,
   Notice,
   SectionData,
+  WorkspaceState,
 } from "@specgate-studio/protocol";
 import { Rpc } from "./rpc.js";
 import { t, type Lang } from "./i18n.js";
@@ -76,6 +77,7 @@ export function App({ rpc }: { rpc: Rpc }) {
   const activeRef = useRef<string | null>(null);
   const annotateRef = useRef<(path: string) => Promise<unknown>>(async () => undefined);
   const [lost, setLost] = useState(false);
+  const [workspace, setWorkspace] = useState<WorkspaceState | null>(null);
   const filterRef = useRef<HTMLInputElement>(null);
   const tr = useCallback(
     (key: string, vars?: Record<string, string | number>) => t(lang, key, vars),
@@ -112,6 +114,9 @@ export function App({ rpc }: { rpc: Rpc }) {
       () => setLost(true),
     );
     rpc.ask("files.list", {}).then(setFiles, () => undefined);
+    // The open folder: its branch, team and ticket (draft-workspace), kept current.
+    rpc.ask("workspace.get", {}).then(setWorkspace, () => undefined);
+    const offWorkspace = rpc.on("workspace.changed", ({ state }) => setWorkspace(state));
     const offState = rpc.on("state.changed", ({ sections: changed }) => {
       // The open file's findings and questions may have changed with them (REQ-044).
       if (activeRef.current) void annotateRef.current(activeRef.current);
@@ -133,6 +138,7 @@ export function App({ rpc }: { rpc: Rpc }) {
       }
     });
     return () => {
+      offWorkspace();
       offState();
       offCommand();
     };
@@ -500,8 +506,12 @@ export function App({ rpc }: { rpc: Rpc }) {
       </section>
 
       <footer class="status" data-testid="status-bar">
-        <span data-testid="status-branch">⎇ {tr("status.noBranch")}</span>
-        <span data-testid="status-ticket">{tr("status.noTicket")}</span>
+        <span data-testid="status-branch">⎇ {workspace?.git?.branch ?? tr("status.noBranch")}</span>
+        <span data-testid="status-ticket">
+          {workspace?.git?.ticket
+            ? [workspace.git.ticket, workspace.git.team].filter(Boolean).join(" · ")
+            : tr("status.noTicket")}
+        </span>
         <span data-testid="status-gate">{tr(`status.gate.${gate}`)}</span>
         <span data-testid="status-progress">{tr("status.progress", { done, total })}</span>
         <span class="end" data-testid="status-cost">
