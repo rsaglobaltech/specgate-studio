@@ -2,6 +2,10 @@ import { createServer } from "node:http";
 import * as path from "node:path";
 import { WebSocketServer, type WebSocket } from "ws";
 import {
+  annotate,
+  questionOptions,
+  type Finding,
+  type OpenQuestion,
   ACTIONS,
   LANGS,
   PART_LABELS,
@@ -39,12 +43,16 @@ export interface HostOptions {
   ui?: string;
   /** The project's files for Explorer and the editor's tabs. */
   files?: ProjectFiles;
+  /** The specification's findings with file and line (`validate --strict`), for the editor (REQ-043). */
+  findings?: () => Promise<Finding[]>;
 }
 
 /** The project's files, by paths relative to it with `/`. */
 export interface ProjectFiles {
   list(): Promise<string[]>;
   read(path: string): Promise<string>;
+  /** Only when the person saves (draft-editor REQ-045). */
+  write?(path: string, text: string): Promise<void>;
 }
 
 /** A path inside the project: relative, `/`-separated, never climbing out of it. */
@@ -147,7 +155,13 @@ export async function startHost(options: HostOptions): Promise<Host> {
         throw rpcError(RPC_ERRORS.params, "unknown section");
       return state.section(section as Section);
     },
-    "command.run": async (params) => commands.run(params as SpecgateCommand),
+    "command.run": async (params) => {
+      const result = await commands.run(params as SpecgateCommand);
+      // What it wrote feeds sections: read them again now, not when the watcher says.
+      if (result.ok)
+        for (const f of result.written) await state.fileChanged(f).catch(() => undefined);
+      return result;
+    },
     // The "?": data shipped with the studio; nothing runs, specgate is not asked (A2).
     "help.explain": async (params) => {
       const p = (params ?? {}) as { action?: unknown; lang?: unknown; vars?: unknown };
@@ -162,6 +176,41 @@ export async function startHost(options: HostOptions): Promise<Host> {
       return { labels: PART_LABELS[lang], explanation: explain(p.action as ActionId, lang, vars) };
     },
     "files.list": async () => (options.files ? options.files.list() : []),
+    // Saving: that one file, only when the person saves (REQ-045).
+    "file.write": async (params) => {
+      const p = (params ?? {}) as { path?: unknown; text?: unknown };
+      if (!insideProject(p.path) || typeof p.text !== "string" || !options.files?.write)
+        throw rpcError(RPC_ERRORS.params, "not a file of the project, or no text");
+      await options.files.write(p.path, p.text);
+      return { path: p.path };
+    },
+    // What the editor shows over a file: findings and blocking questions (REQ-043, REQ-044).
+    "file.annotations": async (params) => {
+      const { path, text: unsaved } = (params ?? {}) as { path?: unknown; text?: unknown };
+      if (!insideProject(path) || !options.files)
+        throw rpcError(RPC_ERRORS.params, "not a file of the project");
+      const files = options.files;
+      const [text, findings, questionsData] = await Promise.all([
+        // The editor's unsaved text when it sends it: the actions follow the edit.
+        typeof unsaved === "string" ? unsaved : files.read(path),
+        options.findings ? options.findings().catch(() => []) : Promise.resolve([]),
+        checked.ok ? state.section("questions").catch(() => null) : Promise.resolve(null),
+      ]);
+      const open =
+        (questionsData as { questions?: { open?: Array<Omit<OpenQuestion, "options">> } } | null)
+          ?.questions?.open ?? [];
+      const questions: OpenQuestion[] = await Promise.all(
+        open.map(async (q) => {
+          const md =
+            q.change === "project"
+              ? "docs/specs/questions.md"
+              : `docs/specs/changes/${q.change}/questions.md`;
+          const table = insideProject(md) ? await files.read(md).catch(() => "") : "";
+          return { ...q, options: questionOptions(table, q.id) };
+        }),
+      );
+      return annotate({ path, text, findings, questions });
+    },
     "file.read": async (params) => {
       const p = (params as { path?: unknown } | null)?.path;
       if (!insideProject(p) || !options.files)

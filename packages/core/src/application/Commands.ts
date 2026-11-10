@@ -14,12 +14,39 @@ export interface CommandsOptions {
 }
 
 /**
- * The commands whose closing notice is known from their exit code alone:
- * what they write is fixed. The others get theirs when they report it.
+ * The commands whose closing notice is known from their exit code alone —
+ * what they write is fixed — with what the notice names. The others get
+ * theirs when they report it.
  */
-const NOTICED: Partial<Record<SpecgateCommand["name"], { action: ActionId; written: string[] }>> = {
-  check: { action: "check", written: [] },
-};
+function noticed(
+  c: SpecgateCommand,
+): { action: ActionId; written: string[]; vars: HelpVars } | null {
+  switch (c.name) {
+    case "check":
+      return { action: "check", written: [], vars: {} };
+    case "answer":
+      return {
+        action: "answer",
+        written: [
+          `docs/specs/changes/${c.change}/questions.md`,
+          `docs/specs/changes/${c.change}/assumptions.md`,
+        ],
+        vars: { q: c.q, change: c.change },
+      };
+    case "change-note":
+      return {
+        action: "ask-change",
+        written: [`docs/specs/changes/${c.change}/review.md`],
+        vars: {
+          change: c.change,
+          module: c.change.replace(/^draft-/, ""),
+          ...(c.req ? { req: c.req } : {}),
+        },
+      };
+    default:
+      return null;
+  }
+}
 
 export type EventListener = (event: CommandEvent) => void;
 
@@ -67,9 +94,9 @@ export class Commands {
       const exitCode = await this.runner.run(line.args, (chunk) =>
         this.emit({ type: "output", run, chunk }),
       );
-      const known = NOTICED[command.name];
+      const known = noticed(command);
       if (known) {
-        const vars = this.options.helpVars?.() ?? {};
+        const vars = { ...(this.options.helpVars?.() ?? {}), ...known.vars };
         const outcome = { exitCode, findings: [], written: known.written };
         this.emit({
           type: "ended",
@@ -81,7 +108,8 @@ export class Commands {
           },
         });
       } else this.emit({ type: "ended", run, exitCode });
-      return { ok: true, run, exitCode };
+      const written = exitCode === 0 ? (noticed(command)?.written ?? []) : [];
+      return { ok: true, run, exitCode, written };
     } finally {
       if (line.write) this.writing = null;
     }

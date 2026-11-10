@@ -553,3 +553,57 @@ pre.file {
   border-color: #6b665e;
   color: #c9c3b9;
 }
+.editor {
+  height: 100%;
+  width: 100%;
+}
+.qbox {
+  margin: 4px 0 4px 24px;
+  padding: 8px 12px;
+  border: 1px solid var(--warn);
+  border-radius: 6px;
+  background: var(--bg-raised);
+  color: var(--text);
+  font:
+    13px "IBM Plex Sans",
+    system-ui,
+    sans-serif;
+}
+.qopts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+.qopts .btn {
+  height: 26px;
+  padding: 0 10px;
+}
+.qopts .btn[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent-soft);
+}
+.qopts .filter {
+  margin: 0;
+  height: 26px;
+}
+.tab .dirty {
+  color: var(--accent-soft);
+  font-size: 10px;
+}
+textarea.ask {
+  width: 100%;
+  min-height: 90px;
+  margin: 4px 0 12px;
+  padding: 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--text);
+  font: inherit;
+}
+.help h3 {
+  margin: 12px 0 6px;
+  font-size: 14px;
+}

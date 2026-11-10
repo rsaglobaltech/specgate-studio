@@ -3,6 +3,7 @@
  * The UI imports this package and never core, host or an adapter (ADR-0001).
  */
 import type {
+  Annotations,
   ActionId,
   CommandEvent,
   FolderKind,
@@ -21,6 +22,8 @@ import type {
 } from "@specgate-studio/core";
 
 export type { CommandEvent, RunResult, Section, SectionData, SpecgateCommand };
+/** What the editor shows over a file (draft-editor). */
+export type { Annotations };
 /** The open folder (draft-workspace): its kind, git state and the recent projects. */
 export type { FolderKind, GitState, RecentProject, UncommittedGroup, WorkspaceState };
 /** What every action says about itself (draft-help). */
@@ -44,6 +47,10 @@ export interface Requests {
     params: { action: ActionId; lang: Lang; vars?: HelpVars };
     result: { labels: Record<keyof Explanation, string>; explanation: Explanation };
   };
+  /** Save a file: only when the person saves (draft-editor REQ-045). */
+  "file.write": { params: { path: string; text: string }; result: { path: string } };
+  /** A file's findings and blocking questions (draft-editor REQ-043, REQ-044). */
+  "file.annotations": { params: { path: string; text?: string }; result: Annotations };
   /** A file of the project, as text. */
   "file.read": { params: { path: string }; result: { path: string; text: string } };
 }

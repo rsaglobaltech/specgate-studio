@@ -26,46 +26,46 @@ export interface HelpRequest {
 
 const ORDER: Array<keyof Explanation> = ["does", "command", "files", "doesNot", "next"];
 
-/** The five parts of an action, as the host's catalog has them in the chosen language. */
+/** The five parts of each action, as the host's catalog has them in the chosen language. */
 export function HelpDialog(props: {
   rpc: Rpc;
   lang: Lang;
-  request: HelpRequest;
+  requests: HelpRequest[];
   title: string;
   closeLabel: string;
   onClose: () => void;
 }) {
-  const [answer, setAnswer] = useState<{
-    labels: Record<keyof Explanation, string>;
-    explanation: Explanation;
-  } | null>(null);
+  type Answer = { labels: Record<keyof Explanation, string>; explanation: Explanation };
+  const [answers, setAnswers] = useState<Answer[] | null>(null);
   useEffect(() => {
     let live = true;
-    void props.rpc
-      .ask("help.explain", {
-        action: props.request.action,
-        lang: props.lang,
-        vars: props.request.vars ?? {},
-      })
-      .then((a) => live && setAnswer(a));
+    void Promise.all(
+      props.requests.map((r) =>
+        props.rpc.ask("help.explain", { action: r.action, lang: props.lang, vars: r.vars ?? {} }),
+      ),
+    ).then((a) => live && setAnswers(a));
     return () => {
       live = false;
     };
-  }, [props.rpc, props.lang, props.request]);
+  }, [props.rpc, props.lang, props.requests]);
+  const many = props.requests.length > 1;
   return (
     <div class="scrim" onClick={props.onClose}>
       <div class="help" role="dialog" aria-label={props.title} onClick={(e) => e.stopPropagation()}>
         <h2>{props.title}</h2>
-        {answer && (
-          <dl>
-            {ORDER.map((part) => (
-              <div key={part} data-part={part}>
-                <dt>{answer.labels[part]}</dt>
-                <dd class={part === "command" ? "mono" : ""}>{answer.explanation[part]}</dd>
-              </div>
-            ))}
-          </dl>
-        )}
+        {answers?.map((answer, i) => (
+          <section key={props.requests[i]!.action} data-action={props.requests[i]!.action}>
+            {many && <h3>{props.requests[i]!.feature}</h3>}
+            <dl>
+              {ORDER.map((part) => (
+                <div key={part} data-part={part}>
+                  <dt>{answer.labels[part]}</dt>
+                  <dd class={part === "command" ? "mono" : ""}>{answer.explanation[part]}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        ))}
         <button type="button" class="btn" onClick={props.onClose}>
           {props.closeLabel}
         </button>

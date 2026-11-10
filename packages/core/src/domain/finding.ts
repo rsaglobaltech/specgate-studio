@@ -11,4 +11,7 @@ export interface Finding {
   target?: string;
   /** What to do about it, when specgate says. */
   fix?: string;
+  /** Where it is, relative to the project, when specgate says (draft-editor REQ-043). */
+  file?: string;
+  line?: number;
 }

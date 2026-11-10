@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-061 — A "?" beside every feature that acts, for the Developer
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL show a "?" beside every feature that writes, runs, commits, pushes or sends; clicking it SHALL open an explanation with five parts — what it does, the command it runs, the files it changes, what it does not do, and what comes next — without running anything.
 
@@ -24,7 +24,7 @@ The system SHALL show a "?" beside every feature that writes, runs, commits, pus
 
 ### Requirement: REQ-062 — The "?" beside Ask for a change, for the Reviewer
 
-<!-- specgate:trace actor=Reviewer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Reviewer kind=functional -->
 
 The system SHALL show the Reviewer the same five-part explanation beside every feature the Reviewer uses that writes or sends; beside Ask for a change it SHALL say that the request is written to the draft's `review.md` and that the draft itself changes only when it is drafted again.
 
@@ -64,7 +64,7 @@ The system SHALL, when an action ends, show a notice that names the command that
 
 ### Requirement: REQ-064 — After Ask for a change, the Reviewer is told the draft has not changed yet
 
-<!-- specgate:trace actor=Reviewer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Reviewer kind=functional -->
 
 The system SHALL, when the Reviewer's Ask for a change ends, show a notice that names the file the request was written to, says that the draft's requirements are unchanged until the draft is drafted again, and gives that command as the next step; it SHALL never say only "done".
 

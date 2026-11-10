@@ -40,9 +40,17 @@ export function nodeFiles(projectDir: string): ProjectFiles {
       return out;
     },
     async read(rel) {
-      const file = path.resolve(root, rel);
-      if (!file.startsWith(root + path.sep)) throw new Error("not a file of the project");
-      return fs.readFile(file, "utf8");
+      return fs.readFile(inside(root, rel), "utf8");
+    },
+    async write(rel, text) {
+      await fs.writeFile(inside(root, rel), text, "utf8");
     },
   };
+}
+
+/** A path of the project, never one outside it. */
+function inside(root: string, rel: string): string {
+  const file = path.resolve(root, rel);
+  if (!file.startsWith(root + path.sep)) throw new Error("not a file of the project");
+  return file;
 }
