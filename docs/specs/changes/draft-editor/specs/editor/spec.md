@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-041 — The editor loads when the first file opens, not before
 
-<!-- specgate:trace status=Draft actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL load the Monaco code editor only when the Developer opens the first file of the session, and SHALL show every view before that — Home, Changes, Questions — without loading it.
 
@@ -24,7 +24,7 @@ The system SHALL load the Monaco code editor only when the Developer opens the f
 
 ### Requirement: REQ-042 — Build, Check, Trace, Ask for a change and "?" above each requirement
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL show, above every `### Requirement:` heading of an open specification file, the actions Build, Check, Trace and Ask for a change, and a "?" that explains them, each action naming the specgate command it runs for that requirement.
 
@@ -44,7 +44,7 @@ The system SHALL show, above every `### Requirement:` heading of an open specifi
 
 ### Requirement: REQ-043 — Findings underlined where they are, with their fix
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL underline each finding of the gate and of the brief check at the file and line it names, and SHALL show, on that underline, the finding's code, its message and its fix.
 
@@ -64,7 +64,7 @@ The system SHALL underline each finding of the gate and of the brief check at th
 
 ### Requirement: REQ-044 — A blocking question inline under its requirement, for the Reviewer
 
-<!-- specgate:trace actor=Reviewer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Reviewer kind=functional -->
 
 The system SHALL show each open question under every requirement it blocks, with its options, and SHALL let the Reviewer answer it there; the answer is written by `specgate answer`, never by the studio editing a file.
 
@@ -84,7 +84,7 @@ The system SHALL show each open question under every requirement it blocks, with
 
 ### Requirement: REQ-045 — Saving writes the file, and nothing else is written without the person
 
-<!-- specgate:trace actor=Developer kind=business-rule -->
+<!-- specgate:trace status=Implemented actor=Developer kind=business-rule -->
 
 The system SHALL write a file only when the Developer saves it, and SHALL write nothing else — no other file, no commit, no specgate command that writes — unless the person starts it.
 
