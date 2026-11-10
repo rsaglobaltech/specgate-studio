@@ -7,7 +7,8 @@
     <script>
       try {
         var s = JSON.parse(localStorage.getItem("specgate-studio.settings") || "null");
-        if (s && (s.theme === "light" || s.theme === "dark")) document.documentElement.dataset.theme = s.theme;
+        if (s && (s.theme === "light" || s.theme === "dark"))
+          document.documentElement.dataset.theme = s.theme;
       } catch (e) {}
     </script>
   </head>

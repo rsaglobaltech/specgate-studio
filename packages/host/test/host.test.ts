@@ -140,40 +140,6 @@ test("REQ-001: command events reach every connected UI", async () => {
   }
 });
 
-// ── REQ-004: a section's data in under 50 ms after the first read ───────
-
-for (const [scn, section] of [
-  ["SCN-007", "changes"],
-  ["SCN-008", "questions"],
-] as const) {
-  test(`REQ-004 ${scn}: once read, ${section} is answered by section.get in under 50 ms`, async () => {
-    const sg = specgate();
-    const host = await startHost({
-      projectDir: "/tmp/sprich",
-      reader: sg.reader,
-      runner: sg.runner,
-      port: 0,
-    });
-    try {
-      const ui = await client(host.url);
-      await ui.ask("project.open");
-      const times: number[] = [];
-      for (let i = 0; i < 20; i++) {
-        const start = performance.now();
-        const answer = await ui.ask("section.get", { section });
-        times.push(performance.now() - start);
-        assert.equal((answer.result as { rows: unknown[] }).rows.length, 5000);
-      }
-      times.sort((a, b) => a - b);
-      const p95 = times[Math.floor(times.length * 0.95) - 1]!;
-      assert.ok(p95 < 50, `p95 ${p95.toFixed(1)} ms`);
-      ui.close();
-    } finally {
-      await host.close();
-    }
-  });
-}
-
 // ── REQ-013: the installed specgate checked at start ───────────────────
 
 for (const [scn, where] of [

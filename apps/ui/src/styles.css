@@ -607,3 +607,73 @@ textarea.ask {
   margin: 12px 0 6px;
   font-size: 14px;
 }
+.pbody.flush {
+  padding: 0;
+}
+.term-wrap {
+  height: 100%;
+}
+.terms {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+.term-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px;
+  border-bottom: 1px solid var(--line);
+}
+.term-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  font:
+    12px "IBM Plex Mono",
+    ui-monospace,
+    monospace;
+}
+.term-tab[aria-selected="true"] {
+  color: var(--text);
+  background: var(--bg-input);
+}
+.term-tab .x {
+  opacity: 0.6;
+}
+.term-new {
+  height: 24px;
+  width: 24px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 16px;
+}
+.term-note {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line);
+  color: var(--warn);
+  font:
+    12px system-ui,
+    sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.term-box {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  padding: 4px 8px;
+}
+.xterm-host {
+  height: 100%;
+}

@@ -6,7 +6,7 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { MOD, close, open, studio, type Page } from "./support.js";
+import { MOD, close, open, studio, untilTerm, type Page } from "./support.js";
 
 const SPEC_PATH = "docs/specs/changes/draft-pedidos/specs/pedidos/spec.md";
 const SPEC = [
@@ -130,7 +130,8 @@ test("REQ-042 SCN-124: Check above REQ-031 runs `specgate check`, the terminal s
     await page.click('.codelens-decoration >> nth=1 >> a:has-text("Check")');
     await page.waitForSelector('.notice[data-tone="ok"]');
     assert.deepEqual(s.runs, [["check"]]);
-    assert.match((await page.textContent(".pbody")) ?? "", /\$ specgate check[\s\S]*exit 0/);
+    // The terminal shows the command, named by the button that ran it (draft-terminal REQ-053).
+    await untilTerm(page, "specgate", /▶ "Check" · specgate check[\s\S]*exit 0/);
     assert.match(
       (await page.textContent('.notice [data-part="ran"]')) ?? "",
       /specgate check.*passed/,
