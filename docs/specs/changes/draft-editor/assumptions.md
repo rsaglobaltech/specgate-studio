@@ -15,3 +15,4 @@ confirm by the person reviewing the draft.
 | A8 | `D6_unlisted_value` is used as an example of a finding with a file and a line | REQ-043 | A real code of specgate's brief check | to confirm |
 | A9 | The Reviewer's answer is written by `specgate answer <Q> "<answer>" --change <id>`; the studio never edits `questions.md` itself | REQ-044 | specgate owns its files; the studio runs specgate (brief: "Every feature runs a specgate command") | to confirm |
 | A10 | Closing a tab with unsaved edits asks "save or not"; nothing is saved automatically | REQ-045 | "nothing else is written without the person" | to confirm |
+| A11 | Monaco, loaded only when the first file opens. Switch to CodeMirror 6 only if opening the first file of sprich exceeds a measured limit. | REQ-041 | Q1 | decided |

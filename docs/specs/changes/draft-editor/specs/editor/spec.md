@@ -4,9 +4,9 @@
 
 ### Requirement: REQ-041 — The editor loads when the first file opens, not before
 
-<!-- specgate:trace status="Needs Clarification" actor=Developer kind=functional -->
+<!-- specgate:trace status=Draft actor=Developer kind=functional -->
 
-The system SHALL load the code editor only when the Developer opens the first file of the session, and SHALL show every view before that — Home, Changes, Questions — without loading it.
+The system SHALL load the Monaco code editor only when the Developer opens the first file of the session, and SHALL show every view before that — Home, Changes, Questions — without loading it.
 
 > Brief: "When a file is first opened, the Monaco editor loads; not before."
 
