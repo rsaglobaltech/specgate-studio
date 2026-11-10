@@ -41,7 +41,7 @@ for (const check of FILE_SYSTEM_CONTRACT) {
         return { port: new NodeFileSystem(), root };
       });
     } finally {
-      rm(root);
+      await rm(root);
     }
   });
 }
@@ -57,8 +57,8 @@ for (const check of GIT_CONTRACT) {
         return { port: new NodeGit(), root, notARepo: plain };
       });
     } finally {
-      rm(root);
-      rm(plain);
+      await rm(root);
+      await rm(plain);
     }
   });
 }
@@ -80,7 +80,7 @@ for (const check of WATCHER_CONTRACT) {
         },
       }));
     } finally {
-      rm(root);
+      await rm(root);
     }
   });
 }
@@ -91,7 +91,7 @@ for (const check of STORE_CONTRACT) {
     try {
       await check.run(async () => new NodeStore(home));
     } finally {
-      rm(home);
+      await rm(home);
     }
   });
 }
@@ -107,7 +107,7 @@ test("REQ-021 SCN-061: the folder sprich with docs/specs/traceability.md reads S
     assert.equal(FOLDER_KIND_LABEL[state.kind], "Specgate project");
     assert.equal(state.name, "sprich");
   } finally {
-    rm(parent);
+    await rm(parent);
   }
 });
 
@@ -119,7 +119,7 @@ test("REQ-021 SCN-062: the folder nuevo with nothing but .git reads Empty folder
     const state = await (await nodeWorkspace(nuevo)).state();
     assert.equal(FOLDER_KIND_LABEL[state.kind], "Empty folder");
   } finally {
-    rm(parent);
+    await rm(parent);
   }
 });
 
@@ -160,7 +160,7 @@ test("REQ-022 SCN-063: npm install writing node_modules changes neither the unco
     assert.equal(after?.total, (before?.total ?? 0) + 1, "only README.md is new");
     assert.ok(!after?.uncommitted.some((g) => g.group.startsWith("node_modules")));
   } finally {
-    rm(root);
+    await rm(root);
   }
 });
 
@@ -193,7 +193,7 @@ test("REQ-022 SCN-064: a build writing apps/web/dist is never told to the host",
       [],
     );
   } finally {
-    rm(root);
+    await rm(root);
   }
 });
 
@@ -209,7 +209,7 @@ test("REQ-024 SCN-067: sprich on feature/pagos/SPR-42 shows the team pagos and t
       { branch: "feature/pagos/SPR-42", team: "pagos", ticket: "SPR-42" },
     );
   } finally {
-    rm(root);
+    await rm(root);
   }
 });
 
@@ -223,7 +223,7 @@ test("REQ-024 SCN-068: sprich on feat/mvp-fase-1 shows the branch alone", async 
       { branch: "feat/mvp-fase-1", team: null, ticket: null },
     );
   } finally {
-    rm(root);
+    await rm(root);
   }
 });
 
@@ -247,7 +247,7 @@ test("REQ-025 SCN-069: a repository with sprich's 325 uncommitted files — pack
       { group: "specification", files: 84 },
     ]);
   } finally {
-    rm(root);
+    await rm(root);
   }
 });
 
@@ -262,7 +262,7 @@ test("REQ-025: a rename counts once, under its new name, and a name with spaces 
     const files = await new NodeGit().uncommitted(root);
     assert.deepEqual(files, ["docs/nueva canción.md"]);
   } finally {
-    rm(root);
+    await rm(root);
   }
 });
 
@@ -285,7 +285,7 @@ test("REQ-026 SCN-071: the recent projects kept in the studio's settings folder 
     assert.ok(!again.some((r) => r.name === "p1"));
     assert.ok(fs.existsSync(path.join(home, "recent-projects.json")));
   } finally {
-    rm(home);
+    await rm(home);
   }
 });
 

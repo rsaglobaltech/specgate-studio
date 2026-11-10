@@ -76,6 +76,7 @@ export class Workspace {
     settleMs = 30,
   ): Promise<Watch> {
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let reading: Promise<void> = Promise.resolve();
     const watch = await watcher.watch(
       this.root,
       (p) => this.rules.ignores(p),
@@ -84,14 +85,16 @@ export class Workspace {
         onFile(path);
         if (timer) clearTimeout(timer);
         timer = setTimeout(() => {
-          this.state().then(onState, () => undefined);
+          reading = this.state().then(onState, () => undefined);
         }, settleMs);
       },
     );
     return {
+      // Closed once the git read in flight ends: no process outlives the watch.
       close: async () => {
         if (timer) clearTimeout(timer);
         await watch.close();
+        await reading;
       },
     };
   }

@@ -35,8 +35,12 @@ export function repo(root: string, branch: string, committed: string[] = ["READM
   gitIn(root, "commit", "-qm", "init");
 }
 
+/**
+ * Remove a test folder. On Windows a closed watch frees its folder a moment
+ * later, on the event loop: retry while it is busy, waiting between tries.
+ */
 export const rm = (root: string) =>
-  fs.rmSync(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
+  fs.promises.rm(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
 
 export async function until(ok: () => boolean, ms: number): Promise<boolean> {
   const end = Date.now() + ms;

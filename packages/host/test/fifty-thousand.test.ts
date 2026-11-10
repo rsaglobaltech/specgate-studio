@@ -72,7 +72,7 @@ before(async () => {
 
 after(async () => {
   await registry?.closeAll();
-  fs.rmSync(parent, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
+  await fs.promises.rm(parent, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
 });
 
 const until = async (ok: () => boolean, ms: number) => {

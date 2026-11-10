@@ -8,7 +8,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { Section, SectionReader, WorkspaceState, RecentProject } from "@specgate-studio/core";
-import { HostRegistry, startProjectHost, type Host } from "../src/index.js";
+import { InMemoryFileSystem } from "@specgate-studio/core";
+import { HostRegistry, startHost, startProjectHost, type Host } from "../src/index.js";
 import { client } from "./rpc.js";
 
 function tmp(prefix: string): string {
@@ -21,8 +22,9 @@ function write(root: string, rel: string, text = "x\n"): void {
   fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
   fs.writeFileSync(path.join(root, rel), text);
 }
+/** Remove a test folder, retrying while Windows still holds it (a closed watch frees it on the event loop). */
 const rm = (p: string) =>
-  fs.rmSync(p, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
+  fs.promises.rm(p, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
 
 /** A reader that counts the projects it was made for and the sections it read. */
 function spyReader() {
@@ -51,7 +53,7 @@ test("REQ-021 SCN-061: sprich opened is a Specgate project, and its Home is read
     ui.close();
   } finally {
     await host.close();
-    rm(parent);
+    await rm(parent);
   }
 });
 
@@ -71,7 +73,7 @@ test("REQ-021 SCN-062: nuevo, with nothing but .git, is an Empty folder, and no 
     ui.close();
   } finally {
     await host.close();
-    rm(parent);
+    await rm(parent);
   }
 });
 
@@ -98,7 +100,7 @@ test("REQ-022 SCN-064: a build writing apps/web/dist reads no section again", as
     ui.close();
   } finally {
     await host.close();
-    rm(parent);
+    await rm(parent);
   }
 });
 
@@ -141,7 +143,7 @@ test("REQ-026 SCN-072: picking sprich from the recent projects of another projec
     ui.close();
   } finally {
     await registry.closeAll();
-    rm(parent);
+    await rm(parent);
   }
 });
 
@@ -172,15 +174,7 @@ test("REQ-026 SCN-073: sprich and billing open; picking sprich from billing's wi
     ui.close();
   } finally {
     await registry.closeAll();
-    // TEMPORARY diagnostic for Windows' EBUSY: what still holds the folder.
-    const t0 = Date.now();
-    try {
-      rm(parent);
-    } catch (e) {
-      throw new Error(
-        `${(e as Error).message} after ${Date.now() - t0} ms; active ${JSON.stringify(process.getActiveResourcesInfo())}; hosts ${hosts.length}`,
-      );
-    }
+    await rm(parent);
   }
 });
 
@@ -196,4 +190,25 @@ test("REQ-026: on Windows and macOS the registry knows a project in another case
   const again = await registry.open("c:\\users\\dev\\sprich");
   assert.equal(again.reused, true);
   assert.equal(n, 1);
+});
+
+test("REQ-026: a host closes only once its reads of git have ended — on Windows a running git holds the project's folder", async () => {
+  let ended = false;
+  const slowGit = {
+    branch: async () => "main",
+    uncommitted: async () => {
+      await new Promise((r) => setTimeout(r, 150));
+      ended = true;
+      return [];
+    },
+  };
+  const host = await startHost({
+    projectDir: "/tmp/sprich",
+    reader: { read: async (s) => ({ section: s }) },
+    runner: { run: async () => 0 },
+    port: 0,
+    workspace: { fs: new InMemoryFileSystem(), git: slowGit },
+  });
+  await host.close();
+  assert.equal(ended, true, "close waited for git");
 });

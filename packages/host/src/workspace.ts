@@ -68,5 +68,13 @@ export async function attachWorkspace(
       return { url, reused };
     },
   };
-  return { handlers, close: async () => void (await watch?.close()) };
+  // Closed once the reads of git in flight end: on Windows a process holds its
+  // working folder, and none may outlive the host.
+  return {
+    handlers,
+    close: async () => {
+      await watch?.close();
+      await current.catch(() => undefined);
+    },
+  };
 }

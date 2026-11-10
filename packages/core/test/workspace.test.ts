@@ -134,6 +134,30 @@ test("REQ-023: a change whose path the system lost is told as ANY_FILE, reads ev
   await watch.close();
 });
 
+test("REQ-023: closing the watch waits for the state read in flight, so no git read outlives it", async () => {
+  const watcher = new InMemoryWatcher();
+  let ended = false;
+  const slowGit = {
+    branch: async () => "main",
+    uncommitted: async () => {
+      await new Promise((r) => setTimeout(r, 80));
+      ended = true;
+      return [];
+    },
+  };
+  const ws = await Workspace.open(SPRICH, new InMemoryFileSystem(), slowGit);
+  const watch = await ws.watch(
+    watcher,
+    () => undefined,
+    () => undefined,
+    1,
+  );
+  watcher.emit(SPRICH, "spec.md");
+  await new Promise((r) => setTimeout(r, 10));
+  await watch.close();
+  assert.equal(ended, true, "close waited for git");
+});
+
 // ── REQ-024: the branch, and the team and ticket it names ────────────────
 
 test("REQ-024 SCN-067: feature/pagos/SPR-42 names the team pagos and the ticket SPR-42", async () => {
