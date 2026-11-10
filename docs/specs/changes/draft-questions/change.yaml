@@ -7,3 +7,4 @@ retire_capabilities: false
 req_range: [REQ-091, REQ-100]
 scn_range: [SCN-271, SCN-300]
 brief: docs/briefs/phase-2-specgate-flow.md
+approved: 2026-11-10
