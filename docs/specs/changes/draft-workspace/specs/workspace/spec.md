@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-021 — An opened folder is told empty, code, or a specgate project
 
-<!-- specgate:trace status=Draft actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL, when a Developer opens a folder, say which of three it is: an empty folder, a folder with code and no specgate project, or a specgate project.
 
@@ -24,7 +24,7 @@ The system SHALL, when a Developer opens a folder, say which of three it is: an 
 
 ### Requirement: REQ-022 — The watcher ignores dependencies, git and build output
 
-<!-- specgate:trace status=Draft actor=Developer kind=business-rule -->
+<!-- specgate:trace status=Implemented actor=Developer kind=business-rule -->
 
 The system SHALL not watch, list or count files under `node_modules`, `.git` or a build folder of the open project.
 
@@ -44,7 +44,7 @@ The system SHALL not watch, list or count files under `node_modules`, `.git` or 
 
 ### Requirement: REQ-023 — The watcher keeps up with 50,000 files
 
-<!-- specgate:trace status=Draft actor=Developer kind=non-functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=non-functional -->
 
 The system SHALL, in a project of 50,000 files outside the ignored folders, report a saved file to the core host within 500 ms of the save.
 
@@ -64,7 +64,7 @@ The system SHALL, in a project of 50,000 files outside the ignored folders, repo
 
 ### Requirement: REQ-024 — The branch, and the team and ticket it names
 
-<!-- specgate:trace status=Draft actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL show the open project's git branch and, when the branch is named `feature/<team>/<KEY>`, the team and the ticket key it names; a branch of any other form SHALL show the branch alone.
 
@@ -84,7 +84,7 @@ The system SHALL show the open project's git branch and, when the branch is name
 
 ### Requirement: REQ-025 — The uncommitted files, grouped by folder
 
-<!-- specgate:trace status=Draft actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL show how many files of the open project are uncommitted and group them by folder, with the files of the specification in a group of their own and a count per group.
 
@@ -104,7 +104,7 @@ The system SHALL show how many files of the open project are uncommitted and gro
 
 ### Requirement: REQ-026 — The last 10 projects of each Developer
 
-<!-- specgate:trace status=Draft actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL remember the last 10 projects each Developer opened, the most recent first, and open one of them when the Developer picks it; several projects SHALL be open at once, one window per project on the desktop and one tab in the browser, each with its own core host, and picking a recent project that is already open SHALL bring its window forward instead of opening it again.
 

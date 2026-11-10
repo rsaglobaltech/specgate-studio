@@ -9,6 +9,8 @@
     ".": "./dist/src/index.js"
   },
   "dependencies": {
+    "@specgate-studio/adapter-node": "*",
+    "@specgate-studio/adapter-specgate-cli": "*",
     "@specgate-studio/core": "*",
     "@specgate-studio/protocol": "*",
     "ws": "^8.22.2"

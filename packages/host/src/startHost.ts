@@ -12,6 +12,7 @@ import {
   type SpecgateCommand,
 } from "@specgate-studio/core";
 import { RPC_ERRORS, type Notifications, type ProjectOpened } from "@specgate-studio/protocol";
+import { attachWorkspace, type WorkspaceWiring } from "./workspace.js";
 
 export interface HostOptions {
   projectDir: string;
@@ -23,6 +24,8 @@ export interface HostOptions {
   specgate?: Pick<SpecgatePort, "version">;
   /** The specgate version the studio needs. */
   needs?: string;
+  /** The open folder: its kind, git state, watch and recent projects (draft-workspace). */
+  workspace?: WorkspaceWiring;
 }
 
 export interface Host {
@@ -59,6 +62,9 @@ export async function startHost(options: HostOptions): Promise<Host> {
   };
   commands.onEvent((event) => broadcast("command.event", event));
   state.onChange((sections) => broadcast("state.changed", { sections }));
+  const workspace = options.workspace
+    ? await attachWorkspace(options.projectDir, options.workspace, state, broadcast)
+    : null;
 
   const handlers: Record<string, (params: unknown) => Promise<unknown>> = {
     "project.open": async () => {
@@ -78,6 +84,7 @@ export async function startHost(options: HostOptions): Promise<Host> {
       return state.section(section as Section);
     },
     "command.run": async (params) => commands.run(params as SpecgateCommand),
+    ...workspace?.handlers,
   };
 
   server.on("connection", (ws: WebSocket) => {
@@ -116,11 +123,13 @@ export async function startHost(options: HostOptions): Promise<Host> {
   return {
     url: `ws://127.0.0.1:${port}/`,
     state,
-    close: () =>
-      new Promise<void>((ok) => {
+    close: async () => {
+      await workspace?.close();
+      await new Promise<void>((ok) => {
         for (const ws of server.clients) ws.terminate();
         server.close(() => ok());
-      }),
+      });
+    },
   };
 }
 
