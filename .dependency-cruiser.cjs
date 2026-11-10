@@ -33,6 +33,21 @@ module.exports = {
       to: { pathNot: "^packages/(protocol|core)/src" },
     },
     {
+      name: "ui-imports-protocol-only",
+      comment:
+        "Rule 4: apps/ui is a driving adapter — it calls the host through protocol and imports neither core, host nor an adapter.",
+      severity: "error",
+      from: { path: "^apps/ui/src" },
+      to: { path: "^(packages/(?!protocol/)|apps/(?!ui/))" },
+    },
+    {
+      name: "only-host-and-apps-wire-adapters",
+      comment: "Rule 5: an adapter never imports the host; only host and apps wire adapters together.",
+      severity: "error",
+      from: { path: "^packages/adapter-" },
+      to: { path: "^packages/host" },
+    },
+    {
       name: "no-circular",
       severity: "error",
       from: {},
@@ -41,7 +56,7 @@ module.exports = {
   ],
   options: {
     doNotFollow: { path: "node_modules" },
-    exclude: { path: "(^|/)dist/|node_modules" },
+    exclude: { path: "(^|/)dist(-test)?/|node_modules" },
     tsPreCompilationDeps: true,
     tsConfig: { fileName: "tsconfig.depcruise.json" },
     enhancedResolveOptions: { extensions: [".ts", ".js"] },
