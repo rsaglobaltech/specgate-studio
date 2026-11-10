@@ -24,7 +24,7 @@ The system SHALL show, on every screen, one activity bar with the same eleven vi
 
 ### Requirement: REQ-032 — Editor tabs, a bottom panel and a status bar
 
-<!-- specgate:trace status=Draft actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL frame every view with editor tabs, a bottom panel with the tabs Terminal, Gate, Problems, Agent output and Traceability, and a status bar that shows the branch, the ticket, the gate, the progress and the cost; and SHALL answer from the first day to these shortcuts: Ctrl/Cmd+Shift+P and F1 (the command palette), Ctrl/Cmd+P (open a file), Ctrl/Cmd+S (save), Ctrl/Cmd+W (close a tab), Ctrl+Tab and Ctrl+Shift+Tab (next and previous tab), Ctrl/Cmd+B (the side bar), Ctrl/Cmd+J (the bottom panel), Ctrl+` (the terminal), Ctrl/Cmd+Shift+E (Explorer), Ctrl/Cmd+F (find), Ctrl/Cmd+Shift+F (search the project) and Ctrl/Cmd+, (Settings).
 

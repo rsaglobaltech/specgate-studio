@@ -1,4 +1,4 @@
-import { RecentProjects, Workspace, type SectionReader } from "@specgate-studio/core";
+import { RecentProjects, Workspace, type Finding, type SectionReader } from "@specgate-studio/core";
 import {
   NodeFileSystem,
   NodeGit,
@@ -10,7 +10,7 @@ import {
 import { SpecgateCli, specgateBin } from "@specgate-studio/adapter-specgate-cli";
 import { HostRegistry } from "./HostRegistry.js";
 import { NodeProcessRunner } from "./NodeProcessRunner.js";
-import { startHost, type Host } from "./startHost.js";
+import { startHost, type Host, type ProjectFiles } from "./startHost.js";
 
 export interface ProjectHostOptions {
   /** 0 picks a free port. */
@@ -20,7 +20,13 @@ export interface ProjectHostOptions {
   /** The studio's settings folder; the user's (draft-workspace A6) when not given. */
   home?: string;
   /** How a specgate project's sections are read; the CLI adapter when not given. */
-  reader?: (projectDir: string) => SectionReader;
+  reader?: (projectDir: string) => SectionReader | Promise<SectionReader>;
+  /** The UI's built files, served by every project's host (draft-workbench). */
+  ui?: string;
+  /** The project's files for Explorer and the editor (draft-workbench, draft-editor). */
+  files?: (projectDir: string) => ProjectFiles;
+  /** The specification's findings with file and line, for the editor (draft-editor REQ-043). */
+  findings?: (projectDir: string) => () => Promise<Finding[]>;
 }
 
 /** A folder that is not a specgate project reads nothing, and no specgate runs for it (REQ-021). */
@@ -57,7 +63,7 @@ export async function startProjectHost(
     kind !== "specgate"
       ? NOT_A_PROJECT
       : options.reader
-        ? options.reader(projectDir)
+        ? await options.reader(projectDir)
         : new SpecgateCli({ program: process.execPath, prefix: [specgateBin()], projectDir });
 
   const host = await startHost({
@@ -70,6 +76,9 @@ export async function startProjectHost(
     }),
     port: options.port ?? 0,
     workspace: { fs, git, watcher: new NodeWatcher(), recent, registry },
+    ...(options.ui ? { ui: options.ui } : {}),
+    ...(options.files ? { files: options.files(projectDir) } : {}),
+    ...(options.findings ? { findings: options.findings(projectDir) } : {}),
   });
   await recent.opened(projectDir);
   registry.add(projectDir, host);
