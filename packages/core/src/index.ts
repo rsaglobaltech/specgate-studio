@@ -91,3 +91,7 @@ export {
   type MakeWatcher,
   type PortCheck,
 } from "./contracts/workspaceContracts.js";
+export type { Pty, PtyOptions, PtyPort, Shell } from "./ports/PtyPort.js";
+export { Scrollback, shellFor } from "./domain/terminal.js";
+export { SCROLLBACK_LINES, Terminals } from "./application/Terminals.js";
+export { FakePty, InMemoryPty } from "./fakes/InMemoryPty.js";

@@ -50,8 +50,16 @@ export function commandLine(c: SpecgateCommand): CommandLine | null {
   }
 }
 
-/** How a command is shown to the person: what they would type. */
-export const shown = (args: readonly string[]) => ["specgate", ...args].join(" ");
+/**
+ * How a command is shown to the person: what they would type, a value a shell
+ * would split or read quoted as one argument (REQ-054). Shown only: commands
+ * run with an argument array and no shell (REQ-007).
+ */
+export const shown = (args: readonly string[]) =>
+  [
+    "specgate",
+    ...args.map((a) => (/^[\w./:=@%+,-]+$/.test(a) ? a : `'${a.replace(/'/g, "'\\''")}'`)),
+  ].join(" ");
 
 /** What the UI follows of a run (REQ-005). */
 export type CommandEvent =

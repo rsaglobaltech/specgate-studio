@@ -7,5 +7,12 @@
     "declaration": false,
     "types": ["node"]
   },
-  "include": ["src/views.ts", "src/i18n.ts", "src/keys.ts", "src/tabs.ts", "src/palette.ts", "test/*.test.ts"]
+  "include": [
+    "src/views.ts",
+    "src/i18n.ts",
+    "src/keys.ts",
+    "src/tabs.ts",
+    "src/palette.ts",
+    "test/*.test.ts"
+  ]
 }

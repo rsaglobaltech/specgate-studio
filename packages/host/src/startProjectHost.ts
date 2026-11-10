@@ -11,6 +11,7 @@ import { SpecgateCli, specgateBin } from "@specgate-studio/adapter-specgate-cli"
 import { HostRegistry } from "./HostRegistry.js";
 import { NodeProcessRunner } from "./NodeProcessRunner.js";
 import { startHost, type Host, type ProjectFiles } from "./startHost.js";
+import type { TerminalWiring } from "./terminals.js";
 
 export interface ProjectHostOptions {
   /** 0 picks a free port. */
@@ -27,6 +28,8 @@ export interface ProjectHostOptions {
   files?: (projectDir: string) => ProjectFiles;
   /** The specification's findings with file and line, for the editor (draft-editor REQ-043). */
   findings?: (projectDir: string) => () => Promise<Finding[]>;
+  /** The Developer's terminals (draft-terminal). */
+  terminals?: TerminalWiring;
 }
 
 /** A folder that is not a specgate project reads nothing, and no specgate runs for it (REQ-021). */
@@ -79,6 +82,7 @@ export async function startProjectHost(
     ...(options.ui ? { ui: options.ui } : {}),
     ...(options.files ? { files: options.files(projectDir) } : {}),
     ...(options.findings ? { findings: options.findings(projectDir) } : {}),
+    ...(options.terminals ? { terminals: options.terminals } : {}),
   });
   await recent.opened(projectDir);
   registry.add(projectDir, host);

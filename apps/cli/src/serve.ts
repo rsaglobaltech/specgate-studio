@@ -1,14 +1,21 @@
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { Finding, ProcessRunner, SectionReader } from "@specgate-studio/core";
+import {
+  shellFor,
+  type Finding,
+  type ProcessRunner,
+  type SectionReader,
+} from "@specgate-studio/core";
 import {
   NodeProcessRunner,
   startHost,
   startProjectHost,
   type Host,
   type ProjectFiles,
+  type TerminalWiring,
   type WorkspaceWiring,
 } from "@specgate-studio/host";
+import { NodePty, hasProgram } from "@specgate-studio/adapter-pty-node";
 import { SpecgateCli, specgateBin } from "@specgate-studio/adapter-specgate-cli";
 import { inProcessSpecgate } from "@specgate-studio/adapter-specgate-api";
 import { nodeFiles } from "./nodeFiles.js";
@@ -27,6 +34,8 @@ export interface ServeOptions {
   files?: ProjectFiles;
   findings?: () => Promise<Finding[]>;
   workspace?: WorkspaceWiring;
+  /** The Developer's terminals; the real pty and their shell when not given. */
+  terminals?: TerminalWiring;
 }
 
 /**
@@ -39,6 +48,11 @@ export async function serve(options: ServeOptions): Promise<Host> {
   const projectDir = path.resolve(options.projectDir);
   const ui = options.ui ?? UI_DIST;
   const port = options.port ?? 4180;
+  // The Developer's shell in a real pty (draft-terminal A1, A10).
+  const terminals = options.terminals ?? {
+    pty: new NodePty(),
+    shell: shellFor(process.platform, process.env, hasProgram),
+  };
   const cliFor = (dir: string) =>
     new SpecgateCli({ program: process.execPath, prefix: [specgateBin()], projectDir: dir });
   if (options.reader || options.runner || options.files || options.workspace) {
@@ -51,6 +65,7 @@ export async function serve(options: ServeOptions): Promise<Host> {
       files: options.files ?? nodeFiles(projectDir),
       ...(options.findings ? { findings: options.findings } : {}),
       ...(options.workspace ? { workspace: options.workspace } : {}),
+      terminals,
       port,
       ui,
     });
@@ -58,6 +73,7 @@ export async function serve(options: ServeOptions): Promise<Host> {
   return startProjectHost(projectDir, {
     port,
     ui,
+    terminals,
     reader: async (dir) => (await inProcessSpecgate(cliFor(dir), dir)) ?? cliFor(dir),
     files: nodeFiles,
     // The specification's findings with file and line, for the editor (REQ-043): read-only.

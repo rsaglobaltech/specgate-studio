@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { ComponentType } from "preact";
 import type { EditorPaneProps, LensAction } from "./EditorPane.js";
+import type { TerminalPaneProps } from "./TerminalPane.js";
 import type {
   Annotations,
   CommandEvent,
@@ -78,6 +79,13 @@ export function App({ rpc }: { rpc: Rpc }) {
   const annotateRef = useRef<(path: string) => Promise<unknown>>(async () => undefined);
   const [lost, setLost] = useState(false);
   const [workspace, setWorkspace] = useState<WorkspaceState | null>(null);
+  // The terminals (draft-terminal): xterm.js loads after the first paint.
+  const [TerminalPane, setTerminalPane] = useState<ComponentType<TerminalPaneProps> | null>(null);
+  const [echo, setEcho] = useState("");
+  const [showStudio, setShowStudio] = useState(0);
+  const [openShell, setOpenShell] = useState(0);
+  /** The button whose command runs next: the echo names it (REQ-053). */
+  const pendingLabel = useRef<string | null>(null);
   const filterRef = useRef<HTMLInputElement>(null);
   const tr = useCallback(
     (key: string, vars?: Record<string, string | number>) => t(lang, key, vars),
@@ -129,10 +137,16 @@ export function App({ rpc }: { rpc: Rpc }) {
     const offCommand = rpc.on("command.event", (e: CommandEvent) => {
       if (e.type === "started") {
         setOutput((o) => `${o}$ ${e.command}\n`);
+        const label = pendingLabel.current ?? e.command;
+        pendingLabel.current = null;
+        setEcho((t) => `${t}\u25b6 "${label}" \u00b7 ${e.command}\n`);
         if (e.command === "specgate check") setGate("running");
-      } else if (e.type === "output") setOutput((o) => o + e.chunk);
-      else {
+      } else if (e.type === "output") {
+        setOutput((o) => o + e.chunk);
+        setEcho((t) => t + e.chunk);
+      } else {
         setOutput((o) => `${o}exit ${e.exitCode}\n`);
+        setEcho((t) => `${t}exit ${e.exitCode}\n\n`);
         if (e.notice) setEnded(e.notice);
         setGate((g) => (g === "running" ? (e.exitCode === 0 ? "passed" : "failed") : g));
       }
@@ -201,22 +215,32 @@ export function App({ rpc }: { rpc: Rpc }) {
     [unsaved],
   );
 
+  /** Runs a studio command for a button, which the terminal's echo names (REQ-053). */
+  const runCommand = useCallback(
+    (label: string, command: Parameters<Rpc["ask"]>[1] & { name: string }) => {
+      pendingLabel.current = label;
+      setPanel({ open: true, tab: "terminal" });
+      setShowStudio((n) => n + 1);
+      return rpc.ask("command.run", command as never);
+    },
+    [rpc],
+  );
+
   const runFeature = useCallback(
-    (f: Feature) => {
+    (f: Feature, label?: string) => {
       setPalette(null);
       const r = f.run;
       if (r.kind === "view") {
         show(r.view);
         if (r.panel === "fromTicket") setTicketPanel(true);
       } else if (r.kind === "check") {
-        setPanel({ open: true, tab: "gate" });
-        void rpc.ask("command.run", { name: "check" });
+        void runCommand(label ?? f.title[lang], { name: "check" });
       } else if (r.kind === "language") setLang((l) => (l === "en" ? "es" : "en"));
       else if (r.kind === "theme") setTheme((th) => (th === "dark" ? "light" : "dark"));
       else if (r.kind === "togglePanel") setPanel((p) => ({ ...p, open: !p.open }));
       else setSidebar((s) => !s);
     },
-    [rpc, show],
+    [rpc, show, runCommand, lang],
   );
 
   const act = useCallback(
@@ -277,6 +301,12 @@ export function App({ rpc }: { rpc: Rpc }) {
 
   useEffect(() => {
     performance.mark("workbench:interactive");
+    // The terminals' code after the workbench is usable, never in its way (ADR-0002).
+    const t = window.setTimeout(
+      () => void import("./TerminalPane.js").then((m) => setTerminalPane(() => m.default)),
+      50,
+    );
+    return () => window.clearTimeout(t);
   }, []);
 
   const home = sections.home as
@@ -409,7 +439,10 @@ export function App({ rpc }: { rpc: Rpc }) {
                   onLens={(action: LensAction, req: string) => {
                     const change = annotations[activeFile]?.change ?? null;
                     if (action === "check")
-                      runFeature(FEATURES.find((f) => f.id === "gate.check")!);
+                      runFeature(
+                        FEATURES.find((f) => f.id === "gate.check")!,
+                        lensLabels.check,
+                      );
                     else if (action === "build") (setBuildReq(req), show("build"));
                     else if (action === "trace") (setTraceFilter(req), show("traceability"));
                     else if (action === "ask") {
@@ -434,7 +467,7 @@ export function App({ rpc }: { rpc: Rpc }) {
                       });
                   }}
                   onAnswer={(q, answer) =>
-                    void rpc.ask("command.run", {
+                    void runCommand(lensLabels.answer, {
                       name: "answer",
                       q: q.id,
                       answer,
@@ -465,7 +498,12 @@ export function App({ rpc }: { rpc: Rpc }) {
                 filterRef={filterRef}
                 ticketPanel={ticketPanel}
                 reportTotal={(sections.report as { total?: number } | undefined)?.total}
-                onCheck={() => runFeature(FEATURES.find((f) => f.id === "gate.check")!)}
+                onCheck={() =>
+                  runFeature(
+                    FEATURES.find((f) => f.id === "gate.check")!,
+                    tr("home.check"),
+                  )
+                }
                 onHelp={(r: HelpRequest) =>
                   setHelp({ title: tr("help.title", { feature: r.feature }), requests: [r] })
                 }
@@ -496,8 +534,28 @@ export function App({ rpc }: { rpc: Rpc }) {
             </button>
           ))}
         </div>
-        <div class="pbody mono" data-panel={panel.tab}>
-          {panel.tab === "gate" || panel.tab === "terminal" ? (
+        <div class={`pbody mono ${panel.tab === "terminal" ? "flush" : ""}`} data-panel={panel.tab}>
+          {TerminalPane && (
+            <div class="term-wrap" style={{ display: panel.tab === "terminal" ? "flex" : "none" }}>
+              <TerminalPane
+                rpc={rpc}
+                theme={theme}
+                visible={panel.open && panel.tab === "terminal"}
+                echo={echo}
+                showStudio={showStudio}
+                openShell={openShell}
+                labels={{
+                  newTerminal: tr("term.new"),
+                  close: tr("term.close"),
+                  readonly: tr("term.readonly"),
+                  openTerminal: tr("term.open"),
+                }}
+              />
+            </div>
+          )}
+          {panel.tab === "terminal" ? (
+            !TerminalPane && tr("panel.empty")
+          ) : panel.tab === "gate" ? (
             <pre style="margin:0;white-space:pre-wrap">{output || tr("panel.empty")}</pre>
           ) : (
             tr("panel.empty")
@@ -564,7 +622,7 @@ export function App({ rpc }: { rpc: Rpc }) {
           onCancel={() => setAsk(null)}
           onSend={(text) => {
             setAsk(null);
-            void rpc.ask("command.run", {
+            void runCommand(lensLabels.ask, {
               name: "change-note",
               change: ask.change,
               text,

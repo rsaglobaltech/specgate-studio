@@ -131,7 +131,7 @@ export async function studio(opts: StudioOptions = {}) {
     git,
   };
   const host = await serve({ projectDir, port: 0, reader, runner, files, findings, workspace });
-  return { host, reads, runs, writes, disk, git, url: host.url.replace(/^ws/, "http") };
+  return { host, reads, runs, writes, disk, git, projectDir, url: host.url.replace(/^ws/, "http") };
 }
 
 export async function open(
@@ -156,4 +156,28 @@ export async function open(
 export async function close(s: { host: Host }, page?: Page) {
   await page?.close();
   await s.host.close();
+}
+
+/** What an xterm.js terminal of the page shows, its whole buffer, line by line. */
+export function termText(page: Page, id: string): Promise<string> {
+  return page.evaluate((tid) => {
+    const term = (window as any).__studio.terms?.get(tid);
+    if (!term) return "";
+    const b = term.buffer.active;
+    const lines: string[] = [];
+    for (let i = 0; i < b.length; i++) lines.push(b.getLine(i).translateToString(true));
+    return lines.join("\n");
+  }, id);
+}
+
+/** Waits until a terminal shows text matching `re`. */
+export async function untilTerm(page: Page, id: string, re: RegExp, ms = 20_000): Promise<string> {
+  const start = Date.now();
+  for (;;) {
+    const text = await termText(page, id);
+    if (re.test(text)) return text;
+    if (Date.now() - start > ms)
+      throw new Error(`terminal ${id}: no ${re} in ${JSON.stringify(text.slice(-400))}`);
+    await new Promise((ok) => setTimeout(ok, 50));
+  }
 }

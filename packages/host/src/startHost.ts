@@ -24,6 +24,7 @@ import {
   type SpecgateCommand,
 } from "@specgate-studio/core";
 import { fromStudio, uiHandler } from "./serveUi.js";
+import { attachTerminals, type TerminalWiring } from "./terminals.js";
 import { RPC_ERRORS, type Notifications, type ProjectOpened } from "@specgate-studio/protocol";
 import { attachWorkspace, type WorkspaceWiring } from "./workspace.js";
 
@@ -41,6 +42,8 @@ export interface HostOptions {
   workspace?: WorkspaceWiring;
   /** The UI's built files, served on the same port as the WebSocket. */
   ui?: string;
+  /** The Developer's terminals: the pty and their shell (draft-terminal). */
+  terminals?: TerminalWiring;
   /** The project's files for Explorer and the editor's tabs. */
   files?: ProjectFiles;
   /** The specification's findings with file and line (`validate --strict`), for the editor (REQ-043). */
@@ -137,6 +140,11 @@ export async function startHost(options: HostOptions): Promise<Host> {
   const workspace = options.workspace
     ? await attachWorkspace(options.projectDir, options.workspace, state, broadcast)
     : null;
+  const terminals = options.terminals
+    ? attachTerminals(options.projectDir, options.terminals, broadcast, (m) =>
+        rpcError(RPC_ERRORS.params, m),
+      )
+    : null;
 
   const handlers: Record<string, (params: unknown) => Promise<unknown>> = {
     "project.open": async () => {
@@ -218,6 +226,7 @@ export async function startHost(options: HostOptions): Promise<Host> {
       return { path: p, text: await options.files.read(p) };
     },
     ...workspace?.handlers,
+    ...terminals?.handlers,
   };
 
   server.on("connection", (ws: WebSocket) => {
@@ -257,6 +266,7 @@ export async function startHost(options: HostOptions): Promise<Host> {
     url: `ws://127.0.0.1:${port}/`,
     state,
     close: async () => {
+      terminals?.close();
       await workspace?.close();
       await new Promise<void>((ok) => {
         for (const ws of server.clients) ws.terminate();

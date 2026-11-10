@@ -51,6 +51,17 @@ export interface Requests {
   "file.write": { params: { path: string; text: string }; result: { path: string } };
   /** A file's findings and blocking questions (draft-editor REQ-043, REQ-044). */
   "file.annotations": { params: { path: string; text?: string }; result: Annotations };
+  /** A terminal of the Developer's: their shell in the project's folder (draft-terminal REQ-051). */
+  "terminal.open": { params: { cols: number; rows: number }; result: { id: string; name: string } };
+  "terminal.input": { params: { id: string; data: string }; result: Record<string, never> };
+  "terminal.resize": {
+    params: { id: string; cols: number; rows: number };
+    result: Record<string, never>;
+  };
+  "terminal.close": { params: { id: string }; result: Record<string, never> };
+  "terminal.list": { params: Record<string, never>; result: Array<{ id: string; name: string }> };
+  /** What a terminal printed, its last 10,000 lines (REQ-056). */
+  "terminal.scrollback": { params: { id: string }; result: { data: string } };
   /** A file of the project, as text. */
   "file.read": { params: { path: string }; result: { path: string; text: string } };
 }
@@ -59,6 +70,9 @@ export interface Requests {
 export interface Notifications {
   "state.changed": { sections: Section[] };
   "command.event": CommandEvent;
+  /** A terminal's output, as it is written (draft-terminal). */
+  "terminal.data": { id: string; data: string };
+  "terminal.exit": { id: string; code: number };
   /** The folder changed: its new state (REQ-023). */
   "workspace.changed": { state: WorkspaceState };
 }
