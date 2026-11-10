@@ -11,13 +11,13 @@ import {
 } from "../domain/workspace.js";
 import type { FileSystemPort } from "../ports/FileSystemPort.js";
 import type { GitPort } from "../ports/GitPort.js";
-import type { Watch, WatcherPort } from "../ports/WatcherPort.js";
+import { ANY_FILE, type Watch, type WatcherPort } from "../ports/WatcherPort.js";
 
 export type WorkspaceListener = (state: WorkspaceState) => void;
 
 /**
  * The open folder (draft-workspace): what kind it is (REQ-021), what is never
- * watched (REQ-022), its branch and the team and ticket it names (REQ-024),
+ * watched (REQ-022) — a lost change, `ANY_FILE`, is told too — its branch and the team and ticket it names (REQ-024),
  * and its uncommitted files by folder (REQ-025) — read through ports only.
  */
 export class Workspace {
@@ -80,7 +80,7 @@ export class Workspace {
       this.root,
       (p) => this.rules.ignores(p),
       (path) => {
-        if (this.rules.ignores(path)) return;
+        if (path !== ANY_FILE && this.rules.ignores(path)) return;
         onFile(path);
         if (timer) clearTimeout(timer);
         timer = setTimeout(() => {

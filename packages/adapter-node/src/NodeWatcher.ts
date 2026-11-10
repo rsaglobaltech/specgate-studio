@@ -1,6 +1,6 @@
 import { watch as fsWatch, promises as fsp, type FSWatcher } from "node:fs";
 import * as path from "node:path";
-import type { Watch, WatcherPort } from "@specgate-studio/core";
+import { ANY_FILE, type Watch, type WatcherPort } from "@specgate-studio/core";
 import { posix } from "./paths.js";
 
 /**
@@ -25,14 +25,16 @@ export class NodeWatcher implements WatcherPort {
       if (p && !ignored(p)) onChange(p);
     };
     if (this.platform !== "linux") {
+      // No name: the system's buffer overflowed and the names are lost (Windows).
       const w = fsWatch(root, { recursive: true }, (_event, name) => {
         if (name) tell(name.toString());
+        else onChange(ANY_FILE);
       });
       // A watch that fails — its folder deleted — is closed, never left to spin.
       w.on("error", () => w.close());
       return { close: async () => w.close() };
     }
-    return perFolder(root, ignored, tell);
+    return perFolder(root, ignored, tell, () => onChange(ANY_FILE));
   }
 }
 
@@ -40,6 +42,7 @@ async function perFolder(
   root: string,
   ignored: (path: string) => boolean,
   tell: (rel: string) => void,
+  lost: () => void,
 ): Promise<Watch> {
   const watchers = new Map<string, FSWatcher>();
   let closed = false;
@@ -50,7 +53,7 @@ async function perFolder(
     let w: FSWatcher;
     try {
       w = fsWatch(abs, (_event, name) => {
-        if (!name) return;
+        if (!name) return lost();
         const child = rel ? `${rel}/${name.toString()}` : name.toString();
         tell(child);
         // A new folder is watched as it appears; a gone one stops by itself.

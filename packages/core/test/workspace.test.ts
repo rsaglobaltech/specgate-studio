@@ -6,6 +6,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  ANY_FILE,
+  SECTIONS,
+  sectionsFedBy,
   FILE_SYSTEM_CONTRACT,
   FOLDER_KIND_LABEL,
   GIT_CONTRACT,
@@ -107,6 +110,27 @@ test("REQ-023: a saved file is told to the host as it is saved, and the state fo
   assert.deepEqual(files, ["spec.md", "spec.md"], "told at once");
   await new Promise((r) => setTimeout(r, 40));
   assert.deepEqual(states, [1], "one state for the burst");
+  await watch.close();
+});
+
+test("REQ-023: a change whose path the system lost is told as ANY_FILE, reads every section again, and the state follows", async () => {
+  const watcher = new InMemoryWatcher();
+  const git = new InMemoryGit({ [SPRICH]: { branch: "main", uncommitted: [] } });
+  const ws = await Workspace.open(SPRICH, new InMemoryFileSystem(), git);
+  const files: string[] = [];
+  const states: number[] = [];
+  const watch = await ws.watch(
+    watcher,
+    (p) => files.push(p),
+    (s) => states.push(s.git!.total),
+    5,
+  );
+  git.set(SPRICH, { branch: "main", uncommitted: ["README.md"] });
+  watcher.emit(SPRICH, ANY_FILE);
+  assert.deepEqual(files, [ANY_FILE]);
+  assert.deepEqual(sectionsFedBy(ANY_FILE), [...SECTIONS]);
+  await new Promise((r) => setTimeout(r, 40));
+  assert.deepEqual(states, [1]);
   await watch.close();
 });
 

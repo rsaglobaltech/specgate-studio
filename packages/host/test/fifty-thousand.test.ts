@@ -55,6 +55,11 @@ before(async () => {
   git("init", "-q", "-b", "main");
   git("add", "-A");
   git("commit", "-qm", "50,000 files");
+  // Files written in the same second as the index are "racily clean" to git,
+  // which then reads all 50,000 again on every status. A project's files are
+  // older than its index: refresh the index once, a second later, as git does.
+  await new Promise((r) => setTimeout(r, 1100));
+  git("update-index", "-q", "--really-refresh");
 
   const reader = (): SectionReader => ({
     read: async (section) => (reads.push({ section, at: performance.now() }), { section }),

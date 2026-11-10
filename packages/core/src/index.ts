@@ -41,7 +41,7 @@ export {
 } from "./domain/workspace.js";
 export type { FileSystemPort } from "./ports/FileSystemPort.js";
 export type { GitPort } from "./ports/GitPort.js";
-export type { Watch, WatcherPort } from "./ports/WatcherPort.js";
+export { ANY_FILE, type Watch, type WatcherPort } from "./ports/WatcherPort.js";
 export type { StorePort } from "./ports/StorePort.js";
 export type { ClockPort } from "./ports/ClockPort.js";
 export { Workspace, type WorkspaceListener } from "./application/Workspace.js";

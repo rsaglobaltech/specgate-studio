@@ -1,3 +1,10 @@
+/**
+ * The path told when the system lost which files changed — on Windows a burst
+ * such as `npm install` overflows the watch's buffer: anything may have
+ * changed, and what depends on the files is read again (REQ-023).
+ */
+export const ANY_FILE = "*";
+
 /** A watch that can be stopped. */
 export interface Watch {
   close(): Promise<void>;

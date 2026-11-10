@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import {
+  ANY_FILE,
   FILE_SYSTEM_CONTRACT,
   FOLDER_KIND_LABEL,
   GIT_CONTRACT,
@@ -131,10 +132,6 @@ test("REQ-022 SCN-063: npm install writing node_modules changes neither the unco
     const ws = await nodeWorkspace(root);
     const before = (await ws.state()).git;
     const told: string[] = [];
-    // TEMPORARY diagnostic for Windows: what a raw recursive watch sees.
-    const raw: string[] = [];
-    const rawWatch = fs.watch(root, { recursive: true }, (e, n) => raw.push(`${e}:${n}`));
-    rawWatch.on("error", (e) => raw.push(`error:${e.message}`));
     const watch = await ws.watch(
       new NodeWatcher(),
       (p) => told.push(p),
@@ -145,14 +142,15 @@ test("REQ-022 SCN-063: npm install writing node_modules changes neither the unco
       for (let i = 0; i < 20; i++) write(root, `node_modules/dep${i}/index.js`);
       write(root, "node_modules/.package-lock.json", "{}");
       write(root, "README.md", "# changed\n");
+      // README.md is told by name — or, when the burst overflowed the system's
+      // buffer (Windows), as ANY_FILE, and the state is read again.
       assert.ok(
-        await until(() => told.includes("README.md"), 3000),
-        `README.md told — told ${JSON.stringify(told.slice(0, 20))} raw ${JSON.stringify(raw.slice(0, 12))} root ${root}`,
+        await until(() => told.includes("README.md") || told.includes(ANY_FILE), 3000),
+        `README.md told — told ${JSON.stringify(told.slice(0, 20))}`,
       );
       await new Promise((r) => setTimeout(r, 100));
     } finally {
       await watch.close();
-      rawWatch.close();
     }
     assert.deepEqual(
       told.filter((p) => p.startsWith("node_modules")),
