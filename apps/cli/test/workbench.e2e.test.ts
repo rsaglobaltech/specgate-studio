@@ -108,7 +108,7 @@ async function open(
     );
   }
   await page.goto(host.url);
-  await page.waitForSelector(".activity .sga");
+  await page.waitForSelector("body[data-ready] .activity .sga");
   return page;
 }
 

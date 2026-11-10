@@ -171,7 +171,8 @@ export function App({ rpc }: { rpc: Rpc }) {
     [show, tr],
   );
 
-  useEffect(() => {
+  // Before the first paint: a key pressed the moment the workbench shows is not lost.
+  useLayoutEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && palette) {
         setPalette(null);
@@ -183,6 +184,7 @@ export function App({ rpc }: { rpc: Rpc }) {
       act(a);
     };
     window.addEventListener("keydown", onKey, true);
+    document.body.dataset.ready = "1";
     return () => window.removeEventListener("keydown", onKey, true);
   }, [act, palette]);
 
