@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
@@ -172,8 +172,9 @@ export default function TerminalPane(p: TerminalPaneProps) {
     for (const e of entries.current.values()) e.term.options.theme = THEMES[p.theme];
   }, [p.theme]);
 
-  // Only the selected terminal shows; the others stay mounted with their scrollback.
-  useEffect(() => {
+  // Only the selected terminal shows — in the same frame as its tab — the others
+  // stay mounted with their scrollback.
+  useLayoutEffect(() => {
     for (const e of entries.current.values())
       e.host.style.display = e.id === selected ? "block" : "none";
     const e = selected ? entries.current.get(selected) : undefined;

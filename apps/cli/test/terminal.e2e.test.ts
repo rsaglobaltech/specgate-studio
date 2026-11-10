@@ -242,12 +242,19 @@ test("REQ-056 SCN-162: from the second terminal back to the first — its output
     await type(page, b, "echo tests-of-the-second");
     await untilTerm(page, b, /^tests-of-the-second$/m);
     await page.click(`.term-tab[data-terminal="${a}"]`);
+    // The first shows and the second hides, in the same frame as the tab.
+    await page.waitForFunction(
+      (id) =>
+        (document.querySelector(`.xterm-host[data-terminal="${id}"]`) as HTMLElement | null)?.style
+          .display === "block",
+      a,
+    );
     assert.equal(
       await page.$eval(
-        `.xterm-host[data-terminal="${a}"]`,
+        `.xterm-host[data-terminal="${b}"]`,
         (e) => (e as HTMLElement).style.display,
       ),
-      "block",
+      "none",
     );
     const first = await termText(page, a);
     assert.match(first, /^log-of-the-first$/m);

@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-051 — A terminal in the project's folder, with the Developer's shell
 
-<!-- specgate:trace status=Draft actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL open each terminal as a pseudo-terminal (pty) of the core host — the same one for the desktop app and the browser — that runs the Developer's own shell, started in the folder of the open project, so that what the Developer types runs exactly as in their system terminal.
 
@@ -24,7 +24,7 @@ The system SHALL open each terminal as a pseudo-terminal (pty) of the core host 
 
 ### Requirement: REQ-052 — The same terminal on macOS, Windows and Linux
 
-<!-- specgate:trace status=Draft actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL offer the terminal on macOS, Windows and Linux alike, through the core host's pty on all three: the shell is the Developer's login shell on macOS and Linux and PowerShell on Windows, and a full-screen program such as `vim` or `less` draws and takes keys as it does in the system terminal.
 
@@ -44,7 +44,7 @@ The system SHALL offer the terminal on macOS, Windows and Linux alike, through t
 
 ### Requirement: REQ-053 — A command the studio runs is echoed with the button that started it
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL echo every command the studio runs in the terminal: a line that names the button that started it and the command as the Developer would type it, then the command's output as it is written, then how it ended, with its exit code.
 
@@ -64,7 +64,7 @@ The system SHALL echo every command the studio runs in the terminal: a line that
 
 ### Requirement: REQ-054 — What the studio echoes is shown, never typed into the Developer's shell
 
-<!-- specgate:trace actor=Developer kind=business-rule -->
+<!-- specgate:trace status=Implemented actor=Developer kind=business-rule -->
 
 The system SHALL run a command the studio starts through the host, with its arguments as an array and no shell, and only show it in the terminal: nothing the studio echoes is written to the input of a Developer's shell, and the Developer cannot type into the studio's own terminal.
 
@@ -84,7 +84,7 @@ The system SHALL run a command the studio starts through the host, with its argu
 
 ### Requirement: REQ-055 — Several terminals at once
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL let the Developer open several terminals at once, each its own pty and shell, listed by name in the bottom panel, each closable without closing the others.
 
@@ -104,7 +104,7 @@ The system SHALL let the Developer open several terminals at once, each its own 
 
 ### Requirement: REQ-056 — Each terminal keeps its scrollback
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL keep each terminal's scrollback while the Developer switches between terminals, views and editor tabs, and while the bottom panel is hidden; a terminal's output is never mixed into another's.
 
