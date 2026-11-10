@@ -11,7 +11,7 @@ export {
   type RunResult,
 } from "./domain/command.js";
 export type { ProcessRunner } from "./ports/ProcessRunner.js";
-export { Commands, type EventListener } from "./application/Commands.js";
+export { Commands, type CommandsOptions, type EventListener } from "./application/Commands.js";
 export type { Finding } from "./domain/finding.js";
 export type { SpecgatePort, SpecgateAnswer } from "./ports/SpecgatePort.js";
 export { isOlder, updateCommand } from "./domain/version.js";

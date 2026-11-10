@@ -84,7 +84,7 @@ The system SHALL, when the Reviewer's Ask for a change ends, show a notice that 
 
 ### Requirement: REQ-065 — Every explanation in English and Spanish, or the tests fail
 
-<!-- specgate:trace actor=Developer kind=business-rule -->
+<!-- specgate:trace status=Implemented actor=Developer kind=business-rule -->
 
 The system SHALL keep the explanation and the notices of every action that writes, runs, commits, pushes or sends as data in English and in Spanish, and the project's tests SHALL fail, naming the action and the missing language, when one of them lacks either.
 

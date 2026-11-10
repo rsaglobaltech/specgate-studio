@@ -12,7 +12,10 @@ import {
   explain,
   missingTranslations,
   notice,
+  Commands,
   type Catalog,
+  type CommandEvent,
+  type ProcessRunner,
 } from "../src/index.js";
 
 const PARTS = ["does", "command", "files", "doesNot", "next"] as const;
@@ -155,4 +158,29 @@ test("REQ-063: a failure that is not a refusal names the exit code and still say
   assert.equal(n.tone, "failed");
   assert.match(n.ran, /código 1/);
   assert.match(n.wrote, /No se escribió ningún archivo/);
+});
+
+test("REQ-063 SCN-185: Check ends — its end event carries the notice in both languages, with the next requirement to apply", async () => {
+  const events: CommandEvent[] = [];
+  const runner: ProcessRunner = { run: async (_args, out) => (out("✔ Tests\n"), 0) };
+  const commands = new Commands(runner, { helpVars: () => ({ req: "REQ-031" }) });
+  commands.onEvent((e) => events.push(e));
+  await commands.run({ name: "check" });
+  const ended = events.find((e) => e.type === "ended");
+  assert.ok(ended && ended.type === "ended" && ended.notice, JSON.stringify(events));
+  assert.equal(ended.notice.en.next, "specgate apply REQ-031");
+  assert.match(ended.notice.en.wrote, /No file was written/);
+  assert.match(ended.notice.es.ran, /specgate check/);
+  assert.equal(ended.notice.es.tone, "ok");
+});
+
+test("REQ-063: a failing Check says its exit code; a command without its written files known carries no notice yet", async () => {
+  const events: CommandEvent[] = [];
+  const commands = new Commands({ run: async () => 1 });
+  commands.onEvent((e) => events.push(e));
+  await commands.run({ name: "check" });
+  await commands.run({ name: "status" });
+  const ended = events.filter((e) => e.type === "ended");
+  assert.equal(ended[0]?.type === "ended" && ended[0].notice?.en.tone, "failed");
+  assert.equal(ended[1]?.type === "ended" && ended[1].notice, undefined);
 });

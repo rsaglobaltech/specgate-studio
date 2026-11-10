@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
-import type { CommandEvent, SectionData } from "@specgate-studio/protocol";
+import type {
+  CommandEvent,
+  Lang as NoticeLang,
+  Notice,
+  SectionData,
+} from "@specgate-studio/protocol";
 import { Rpc } from "./rpc.js";
 import { t, type Lang } from "./i18n.js";
 import { shortcut, type Action } from "./keys.js";
@@ -8,6 +13,7 @@ import { closeTab, nextTab, openTab, previousTab, type Tabs } from "./tabs.js";
 import { BOTTOM_VIEWS, PANEL_TABS, TOP_VIEWS, type PanelTab, type ViewId } from "./views.js";
 import { Logo, ViewIcon } from "./icons.js";
 import { VirtualList } from "./VirtualList.js";
+import { HelpButton, HelpDialog, NoticeToast, type HelpRequest } from "./Help.js";
 import { loadSettings, saveSettings, type Theme } from "./settings.js";
 
 type Sections = Partial<
@@ -49,6 +55,8 @@ export function App({ rpc }: { rpc: Rpc }) {
   const [gate, setGate] = useState<Gate>("notRun");
   const [output, setOutput] = useState<string>("");
   const [notice, setNotice] = useState<string | null>(null);
+  const [ended, setEnded] = useState<Record<NoticeLang, Notice> | null>(null);
+  const [help, setHelp] = useState<HelpRequest | null>(null);
   const [lost, setLost] = useState(false);
   const filterRef = useRef<HTMLInputElement>(null);
   const tr = useCallback(
@@ -87,6 +95,7 @@ export function App({ rpc }: { rpc: Rpc }) {
       } else if (e.type === "output") setOutput((o) => o + e.chunk);
       else {
         setOutput((o) => `${o}exit ${e.exitCode}\n`);
+        if (e.notice) setEnded(e.notice);
         setGate((g) => (g === "running" ? (e.exitCode === 0 ? "passed" : "failed") : g));
       }
     });
@@ -318,6 +327,8 @@ export function App({ rpc }: { rpc: Rpc }) {
                 filterRef={filterRef}
                 ticketPanel={ticketPanel}
                 reportTotal={(sections.report as { total?: number } | undefined)?.total}
+                onCheck={() => runFeature(FEATURES.find((f) => f.id === "gate.check")!)}
+                onHelp={setHelp}
               />
             )}
           </div>
@@ -372,6 +383,25 @@ export function App({ rpc }: { rpc: Rpc }) {
           onClose={() => setPalette(null)}
           onFeature={runFeature}
           onFile={(p) => (setPalette(null), openFile(p))}
+          onHelp={(f) => (setPalette(null), setHelp({ action: f.action!, feature: f.title[lang] }))}
+        />
+      )}
+      {help && (
+        <HelpDialog
+          rpc={rpc}
+          lang={lang}
+          request={help}
+          title={tr("help.title", { feature: help.feature })}
+          closeLabel={tr("help.close")}
+          onClose={() => setHelp(null)}
+        />
+      )}
+      {ended && (
+        <NoticeToast
+          notice={ended[lang]}
+          nextLabel={tr("notice.next")}
+          fixLabel={tr("notice.fix")}
+          onClose={() => setEnded(null)}
         />
       )}
       {notice && (
@@ -452,6 +482,8 @@ interface ViewProps {
   filterRef: { current: HTMLInputElement | null };
   ticketPanel: boolean;
   reportTotal: number | undefined;
+  onCheck: () => void;
+  onHelp: (r: HelpRequest) => void;
 }
 
 function View(p: ViewProps) {
@@ -484,6 +516,24 @@ function View(p: ViewProps) {
               </div>
             </div>
           )}
+          <div class="actions">
+            <button type="button" class="btn pri" onClick={p.onCheck}>
+              {p.tr("home.check")}
+            </button>
+            <HelpButton
+              label={p.tr("help.button", { feature: p.tr("home.check") })}
+              onOpen={() =>
+                p.onHelp({
+                  action: "check",
+                  feature: p.tr("home.check"),
+                  vars: (() => {
+                    const req = /\bREQ-\d+\b/.exec(p.next ?? "")?.[0];
+                    return req ? { req } : {};
+                  })(),
+                })
+              }
+            />
+          </div>
         </>
       );
     case "explorer":
@@ -626,6 +676,7 @@ function Palette(props: {
   onClose: () => void;
   onFeature: (f: Feature) => void;
   onFile: (p: string) => void;
+  onHelp: (f: Feature) => void;
 }) {
   const [query, setQuery] = useState("");
   const [at, setAt] = useState(0);
@@ -636,6 +687,7 @@ function Palette(props: {
           title: f.title[props.lang],
           command: f.command,
           pick: () => props.onFeature(f),
+          help: f.action ? () => props.onHelp(f) : null,
         }))
       : props.files
           .filter((f) => f.toLowerCase().includes(query.toLowerCase()))
@@ -645,6 +697,7 @@ function Palette(props: {
             title: f,
             command: null as string | null,
             pick: () => props.onFile(f),
+            help: null as null | (() => void),
           }));
   const onKey = (e: KeyboardEvent) => {
     if (e.key === "ArrowDown")
@@ -681,6 +734,12 @@ function Palette(props: {
             >
               <span>{it.title}</span>
               {it.command && <span class="mono">{it.command}</span>}
+              {it.help && (
+                <HelpButton
+                  label={props.tr("help.button").replace("{feature}", it.title)}
+                  onOpen={it.help}
+                />
+              )}
             </li>
           ))}
         </ul>
