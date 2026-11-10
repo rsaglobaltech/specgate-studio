@@ -22,8 +22,17 @@ export class NodePty implements PtyPort {
         string
       >,
     });
+    // Input waits for the shell's first output: ConPTY loses or misroutes what
+    // is written before the shell is up (two terminals typed into at once).
+    let ready = false;
+    const queued: string[] = [];
+    p.onData(() => {
+      if (ready) return;
+      ready = true;
+      for (const data of queued.splice(0)) p.write(data);
+    });
     return {
-      write: (data) => p.write(data),
+      write: (data) => (ready ? p.write(data) : void queued.push(data)),
       resize: (cols, rows) => p.resize(Math.max(1, cols), Math.max(1, rows)),
       onData: (listener) => void p.onData(listener),
       onExit: (listener) => void p.onExit(({ exitCode }) => listener(exitCode)),

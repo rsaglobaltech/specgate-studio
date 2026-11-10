@@ -150,6 +150,8 @@ export async function open(
   }
   await page.goto(host.url);
   await page.waitForSelector("body[data-ready] .activity .sga");
+  // Settled: the terminals' chunk too, which asks the host for its terminals once.
+  await page.waitForSelector(".term-tabs");
   return page;
 }
 
