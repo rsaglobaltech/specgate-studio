@@ -18,3 +18,19 @@ export { isOlder, updateCommand } from "./domain/version.js";
 export { checkSpecgate, type SpecgateCheck } from "./application/checkSpecgate.js";
 export { SPECGATE_CONTRACT, type ContractCheck } from "./contracts/specgateContract.js";
 export { InMemorySpecgate } from "./fakes/InMemorySpecgate.js";
+export {
+  ACTIONS,
+  HELP,
+  LANGS,
+  PART_LABELS,
+  explain,
+  missingTranslations,
+  notice,
+  type ActionId,
+  type Catalog,
+  type Explanation,
+  type HelpVars,
+  type Lang,
+  type Notice,
+  type Outcome,
+} from "./domain/help.js";
