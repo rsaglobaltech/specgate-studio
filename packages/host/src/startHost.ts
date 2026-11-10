@@ -21,6 +21,7 @@ import {
 } from "@specgate-studio/core";
 import { fromStudio, uiHandler } from "./serveUi.js";
 import { RPC_ERRORS, type Notifications, type ProjectOpened } from "@specgate-studio/protocol";
+import { attachWorkspace, type WorkspaceWiring } from "./workspace.js";
 
 export interface HostOptions {
   projectDir: string;
@@ -32,6 +33,8 @@ export interface HostOptions {
   specgate?: Pick<SpecgatePort, "version">;
   /** The specgate version the studio needs. */
   needs?: string;
+  /** The open folder: its kind, git state, watch and recent projects (draft-workspace). */
+  workspace?: WorkspaceWiring;
   /** The UI's built files, served on the same port as the WebSocket. */
   ui?: string;
   /** The project's files for Explorer and the editor's tabs. */
@@ -117,11 +120,15 @@ export async function startHost(options: HostOptions): Promise<Host> {
       })
       .catch(() => undefined);
   // An outdated specgate reads nothing, not even for the notices (REQ-013).
-  if (checked.ok) void opening.then(readNext);
+  // A first read that fails (a folder that is no project) leaves Next unread.
+  if (checked.ok) void opening.then(readNext, () => undefined);
   state.onChange((sections) => {
     if (checked.ok && sections.includes("home")) void readNext();
     broadcast("state.changed", { sections });
   });
+  const workspace = options.workspace
+    ? await attachWorkspace(options.projectDir, options.workspace, state, broadcast)
+    : null;
 
   const handlers: Record<string, (params: unknown) => Promise<unknown>> = {
     "project.open": async () => {
@@ -161,6 +168,7 @@ export async function startHost(options: HostOptions): Promise<Host> {
         throw rpcError(RPC_ERRORS.params, "not a file of the project");
       return { path: p, text: await options.files.read(p) };
     },
+    ...workspace?.handlers,
   };
 
   server.on("connection", (ws: WebSocket) => {
@@ -199,11 +207,13 @@ export async function startHost(options: HostOptions): Promise<Host> {
   return {
     url: `ws://127.0.0.1:${port}/`,
     state,
-    close: () =>
-      new Promise<void>((ok) => {
+    close: async () => {
+      await workspace?.close();
+      await new Promise<void>((ok) => {
         for (const ws of server.clients) ws.terminate();
         server.close(() => http.close(() => ok()));
-      }),
+      });
+    },
   };
 }
 

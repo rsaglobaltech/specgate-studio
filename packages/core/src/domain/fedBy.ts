@@ -13,6 +13,8 @@ export function sectionsFedBy(file: string): Section[] {
 }
 
 function rule(p: string): Section[] {
+  // The system lost which file changed (the watcher's ANY_FILE): read all again.
+  if (p === "*") return [...SECTIONS];
   if (/^features\/.+\.feature$/.test(p)) return ["matrix"];
   if (p === "docs/brief.md") return ["home"];
   if (p === "spec.md" || p === "docs/specs/traceability.md") return ["home", "matrix", "report"];
