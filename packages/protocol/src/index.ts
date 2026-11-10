@@ -30,6 +30,10 @@ export interface Requests {
   "recent.list": { params: Record<string, never>; result: RecentProject[] };
   /** Open a recent project in its own host, or answer the one already open (REQ-026). */
   "recent.open": { params: { path: string }; result: { url: string; reused: boolean } };
+  /** The project's files, relative with `/`, as Explorer lists them (draft-workbench REQ-032). */
+  "files.list": { params: Record<string, never>; result: string[] };
+  /** A file of the project, as text. */
+  "file.read": { params: { path: string }; result: { path: string; text: string } };
 }
 
 /** What the host tells every connected UI, unasked. */
