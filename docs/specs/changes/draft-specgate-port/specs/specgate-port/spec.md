@@ -64,7 +64,7 @@ The system SHALL, when the host starts, read the installed specgate's version an
 
 ### Requirement: REQ-014 — The in-process adapter, once specgate publishes its API
 
-<!-- specgate:trace status=Draft actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL provide a second `SpecgatePort` adapter that calls specgate's public API `@rsaglobaltech/specgate/api` in process — `status`, `questions` and `matrix` first — without starting a process, and SHALL use it instead of the CLI adapter where specgate offers it, the CLI adapter covering every other command.
 
