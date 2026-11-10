@@ -1,3 +1,5 @@
+import type { Lang, Notice } from "./help.js";
+
 /**
  * The specgate commands the host may run, and the argument array each one is
  * (REQ-007): a value is always one element, never text a shell would read.
@@ -46,7 +48,13 @@ export const shown = (args: readonly string[]) => ["specgate", ...args].join(" "
 export type CommandEvent =
   | { type: "started"; run: number; command: string }
   | { type: "output"; run: number; chunk: string }
-  | { type: "ended"; run: number; exitCode: number };
+  | {
+      type: "ended";
+      run: number;
+      exitCode: number;
+      /** What the person is told, in both languages, when it is known (REQ-063). */
+      notice?: Record<Lang, Notice>;
+    };
 
 export type RunResult =
   | { ok: true; run: number; exitCode: number }

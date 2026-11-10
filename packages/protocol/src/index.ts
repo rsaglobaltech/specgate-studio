@@ -3,7 +3,12 @@
  * The UI imports this package and never core, host or an adapter (ADR-0001).
  */
 import type {
+  ActionId,
   CommandEvent,
+  Explanation,
+  HelpVars,
+  Lang,
+  Notice,
   RunResult,
   Section,
   SectionData,
@@ -11,12 +16,23 @@ import type {
 } from "@specgate-studio/core";
 
 export type { CommandEvent, RunResult, Section, SectionData, SpecgateCommand };
+/** What every action says about itself (draft-help). */
+export type { ActionId, Explanation, HelpVars, Lang, Notice };
 
 /** What the UI may ask, and what it gets back. */
 export interface Requests {
   "project.open": { params: Record<string, never>; result: ProjectOpened };
   "section.get": { params: { section: Section }; result: SectionData };
   "command.run": { params: SpecgateCommand; result: RunResult };
+  /** The project's files, relative with `/`, as Explorer lists them (draft-workbench REQ-032). */
+  "files.list": { params: Record<string, never>; result: string[] };
+  /** The "?" of an action: its five parts and their labels; runs nothing (draft-help REQ-061). */
+  "help.explain": {
+    params: { action: ActionId; lang: Lang; vars?: HelpVars };
+    result: { labels: Record<keyof Explanation, string>; explanation: Explanation };
+  };
+  /** A file of the project, as text. */
+  "file.read": { params: { path: string }; result: { path: string; text: string } };
 }
 
 /** What the host tells every connected UI, unasked. */

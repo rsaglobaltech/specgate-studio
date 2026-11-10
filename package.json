@@ -6,24 +6,26 @@
   "license": "MIT",
   "type": "module",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "apps/*"
   ],
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "build": "tsc -b packages/core packages/protocol packages/adapter-specgate-cli packages/adapter-specgate-api packages/host",
-    "test": "npm run build && node --test \"packages/*/dist/test/**/*.test.js\"",
-    "arch": "depcruise packages --config .dependency-cruiser.cjs",
-    "clean": "tsc -b --clean packages/core packages/protocol packages/adapter-specgate-cli packages/adapter-specgate-api packages/host",
-    "format": "prettier --write \"packages/*/src/**/*.ts\" \"packages/*/test/**/*.ts\"",
-    "format:check": "prettier --check \"packages/*/src/**/*.ts\" \"packages/*/test/**/*.ts\""
+    "build": "tsc -b packages/core packages/protocol packages/adapter-specgate-cli packages/adapter-specgate-api packages/host apps/cli && tsc -p apps/ui/tsconfig.test.json && tsc -p apps/ui/tsconfig.json && npm run build -w @specgate-studio/ui",
+    "test": "npm run build && node --test \"packages/*/dist/test/**/*.test.js\" \"apps/cli/dist/test/**/*.test.js\" \"apps/ui/dist-test/test/*.test.js\"",
+    "arch": "depcruise packages apps --config .dependency-cruiser.cjs",
+    "clean": "tsc -b --clean packages/core packages/protocol packages/adapter-specgate-cli packages/adapter-specgate-api packages/host apps/cli",
+    "format": "prettier --write \"packages/*/src/**/*.ts\" \"packages/*/test/**/*.ts\" \"apps/*/src/**/*.{ts,tsx,css}\" \"apps/*/test/**/*.ts\"",
+    "format:check": "prettier --check \"packages/*/src/**/*.ts\" \"packages/*/test/**/*.ts\" \"apps/*/src/**/*.{ts,tsx,css}\" \"apps/*/test/**/*.ts\""
   },
   "devDependencies": {
     "@rsaglobaltech/specgate": "^0.32.0",
     "@types/node": "^22.20.5",
     "@types/ws": "^8.18.2",
     "dependency-cruiser": "^16.10.4",
+    "playwright": "^1.65.0",
     "prettier": "^3.9.10",
     "typescript": "^5.9.3"
   }
