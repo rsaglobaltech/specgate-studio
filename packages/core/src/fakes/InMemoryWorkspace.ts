@@ -49,9 +49,12 @@ export class InMemoryFileSystem implements FileSystemPort {
 
 /** Git state in memory, by root. */
 export class InMemoryGit implements GitPort {
-  constructor(
-    private readonly repos: Record<string, { branch: string | null; uncommitted: string[] }> = {},
-  ) {}
+  private readonly repos: Record<string, { branch: string | null; uncommitted: string[] }> = {};
+
+  /** Repositories by their root, in either separator: kept with `/`, as they are looked up. */
+  constructor(repos: Record<string, { branch: string | null; uncommitted: string[] }> = {}) {
+    for (const [root, repo] of Object.entries(repos)) this.set(root, repo);
+  }
 
   set(root: string, repo: { branch: string | null; uncommitted: string[] }): void {
     this.repos[toPosix(root)] = repo;
