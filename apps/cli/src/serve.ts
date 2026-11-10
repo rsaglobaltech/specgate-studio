@@ -1,7 +1,14 @@
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Finding, ProcessRunner, SectionReader } from "@specgate-studio/core";
-import { NodeProcessRunner, startHost, type Host, type ProjectFiles } from "@specgate-studio/host";
+import {
+  NodeProcessRunner,
+  startHost,
+  startProjectHost,
+  type Host,
+  type ProjectFiles,
+  type WorkspaceWiring,
+} from "@specgate-studio/host";
 import { SpecgateCli, specgateBin } from "@specgate-studio/adapter-specgate-cli";
 import { inProcessSpecgate } from "@specgate-studio/adapter-specgate-api";
 import { nodeFiles } from "./nodeFiles.js";
@@ -14,33 +21,46 @@ export interface ServeOptions {
   /** 4180 by default (draft-core-host A2); 0 picks a free one. */
   port?: number;
   ui?: string;
-  /** Fakes for tests; the real adapters otherwise. */
+  /** Fakes for tests; given any of them, the host runs on fakes alone. */
   reader?: SectionReader;
   runner?: ProcessRunner;
   files?: ProjectFiles;
   findings?: () => Promise<Finding[]>;
+  workspace?: WorkspaceWiring;
 }
 
 /**
- * `specgate-studio serve`: one core host for the project, serving the UI and
- * its JSON-RPC on 127.0.0.1 — the only place adapters are wired (ADR-0001 rule 5).
+ * `specgate-studio serve`: the project's core host, serving the UI and its
+ * JSON-RPC on 127.0.0.1 — the only place adapters are wired (ADR-0001 rule
+ * 5): the open folder through the Node adapters (draft-workspace), specgate
+ * in process where its API answers and through the CLI otherwise.
  */
 export async function serve(options: ServeOptions): Promise<Host> {
   const projectDir = path.resolve(options.projectDir);
-  const program = process.execPath;
-  const prefix = [specgateBin()];
-  const cli = new SpecgateCli({ program, prefix, projectDir });
-  const reader = options.reader ?? (await inProcessSpecgate(cli, projectDir)) ?? cli;
-  // The specification's findings with file and line, for the editor (REQ-043): read-only.
-  const findings =
-    options.findings ?? (async () => (await cli.call(["validate", "--strict"])).findings);
-  return startHost({
-    projectDir,
-    reader,
-    runner: options.runner ?? new NodeProcessRunner({ program, prefix, projectDir }),
-    files: options.files ?? nodeFiles(projectDir),
-    findings,
-    port: options.port ?? 4180,
-    ui: options.ui ?? UI_DIST,
+  const ui = options.ui ?? UI_DIST;
+  const port = options.port ?? 4180;
+  const cliFor = (dir: string) =>
+    new SpecgateCli({ program: process.execPath, prefix: [specgateBin()], projectDir: dir });
+  if (options.reader || options.runner || options.files || options.workspace) {
+    return startHost({
+      projectDir,
+      reader: options.reader ?? cliFor(projectDir),
+      runner:
+        options.runner ??
+        new NodeProcessRunner({ program: process.execPath, prefix: [specgateBin()], projectDir }),
+      files: options.files ?? nodeFiles(projectDir),
+      ...(options.findings ? { findings: options.findings } : {}),
+      ...(options.workspace ? { workspace: options.workspace } : {}),
+      port,
+      ui,
+    });
+  }
+  return startProjectHost(projectDir, {
+    port,
+    ui,
+    reader: async (dir) => (await inProcessSpecgate(cliFor(dir), dir)) ?? cliFor(dir),
+    files: nodeFiles,
+    // The specification's findings with file and line, for the editor (REQ-043): read-only.
+    findings: (dir) => async () => (await cliFor(dir).call(["validate", "--strict"])).findings,
   });
 }

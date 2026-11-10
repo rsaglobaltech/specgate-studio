@@ -8,7 +8,14 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { chromium, type Browser, type Page } from "playwright";
-import type { Finding, ProcessRunner, Section, SectionReader } from "@specgate-studio/core";
+import {
+  InMemoryFileSystem,
+  InMemoryGit,
+  type Finding,
+  type ProcessRunner,
+  type Section,
+  type SectionReader,
+} from "@specgate-studio/core";
 import type { Host, ProjectFiles } from "@specgate-studio/host";
 import { serve, UI_DIST } from "../src/index.js";
 
@@ -48,6 +55,8 @@ export interface StudioOptions {
   files?: Record<string, string>;
   /** The gate's findings with file and line (validate --strict). */
   findings?: Finding[];
+  /** The project's git branch, read through the workspace (draft-workspace). */
+  branch?: string | null;
 }
 
 export async function studio(opts: StudioOptions = {}) {
@@ -113,8 +122,16 @@ export async function studio(opts: StudioOptions = {}) {
   const projectDir = path.join(dir, "sprich");
   fs.mkdirSync(projectDir, { recursive: true });
   const findings = async () => opts.findings ?? [];
-  const host = await serve({ projectDir, port: 0, reader, runner, files, findings });
-  return { host, reads, runs, writes, disk, url: host.url.replace(/^ws/, "http") };
+  // The open folder in memory: a specgate project on its branch, nothing uncommitted.
+  const git = new InMemoryGit({ [projectDir]: { branch: opts.branch ?? null, uncommitted: [] } });
+  const workspace = {
+    fs: new InMemoryFileSystem({
+      [path.join(projectDir, "docs/specs/traceability.md")]: "# Matrix\n",
+    }),
+    git,
+  };
+  const host = await serve({ projectDir, port: 0, reader, runner, files, findings, workspace });
+  return { host, reads, runs, writes, disk, git, url: host.url.replace(/^ws/, "http") };
 }
 
 export async function open(

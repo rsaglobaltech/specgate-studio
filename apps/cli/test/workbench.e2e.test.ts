@@ -72,8 +72,8 @@ test("REQ-031 SCN-092: Report opened in the browser — the same eleven views as
 
 // ── REQ-032 ─────────────────────────────────────────────────────────────
 
-test("REQ-032 SCN-093: Home's status bar — gate, requirements done of the total, cost; the panel's five tabs", async () => {
-  const s = await studio();
+test("REQ-032 SCN-093: sprich on feat/mvp-fase-1 — the status bar shows the branch, no ticket, the gate, done of the total, the cost; the panel's five tabs", async () => {
+  const s = await studio({ branch: "feat/mvp-fase-1" });
   const page = await open(s);
   try {
     await page.waitForFunction(
@@ -81,7 +81,12 @@ test("REQ-032 SCN-093: Home's status bar — gate, requirements done of the tota
     );
     assert.equal(await page.textContent('[data-testid="status-gate"]'), "Gate not run");
     assert.match((await page.textContent('[data-testid="status-cost"]')) ?? "", /Cost \$0\.00/);
-    assert.match((await page.textContent('[data-testid="status-ticket"]')) ?? "", /no ticket/);
+    await page.waitForFunction(
+      () =>
+        document.querySelector('[data-testid="status-branch"]')?.textContent ===
+        "⎇ feat/mvp-fase-1",
+    );
+    assert.equal(await page.textContent('[data-testid="status-ticket"]'), "no ticket");
     assert.deepEqual(await page.$$eval(".ptab", (els) => els.map((e) => e.textContent)), [
       "Terminal",
       "Gate",
@@ -89,6 +94,23 @@ test("REQ-032 SCN-093: Home's status bar — gate, requirements done of the tota
       "Agent output",
       "Traceability",
     ]);
+  } finally {
+    await close(s, page);
+  }
+});
+
+test("REQ-032: a branch that names a ticket — the status bar shows the ticket and its team", async () => {
+  const s = await studio({ branch: "feature/parking/KAN-13" });
+  const page = await open(s);
+  try {
+    await page.waitForFunction(
+      () =>
+        document.querySelector('[data-testid="status-ticket"]')?.textContent === "KAN-13 · parking",
+    );
+    assert.equal(
+      await page.textContent('[data-testid="status-branch"]'),
+      "⎇ feature/parking/KAN-13",
+    );
   } finally {
     await close(s, page);
   }

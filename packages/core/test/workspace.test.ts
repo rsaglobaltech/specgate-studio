@@ -293,3 +293,11 @@ for (const check of STORE_CONTRACT) {
   test(`REQ-026: the in-memory store — ${check.name}`, () =>
     check.run(async () => new InMemoryStore()));
 }
+
+test("REQ-024: the in-memory git finds a repository given with Windows separators, as the Node adapter does", async () => {
+  const git = new InMemoryGit({
+    "C:\\Users\\dev\\sprich": { branch: "feat/mvp-fase-1", uncommitted: [] },
+  });
+  assert.equal(await git.branch("C:\\Users\\dev\\sprich"), "feat/mvp-fase-1");
+  assert.equal(await git.branch("C:/Users/dev/sprich"), "feat/mvp-fase-1");
+});
