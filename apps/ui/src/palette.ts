@@ -1,3 +1,4 @@
+import type { ActionId } from "@specgate-studio/protocol";
 import type { Lang } from "./i18n.js";
 import type { ViewId } from "./views.js";
 
@@ -16,54 +17,64 @@ export interface Feature {
   /** The specgate command the feature runs, as the person would type it; null when it runs none (A7). */
   command: string | null;
   run: Run;
+  /** The action whose "?" explains it, when the feature writes, runs or sends (draft-help REQ-061). */
+  action?: ActionId;
 }
 
 /** Every feature of the studio, as the command palette lists it (REQ-033). */
 export const FEATURES: readonly Feature[] = [
   {
     id: "change.fromTicket",
+    action: "propose-ticket",
     title: { en: "Open a change from a ticket", es: "Abrir un cambio desde un ticket" },
     command: "specgate propose --from-ticket <KEY>",
     run: { kind: "view", view: "changes", panel: "fromTicket" },
   },
   {
     id: "change.new",
+    action: "propose",
     title: { en: "Open a new change", es: "Abrir un cambio nuevo" },
     command: "specgate propose <change-id>",
     run: { kind: "view", view: "changes" },
   },
   {
     id: "brief.draft",
+    action: "propose-brief",
     title: { en: "Draft a module of the brief", es: "Redactar un módulo del brief" },
     command: "specgate propose --from-brief <module>",
     run: { kind: "view", view: "brief" },
   },
   {
     id: "question.answer",
+    action: "answer",
     title: { en: "Answer a question", es: "Responder una pregunta" },
     command: 'specgate answer <Q> "<answer>"',
     run: { kind: "view", view: "questions" },
   },
   {
     id: "gate.check",
+    action: "check",
     title: { en: "Check the gate", es: "Comprobar el gate" },
     command: "specgate check",
     run: { kind: "check" },
   },
   {
     id: "requirement.build",
+    action: "build",
     title: { en: "Build a requirement", es: "Construir un requisito" },
     command: "specgate harness run --req <REQ>",
     run: { kind: "view", view: "build" },
   },
   {
     id: "requirement.apply",
+    action: "apply",
     title: { en: "Apply a requirement", es: "Aplicar un requisito" },
     command: "specgate apply <REQ>",
     run: { kind: "view", view: "changes" },
   },
   {
     id: "change.archive",
+    action: "archive",
     title: { en: "Archive a change", es: "Archivar un cambio" },
     command: "specgate archive <change-id>",
     run: { kind: "view", view: "changes" },

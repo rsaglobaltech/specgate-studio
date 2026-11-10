@@ -3,10 +3,15 @@
  * The UI imports this package and never core, host or an adapter (ADR-0001).
  */
 import type {
+  ActionId,
   CommandEvent,
   FolderKind,
   GitState,
   RecentProject,
+  Explanation,
+  HelpVars,
+  Lang,
+  Notice,
   RunResult,
   Section,
   SectionData,
@@ -18,6 +23,8 @@ import type {
 export type { CommandEvent, RunResult, Section, SectionData, SpecgateCommand };
 /** The open folder (draft-workspace): its kind, git state and the recent projects. */
 export type { FolderKind, GitState, RecentProject, UncommittedGroup, WorkspaceState };
+/** What every action says about itself (draft-help). */
+export type { ActionId, Explanation, HelpVars, Lang, Notice };
 
 /** What the UI may ask, and what it gets back. */
 export interface Requests {
@@ -32,6 +39,11 @@ export interface Requests {
   "recent.open": { params: { path: string }; result: { url: string; reused: boolean } };
   /** The project's files, relative with `/`, as Explorer lists them (draft-workbench REQ-032). */
   "files.list": { params: Record<string, never>; result: string[] };
+  /** The "?" of an action: its five parts and their labels; runs nothing (draft-help REQ-061). */
+  "help.explain": {
+    params: { action: ActionId; lang: Lang; vars?: HelpVars };
+    result: { labels: Record<keyof Explanation, string>; explanation: Explanation };
+  };
   /** A file of the project, as text. */
   "file.read": { params: { path: string }; result: { path: string; text: string } };
 }

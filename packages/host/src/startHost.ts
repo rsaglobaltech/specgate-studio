@@ -2,6 +2,13 @@ import { createServer } from "node:http";
 import * as path from "node:path";
 import { WebSocketServer, type WebSocket } from "ws";
 import {
+  ACTIONS,
+  LANGS,
+  PART_LABELS,
+  explain,
+  type ActionId,
+  type HelpVars,
+  type Lang,
   Commands,
   checkSpecgate,
   ProjectState,
@@ -68,7 +75,11 @@ export interface Host {
  */
 export async function startHost(options: HostOptions): Promise<Host> {
   const state = new ProjectState(options.reader);
-  const commands = new Commands(options.runner);
+  // The requirement Home says to apply next, for the notices (REQ-063).
+  let nextReq: string | undefined;
+  const commands = new Commands(options.runner, {
+    helpVars: () => (nextReq ? { req: nextReq } : {}),
+  });
   // The installed specgate first: an older one reads nothing (REQ-013).
   const checked =
     options.specgate && options.needs
@@ -100,7 +111,21 @@ export async function startHost(options: HostOptions): Promise<Host> {
     for (const ws of server.clients) if (ws.readyState === ws.OPEN) ws.send(text);
   };
   commands.onEvent((event) => broadcast("command.event", event));
-  state.onChange((sections) => broadcast("state.changed", { sections }));
+  const readNext = () =>
+    state
+      .section("home")
+      .then((home) => {
+        const next = (home as { nextCommand?: unknown } | null)?.nextCommand;
+        nextReq = typeof next === "string" ? /\bREQ-\d+\b/.exec(next)?.[0] : undefined;
+      })
+      .catch(() => undefined);
+  // An outdated specgate reads nothing, not even for the notices (REQ-013).
+  // A first read that fails (a folder that is no project) leaves Next unread.
+  if (checked.ok) void opening.then(readNext, () => undefined);
+  state.onChange((sections) => {
+    if (checked.ok && sections.includes("home")) void readNext();
+    broadcast("state.changed", { sections });
+  });
   const workspace = options.workspace
     ? await attachWorkspace(options.projectDir, options.workspace, state, broadcast)
     : null;
@@ -123,6 +148,19 @@ export async function startHost(options: HostOptions): Promise<Host> {
       return state.section(section as Section);
     },
     "command.run": async (params) => commands.run(params as SpecgateCommand),
+    // The "?": data shipped with the studio; nothing runs, specgate is not asked (A2).
+    "help.explain": async (params) => {
+      const p = (params ?? {}) as { action?: unknown; lang?: unknown; vars?: unknown };
+      if (!ACTIONS.includes(p.action as ActionId) || !LANGS.includes(p.lang as Lang))
+        throw rpcError(RPC_ERRORS.params, "no such action or language");
+      const lang = p.lang as Lang;
+      const vars = Object.fromEntries(
+        Object.entries((p.vars ?? {}) as Record<string, unknown>).filter(
+          ([k, v]) => ["req", "change", "module", "key", "q"].includes(k) && typeof v === "string",
+        ),
+      ) as HelpVars;
+      return { labels: PART_LABELS[lang], explanation: explain(p.action as ActionId, lang, vars) };
+    },
     "files.list": async () => (options.files ? options.files.list() : []),
     "file.read": async (params) => {
       const p = (params as { path?: unknown } | null)?.path;
