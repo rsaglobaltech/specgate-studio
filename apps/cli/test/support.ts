@@ -8,7 +8,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { chromium, type Browser, type Page } from "playwright";
-import type { ProcessRunner, Section, SectionReader } from "@specgate-studio/core";
+import type { Finding, ProcessRunner, Section, SectionReader } from "@specgate-studio/core";
 import type { Host, ProjectFiles } from "@specgate-studio/host";
 import { serve, UI_DIST } from "../src/index.js";
 
@@ -41,7 +41,16 @@ export function requirements(n: number) {
 }
 
 /** A host for sprich, fed by fakes; counts what it reads. */
-export async function studio(opts: { rows?: number; next?: string } = {}) {
+export interface StudioOptions {
+  rows?: number;
+  next?: string;
+  /** Files of the project with their text; Explorer's three by default. */
+  files?: Record<string, string>;
+  /** The gate's findings with file and line (validate --strict). */
+  findings?: Finding[];
+}
+
+export async function studio(opts: StudioOptions = {}) {
   const reads: Section[] = [];
   const rows = opts.rows ?? 14;
   const data: Record<Section, unknown> = {
@@ -68,28 +77,44 @@ export async function studio(opts: { rows?: number; next?: string } = {}) {
     report: { total: rows },
   };
   const reader: SectionReader = {
-    read: async (s) => (reads.push(s), data[s]),
+    read: async (s) => (reads.push(s), structuredClone(data[s])),
   };
   const runs: string[][] = [];
   const runner: ProcessRunner = {
     run: async (args, onOutput) => {
       runs.push([...args]);
+      // specgate answer: the question is answered, so it is no longer open.
+      if (args[0] === "answer") {
+        const q = data.questions as { questions: { open: Array<{ id: string }> } };
+        q.questions.open = q.questions.open.filter((x) => x.id !== args[1]);
+      }
       onOutput("✔ Specification\n✔ Tests\n");
       return 0;
     },
   };
+  const disk: Record<string, string> = opts.files ?? {
+    "docs/brief.md": "# docs/brief.md\n",
+    "docs/specs/changes/draft-workbench/proposal.md":
+      "# docs/specs/changes/draft-workbench/proposal.md\n",
+    "spec.md": "# spec.md\n",
+  };
+  const writes: string[] = [];
   const files: ProjectFiles = {
-    list: async () => [
-      "docs/brief.md",
-      "docs/specs/changes/draft-workbench/proposal.md",
-      "spec.md",
-    ],
-    read: async (p) => `# ${p}\n`,
+    list: async () => Object.keys(disk),
+    read: async (p) => {
+      if (!(p in disk)) throw new Error(`no ${p}`);
+      return disk[p]!;
+    },
+    write: async (p, text) => {
+      writes.push(p);
+      disk[p] = text;
+    },
   };
   const projectDir = path.join(dir, "sprich");
   fs.mkdirSync(projectDir, { recursive: true });
-  const host = await serve({ projectDir, port: 0, reader, runner, files });
-  return { host, reads, runs, url: host.url.replace(/^ws/, "http") };
+  const findings = async () => opts.findings ?? [];
+  const host = await serve({ projectDir, port: 0, reader, runner, files, findings });
+  return { host, reads, runs, writes, disk, url: host.url.replace(/^ws/, "http") };
 }
 
 export async function open(

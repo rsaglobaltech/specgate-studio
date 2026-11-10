@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
+import type { ComponentType } from "preact";
+import type { EditorPaneProps, LensAction } from "./EditorPane.js";
 import type {
+  Annotations,
   CommandEvent,
   Lang as NoticeLang,
   Notice,
@@ -56,11 +59,39 @@ export function App({ rpc }: { rpc: Rpc }) {
   const [output, setOutput] = useState<string>("");
   const [notice, setNotice] = useState<string | null>(null);
   const [ended, setEnded] = useState<Record<NoticeLang, Notice> | null>(null);
-  const [help, setHelp] = useState<HelpRequest | null>(null);
+  const [help, setHelp] = useState<{ title: string; requests: HelpRequest[] } | null>(null);
+  // The editor (draft-editor): Monaco loads with the first file, not before (REQ-041).
+  const [EditorPane, setEditorPane] = useState<ComponentType<EditorPaneProps> | null>(null);
+  const editorApi = useRef<{
+    value: (path: string) => string | null;
+    discard: (path: string) => void;
+  } | null>(null);
+  const [unsaved, setUnsaved] = useState<Record<string, true>>({});
+  const [annotations, setAnnotations] = useState<Record<string, Annotations>>({});
+  const [ask, setAsk] = useState<{ req: string; change: string } | null>(null);
+  const [closing, setClosing] = useState<string | null>(null);
+  const [buildReq, setBuildReq] = useState<string | null>(null);
+  const [traceFilter, setTraceFilter] = useState("");
+  const annotateTimer = useRef<number | undefined>(undefined);
+  const activeRef = useRef<string | null>(null);
+  const annotateRef = useRef<(path: string) => Promise<unknown>>(async () => undefined);
   const [lost, setLost] = useState(false);
   const filterRef = useRef<HTMLInputElement>(null);
   const tr = useCallback(
     (key: string, vars?: Record<string, string | number>) => t(lang, key, vars),
+    [lang],
+  );
+  const lensLabels = useMemo(
+    () => ({
+      build: t(lang, "lens.build"),
+      check: t(lang, "lens.check"),
+      trace: t(lang, "lens.trace"),
+      ask: t(lang, "lens.ask"),
+      help: "?",
+      answer: t(lang, "question.answer"),
+      other: t(lang, "question.other"),
+      options: t(lang, "question.options"),
+    }),
     [lang],
   );
 
@@ -82,6 +113,8 @@ export function App({ rpc }: { rpc: Rpc }) {
     );
     rpc.ask("files.list", {}).then(setFiles, () => undefined);
     const offState = rpc.on("state.changed", ({ sections: changed }) => {
+      // The open file's findings and questions may have changed with them (REQ-044).
+      if (activeRef.current) void annotateRef.current(activeRef.current);
       for (const s of changed) {
         rpc
           .ask("section.get", { section: s })
@@ -116,16 +149,50 @@ export function App({ rpc }: { rpc: Rpc }) {
     setTabs((tb) => ({ ...tb, active: null }));
   }, []);
 
+  const annotate = useCallback(
+    (path: string, text?: string) =>
+      rpc
+        .ask("file.annotations", text === undefined ? { path } : { path, text })
+        .then((a) => setAnnotations((old) => ({ ...old, [path]: a })))
+        .catch(() => undefined),
+    [rpc],
+  );
+
+  annotateRef.current = annotate;
+  activeRef.current = tabs.active;
+
   const openFile = useCallback(
     (path: string) => {
       setTabs((tb) => openTab(tb, path));
+      if (!EditorPane) {
+        void import("./EditorPane.js").then((m) => setEditorPane(() => m.default));
+      }
+      void annotate(path);
       if (texts[path] === undefined) {
         rpc
           .ask("file.read", { path })
           .then(({ text }) => setTexts((old) => ({ ...old, [path]: text })));
       }
     },
-    [rpc, texts],
+    [rpc, texts, EditorPane, annotate],
+  );
+
+  const save = useCallback(
+    async (path: string) => {
+      const text = editorApi.current?.value(path);
+      if (text == null) return;
+      await rpc.ask("file.write", { path, text });
+      setTexts((old) => ({ ...old, [path]: text }));
+      setUnsaved(({ [path]: _, ...rest }) => rest);
+      setNotice(t(lang, "editor.saved", { path }));
+      void annotate(path);
+    },
+    [rpc, lang, annotate],
+  );
+
+  const close = useCallback(
+    (path: string) => (unsaved[path] ? setClosing(path) : setTabs((tb) => closeTab(tb, path))),
+    [unsaved],
   );
 
   const runFeature = useCallback(
@@ -154,9 +221,9 @@ export function App({ rpc }: { rpc: Rpc }) {
         case "openFile":
           return setPalette("files");
         case "save":
-          return setNotice(tr("panel.empty"));
+          return tabs.active ? void save(tabs.active) : setNotice(tr("editor.nothing"));
         case "closeTab":
-          return setTabs((tb) => (tb.active ? closeTab(tb, tb.active) : tb));
+          return tabs.active ? close(tabs.active) : undefined;
         case "nextTab":
           return setTabs(nextTab);
         case "previousTab":
@@ -177,7 +244,7 @@ export function App({ rpc }: { rpc: Rpc }) {
           return show("settings");
       }
     },
-    [show, tr],
+    [show, tr, tabs.active, save, close],
   );
 
   // Before the first paint: a key pressed the moment the workbench shows is not lost.
@@ -189,7 +256,12 @@ export function App({ rpc }: { rpc: Rpc }) {
       }
       const a = shortcut(e, isMac);
       if (!a) return;
+      // Inside the editor, find is the editor's own (Monaco's find widget).
+      const inEditor = (e.target as Element | null)?.closest?.(".monaco-editor");
+      if (a === "find" && inEditor) return;
+      // The workbench's shortcut wins over the editor's (Monaco keeps F1 and Cmd+P for itself).
       e.preventDefault();
+      e.stopPropagation();
       act(a);
     };
     window.addEventListener("keydown", onKey, true);
@@ -291,11 +363,12 @@ export function App({ rpc }: { rpc: Rpc }) {
                 onClick={() => setTabs((tb) => ({ ...tb, active: p }))}
               >
                 {p.split("/").pop()}
-                <span
-                  class="x"
-                  aria-label="×"
-                  onClick={(e) => (e.stopPropagation(), setTabs((tb) => closeTab(tb, p)))}
-                >
+                {unsaved[p] && (
+                  <span class="dirty" aria-label={tr("editor.unsaved")}>
+                    ●
+                  </span>
+                )}
+                <span class="x" aria-label="×" onClick={(e) => (e.stopPropagation(), close(p))}>
                   ×
                 </span>
               </button>
@@ -306,7 +379,66 @@ export function App({ rpc }: { rpc: Rpc }) {
             data-view={activeFile ? "file" : view}
           >
             {activeFile ? (
-              <pre class="file">{texts[activeFile] ?? ""}</pre>
+              EditorPane && texts[activeFile] !== undefined ? (
+                <EditorPane
+                  path={activeFile}
+                  text={texts[activeFile]!}
+                  theme={theme}
+                  annotations={annotations[activeFile] ?? null}
+                  labels={lensLabels}
+                  commands={LENS_COMMANDS}
+                  register={(api) => (editorApi.current = api)}
+                  onEdit={(path, value) => {
+                    setUnsaved((u) => {
+                      if (value !== texts[path]) return { ...u, [path]: true };
+                      const { [path]: _, ...rest } = u;
+                      return rest;
+                    });
+                    window.clearTimeout(annotateTimer.current);
+                    annotateTimer.current = window.setTimeout(
+                      () => void annotate(path, value),
+                      300,
+                    );
+                  }}
+                  onLens={(action: LensAction, req: string) => {
+                    const change = annotations[activeFile]?.change ?? null;
+                    if (action === "check")
+                      runFeature(FEATURES.find((f) => f.id === "gate.check")!);
+                    else if (action === "build") (setBuildReq(req), show("build"));
+                    else if (action === "trace") (setTraceFilter(req), show("traceability"));
+                    else if (action === "ask") {
+                      if (change) setAsk({ req, change });
+                      else setNotice(tr("ask.noChange"));
+                    } else
+                      setHelp({
+                        title: tr("help.title", { feature: req }),
+                        requests: [
+                          { action: "build", feature: lensLabels.build, vars: { req } },
+                          { action: "check", feature: lensLabels.check, vars: { req } },
+                          ...(change
+                            ? [
+                                {
+                                  action: "ask-change" as const,
+                                  feature: lensLabels.ask,
+                                  vars: { req, change, module: change.replace(/^draft-/, "") },
+                                },
+                              ]
+                            : []),
+                        ],
+                      });
+                  }}
+                  onAnswer={(q, answer) =>
+                    void rpc.ask("command.run", {
+                      name: "answer",
+                      q: q.id,
+                      answer,
+                      change: q.change,
+                    })
+                  }
+                />
+              ) : (
+                <pre class="file">{texts[activeFile] ?? ""}</pre>
+              )
             ) : (
               <View
                 view={view}
@@ -328,7 +460,11 @@ export function App({ rpc }: { rpc: Rpc }) {
                 ticketPanel={ticketPanel}
                 reportTotal={(sections.report as { total?: number } | undefined)?.total}
                 onCheck={() => runFeature(FEATURES.find((f) => f.id === "gate.check")!)}
-                onHelp={setHelp}
+                onHelp={(r: HelpRequest) =>
+                  setHelp({ title: tr("help.title", { feature: r.feature }), requests: [r] })
+                }
+                buildReq={buildReq}
+                traceFilter={traceFilter}
               />
             )}
           </div>
@@ -383,15 +519,21 @@ export function App({ rpc }: { rpc: Rpc }) {
           onClose={() => setPalette(null)}
           onFeature={runFeature}
           onFile={(p) => (setPalette(null), openFile(p))}
-          onHelp={(f) => (setPalette(null), setHelp({ action: f.action!, feature: f.title[lang] }))}
+          onHelp={(f) => {
+            setPalette(null);
+            setHelp({
+              title: tr("help.title", { feature: f.title[lang] }),
+              requests: [{ action: f.action!, feature: f.title[lang] }],
+            });
+          }}
         />
       )}
       {help && (
         <HelpDialog
           rpc={rpc}
           lang={lang}
-          request={help}
-          title={tr("help.title", { feature: help.feature })}
+          requests={help.requests}
+          title={help.title}
           closeLabel={tr("help.close")}
           onClose={() => setHelp(null)}
         />
@@ -403,6 +545,63 @@ export function App({ rpc }: { rpc: Rpc }) {
           fixLabel={tr("notice.fix")}
           onClose={() => setEnded(null)}
         />
+      )}
+      {ask && (
+        <AskDialog
+          tr={tr}
+          req={ask.req}
+          change={ask.change}
+          onCancel={() => setAsk(null)}
+          onSend={(text) => {
+            setAsk(null);
+            void rpc.ask("command.run", {
+              name: "change-note",
+              change: ask.change,
+              text,
+              req: ask.req,
+            });
+          }}
+        />
+      )}
+      {closing && (
+        <div class="scrim">
+          <div
+            class="help"
+            role="dialog"
+            aria-label={tr("close.title", { file: closing.split("/").pop()! })}
+          >
+            <h2>{tr("close.title", { file: closing.split("/").pop()! })}</h2>
+            <div class="actions">
+              <button
+                type="button"
+                class="btn pri"
+                onClick={() => {
+                  const path = closing;
+                  setClosing(null);
+                  void save(path).then(() => setTabs((tb) => closeTab(tb, path)));
+                }}
+              >
+                {tr("close.save")}
+              </button>
+              <button
+                type="button"
+                class="btn"
+                onClick={() => {
+                  const path = closing;
+                  setClosing(null);
+                  editorApi.current?.discard(path);
+                  setUnsaved(({ [path]: _, ...rest }) => rest);
+                  setTabs((tb) => closeTab(tb, path));
+                }}
+              >
+                {tr("close.discard")}
+              </button>
+              <button type="button" class="btn" onClick={() => setClosing(null)}>
+                {tr("close.cancel")}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       {notice && (
         <div class="notice" role="status" onClick={() => setNotice(null)}>
@@ -484,6 +683,8 @@ interface ViewProps {
   reportTotal: number | undefined;
   onCheck: () => void;
   onHelp: (r: HelpRequest) => void;
+  buildReq: string | null;
+  traceFilter: string;
 }
 
 function View(p: ViewProps) {
@@ -595,17 +796,37 @@ function View(p: ViewProps) {
           ))}
         </>
       );
-    case "traceability":
+    case "build":
+      return (
+        <>
+          {title}
+          {p.buildReq && (
+            <section class="card" data-req={p.buildReq}>
+              <h2 style="margin:0 0 6px;font-size:16px">
+                {p.tr("build.req", { req: p.buildReq })}
+              </h2>
+              <p class="muted" style="margin:0">
+                {p.tr("build.soon", { req: p.buildReq })}
+              </p>
+            </section>
+          )}
+        </>
+      );
+    case "traceability": {
+      // Trace from the editor: the requirement's own row first (REQ-042).
+      const rows = p.traceFilter
+        ? p.requirements.filter((r) => r.id === p.traceFilter)
+        : p.requirements;
       return (
         <div style="display:flex;flex-direction:column;height:100%">
-          <h2 style="margin:0;padding:12px" class="muted">
-            {p.tr("traceability.rows", { n: p.requirements.length })}
+          <h2 style="margin:0;padding:12px" class="muted" data-filter={p.traceFilter}>
+            {p.tr("traceability.rows", { n: rows.length })}
           </h2>
           <div style="flex:1;min-height:0" data-testid="traceability-list">
             <VirtualList
-              count={p.requirements.length}
+              count={rows.length}
               row={(i) => {
-                const r = p.requirements[i]!;
+                const r = rows[i]!;
                 return (
                   <div class="row">
                     <span class="mono">{r.id}</span>
@@ -620,6 +841,7 @@ function View(p: ViewProps) {
           </div>
         </div>
       );
+    }
     case "report":
       return (
         <>
@@ -744,6 +966,57 @@ function Palette(props: {
           ))}
         </ul>
         {items.length === 0 && <div class="none">{props.tr("palette.none")}</div>}
+      </div>
+    </div>
+  );
+}
+
+/** The specgate command each action above a requirement runs (REQ-042). */
+const LENS_COMMANDS: EditorPaneProps["commands"] = {
+  build: (req) => `specgate harness run --req ${req}`,
+  check: () => "specgate check",
+  trace: () => "specgate matrix",
+  ask: (req) => `specgate change note <change> "<request>" --req ${req}`,
+};
+
+/** Ask for a change: the Reviewer's words, sent with `specgate change note` (help REQ-064). */
+function AskDialog(props: {
+  tr: (k: string, v?: Record<string, string | number>) => string;
+  req: string;
+  change: string;
+  onCancel: () => void;
+  onSend: (text: string) => void;
+}) {
+  const [text, setText] = useState("");
+  return (
+    <div class="scrim" onClick={props.onCancel}>
+      <div
+        class="help"
+        role="dialog"
+        aria-label={props.tr("ask.title", { req: props.req })}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2>{props.tr("ask.title", { req: props.req })}</h2>
+        <p class="muted">{props.tr("ask.body", { change: props.change })}</p>
+        <textarea
+          class="ask"
+          value={text}
+          onInput={(e) => setText((e.target as HTMLTextAreaElement).value)}
+          aria-label={props.tr("ask.title", { req: props.req })}
+        />
+        <div class="actions">
+          <button
+            type="button"
+            class="btn pri"
+            disabled={!text.trim()}
+            onClick={() => props.onSend(text.trim())}
+          >
+            {props.tr("ask.send")}
+          </button>
+          <button type="button" class="btn" onClick={props.onCancel}>
+            {props.tr("close.cancel")}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -34,3 +34,14 @@ export {
   type Notice,
   type Outcome,
 } from "./domain/help.js";
+export {
+  annotate,
+  changeOf,
+  questionOptions,
+  requirementHeadings,
+  type Annotations,
+  type Heading,
+  type InlineQuestion,
+  type Mark,
+  type OpenQuestion,
+} from "./domain/editor.js";

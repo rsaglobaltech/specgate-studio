@@ -101,3 +101,27 @@ test("REQ-012: reading the matrix writes nothing — a derived matrix behind its
     fs.rmSync(path.dirname(dir), { recursive: true, force: true });
   }
 });
+
+test("REQ-043 SCN-126: `specgate validate --strict --json` through the adapter — findings with their file and line", async () => {
+  const dir = shop();
+  try {
+    const spec = path.join(
+      dir,
+      "docs",
+      "specs",
+      "changes",
+      "draft-orders",
+      "specs",
+      "orders",
+      "spec.md",
+    );
+    fs.appendFileSync(spec, "\n### Requirement: REQ-900 — Broken\n\nno shall here\n");
+    const answer = await cli(dir).call(["validate", "--strict"]);
+    const f = answer.findings.find((x) => x.code === "requirement_without_scenario");
+    assert.ok(f, JSON.stringify(answer.findings));
+    assert.equal(f.file, "docs/specs/changes/draft-orders/specs/orders/spec.md");
+    assert.equal(typeof f.line, "number");
+  } finally {
+    fs.rmSync(path.dirname(dir), { recursive: true, force: true });
+  }
+});
