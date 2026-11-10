@@ -111,7 +111,10 @@ test("REQ-032 SCN-094: brief.md open, then proposal.md from Explorer — two tab
       "proposal.md",
     );
     await page.waitForFunction(() =>
-      document.querySelector("pre.file")?.textContent?.includes("proposal.md"),
+      // The file is shown — by Monaco once it has loaded, or as text until then.
+      (document.querySelector('.content[data-view="file"]')?.textContent ?? "").includes(
+        "draft-workbench/proposal.md",
+      ),
     );
   } finally {
     await close(s, page);
