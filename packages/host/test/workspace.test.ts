@@ -21,7 +21,8 @@ function write(root: string, rel: string, text = "x\n"): void {
   fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
   fs.writeFileSync(path.join(root, rel), text);
 }
-const rm = (p: string) => fs.rmSync(p, { recursive: true, force: true });
+const rm = (p: string) =>
+  fs.rmSync(p, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
 
 /** A reader that counts the projects it was made for and the sections it read. */
 function spyReader() {

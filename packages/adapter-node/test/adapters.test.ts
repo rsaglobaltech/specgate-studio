@@ -131,6 +131,10 @@ test("REQ-022 SCN-063: npm install writing node_modules changes neither the unco
     const ws = await nodeWorkspace(root);
     const before = (await ws.state()).git;
     const told: string[] = [];
+    // TEMPORARY diagnostic for Windows: what a raw recursive watch sees.
+    const raw: string[] = [];
+    const rawWatch = fs.watch(root, { recursive: true }, (e, n) => raw.push(`${e}:${n}`));
+    rawWatch.on("error", (e) => raw.push(`error:${e.message}`));
     const watch = await ws.watch(
       new NodeWatcher(),
       (p) => told.push(p),
@@ -143,11 +147,12 @@ test("REQ-022 SCN-063: npm install writing node_modules changes neither the unco
       write(root, "README.md", "# changed\n");
       assert.ok(
         await until(() => told.includes("README.md"), 3000),
-        `README.md told — told ${JSON.stringify(told.slice(0, 20))}`,
+        `README.md told — told ${JSON.stringify(told.slice(0, 20))} raw ${JSON.stringify(raw.slice(0, 12))} root ${root}`,
       );
       await new Promise((r) => setTimeout(r, 100));
     } finally {
       await watch.close();
+      rawWatch.close();
     }
     assert.deepEqual(
       told.filter((p) => p.startsWith("node_modules")),

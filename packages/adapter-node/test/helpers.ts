@@ -35,7 +35,8 @@ export function repo(root: string, branch: string, committed: string[] = ["READM
   gitIn(root, "commit", "-qm", "init");
 }
 
-export const rm = (root: string) => fs.rmSync(root, { recursive: true, force: true });
+export const rm = (root: string) =>
+  fs.rmSync(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
 
 export async function until(ok: () => boolean, ms: number): Promise<boolean> {
   const end = Date.now() + ms;

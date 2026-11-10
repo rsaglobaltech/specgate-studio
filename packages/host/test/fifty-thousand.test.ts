@@ -38,13 +38,14 @@ before(async () => {
   parent = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "sg-50k-")));
   project = path.join(parent, "big").split(path.sep).join("/");
   home = path.join(parent, "home");
-  // 50,000 files outside the ignored folders: 500 folders of 100.
+  // 50,000 files outside the ignored folders: 500 folders of 100. One content
+  // for all, so git stores one object — 50,000 distinct ones take a minute to add.
   const n = FILES - 3;
   for (let d = 0; d * 100 < n; d++) {
     const dir = path.join(project, "src", `m${d}`);
     fs.mkdirSync(dir, { recursive: true });
     for (let f = 0; f < 100 && d * 100 + f < n; f++) {
-      fs.writeFileSync(path.join(dir, `f${f}.ts`), `export const v${f} = ${d};\n`);
+      fs.writeFileSync(path.join(dir, `f${f}.ts`), "export {};\n");
     }
   }
   fs.mkdirSync(path.join(project, "docs/specs/changes/draft-pedidos"), { recursive: true });
@@ -66,7 +67,7 @@ before(async () => {
 
 after(async () => {
   await registry?.closeAll();
-  fs.rmSync(parent, { recursive: true, force: true });
+  fs.rmSync(parent, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
 });
 
 const until = async (ok: () => boolean, ms: number) => {
