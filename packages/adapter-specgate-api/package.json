@@ -1,0 +1,15 @@
+{
+  "name": "@specgate-studio/adapter-specgate-api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "exports": {
+    ".": "./dist/src/index.js"
+  },
+  "dependencies": {
+    "@specgate-studio/core": "*",
+    "@specgate-studio/adapter-specgate-cli": "*"
+  }
+}

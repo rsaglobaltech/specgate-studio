@@ -12,15 +12,15 @@
     "node": ">=22"
   },
   "scripts": {
-    "build": "tsc -b packages/core packages/protocol packages/adapter-specgate-cli packages/host",
+    "build": "tsc -b packages/core packages/protocol packages/adapter-specgate-cli packages/adapter-specgate-api packages/host",
     "test": "npm run build && node --test \"packages/*/dist/test/**/*.test.js\"",
     "arch": "depcruise packages --config .dependency-cruiser.cjs",
-    "clean": "tsc -b --clean packages/core packages/protocol packages/adapter-specgate-cli packages/host",
+    "clean": "tsc -b --clean packages/core packages/protocol packages/adapter-specgate-cli packages/adapter-specgate-api packages/host",
     "format": "prettier --write \"packages/*/src/**/*.ts\" \"packages/*/test/**/*.ts\"",
     "format:check": "prettier --check \"packages/*/src/**/*.ts\" \"packages/*/test/**/*.ts\""
   },
   "devDependencies": {
-    "@rsaglobaltech/specgate": "^0.31.0",
+    "@rsaglobaltech/specgate": "^0.32.0",
     "@types/node": "^22.20.5",
     "@types/ws": "^8.18.2",
     "dependency-cruiser": "^16.10.4",
