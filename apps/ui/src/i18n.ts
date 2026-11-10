@@ -50,6 +50,12 @@ const en = {
   "ticket.body":
     "Paste a ticket key (KAN-13). specgate reads the ticket and opens a change from it.",
   "error.host": "The studio lost its host. Reload when it is back.",
+  "help.button": "What does “{feature}” do?",
+  "help.title": "{feature}: what it does",
+  "help.close": "Close",
+  "home.check": "Check the gate",
+  "notice.next": "Next",
+  "notice.fix": "Fix",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -103,6 +109,12 @@ const es: Record<MessageKey, string> = {
   "ticket.body":
     "Pega la clave de un ticket (KAN-13). specgate lee el ticket y abre un cambio con él.",
   "error.host": "El studio perdió su host. Recarga cuando vuelva.",
+  "help.button": "¿Qué hace «{feature}»?",
+  "help.title": "{feature}: qué hace",
+  "help.close": "Cerrar",
+  "home.check": "Comprobar el gate",
+  "notice.next": "Siguiente",
+  "notice.fix": "Solución",
 };
 
 export const MESSAGES: Record<Lang, Record<MessageKey, string>> = { en, es };
