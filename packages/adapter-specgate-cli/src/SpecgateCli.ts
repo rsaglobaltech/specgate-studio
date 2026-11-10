@@ -31,6 +31,8 @@ const SECTION_COMMAND: Record<Section, readonly string[]> = {
   report: ["report"],
 };
 
+const POSITIONAL_DIR = new Set(["check", "validate"]);
+
 /** The specgate this repository depends on: its bin script. */
 export function specgateBin(): string {
   const require = createRequire(import.meta.url);
@@ -62,8 +64,10 @@ export class SpecgateCli implements SpecgatePort {
   }
 
   async call(args: readonly string[]): Promise<SpecgateAnswer> {
-    const where =
-      args[0] === "check" ? [this.options.projectDir] : ["--project-dir", this.options.projectDir];
+    // `check` and `validate` take the folder as their positional argument.
+    const where = POSITIONAL_DIR.has(args[0] ?? "")
+      ? [this.options.projectDir]
+      : ["--project-dir", this.options.projectDir];
     const shown = `specgate ${[...args, "--json"].join(" ")}`;
     const { stdout, stderr, exitCode } = await this.exec([...args, "--json", ...where]);
     let parsed: unknown;

@@ -1,6 +1,28 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "rootDir": ".", "outDir": "dist", "types": ["node"] },
-  "include": ["src", "test"],
-  "references": [{ "path": "../core" }, { "path": "../protocol" }]
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist",
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "src",
+    "test"
+  ],
+  "references": [
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../protocol"
+    },
+    {
+      "path": "../adapter-node"
+    },
+    {
+      "path": "../adapter-specgate-cli"
+    }
+  ]
 }

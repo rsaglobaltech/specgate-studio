@@ -1,0 +1,19 @@
+{
+  "name": "@specgate-studio/ui",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite"
+  },
+  "dependencies": {
+    "@specgate-studio/protocol": "*",
+    "monaco-editor": "^0.57.0",
+    "preact": "^10.29.0"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.10.6",
+    "vite": "^8.3.7"
+  }
+}
