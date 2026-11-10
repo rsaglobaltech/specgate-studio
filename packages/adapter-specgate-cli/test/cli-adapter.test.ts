@@ -4,6 +4,7 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -72,5 +73,31 @@ test("REQ-012: output that is not JSON is an error that says the command", async
     await assert.rejects(port.read("questions"), /specgate questions --json/);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("REQ-012: reading the matrix writes nothing — a derived matrix behind its specs stays as it is on disk", async () => {
+  const dir = shop();
+  try {
+    const trace = path.join(dir, "docs", "specs", "traceability.md");
+    if (!fs.readFileSync(trace, "utf8").includes("specgate:derived")) {
+      const migrated = spawnSync(
+        process.execPath,
+        [specgateBin(), "matrix", "--migrate", "--project-dir", dir],
+        { encoding: "utf8" },
+      );
+      assert.equal(migrated.status, 0, migrated.stdout + migrated.stderr);
+    }
+    fs.appendFileSync(
+      path.join(dir, "spec.md"),
+      "\n### Requirement: REQ-900 — Cancel an order\n\nThe system SHALL let a customer cancel an order.\n\n" +
+        "<!-- specgate:trace status=Draft actor=Customer kind=functional -->\n",
+    );
+    const before = fs.readFileSync(trace, "utf8");
+    const matrix = (await cli(dir).read("matrix")) as { matrix: { written?: boolean } };
+    assert.equal(matrix.matrix.written, false);
+    assert.equal(fs.readFileSync(trace, "utf8"), before, "traceability.md unchanged");
+  } finally {
+    fs.rmSync(path.dirname(dir), { recursive: true, force: true });
   }
 });

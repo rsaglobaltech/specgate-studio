@@ -18,12 +18,16 @@ export interface SpecgateCliOptions {
   projectDir: string;
 }
 
-/** The command each section is read with (assumption A4 of draft-specgate-port). */
+/**
+ * The command each section is read with (assumption A4 of draft-specgate-port).
+ * The matrix with `--dry-run`: without it, specgate regenerates a derived
+ * matrix on disk, and reading a section must not write the project.
+ */
 const SECTION_COMMAND: Record<Section, readonly string[]> = {
   home: ["status"],
   changes: ["change", "list"],
   questions: ["questions"],
-  matrix: ["matrix"],
+  matrix: ["matrix", "--dry-run"],
   report: ["report"],
 };
 
