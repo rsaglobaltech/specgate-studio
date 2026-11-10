@@ -101,3 +101,24 @@ The system SHALL archive a change only after showing its preview — `specgate a
 - GIVEN `add-coupons` with one requirement still to apply
 - WHEN the Developer opens it in Changes in the browser
 - THEN no Archive action is offered, and the change says which requirement is still to apply
+
+### Requirement: REQ-086 — Apply runs the gate for one requirement and says why it refuses
+
+<!-- specgate:trace actor=Developer kind=functional -->
+
+The system SHALL offer Apply on each requirement still to apply, run `specgate apply <REQ>` for it through the host, and end with the notice the help module defines: the requirement marked Implemented when the gate passes, or, when it refuses, the finding's code, what it means and its fix — never only "failed".
+
+> Brief: "Apply runs the gate for one requirement and, when it refuses, says why and the fix."
+
+#### Scenario: SCN-251 — Apply on REQ-031 refused on the desktop
+
+- GIVEN REQ-031 of `add-coupons` with no test that names it
+- WHEN the Developer clicks Apply on REQ-031 in the desktop app
+- THEN `specgate apply REQ-031` ran, the notice says it was refused with `apply_no_test`, that nothing was written, and the fix: write a test that names REQ-031
+
+#### Scenario: SCN-252 — Apply on REQ-030 in the browser
+
+- GIVEN REQ-030 of `add-coupons` with a test that names it and a passing gate
+- WHEN the Developer clicks Apply on REQ-030 in the browser
+- THEN `specgate apply REQ-030` ran, REQ-030 shows Implemented, and the notice names the files it wrote and the next step
+
