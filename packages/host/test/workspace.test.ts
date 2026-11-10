@@ -172,7 +172,15 @@ test("REQ-026 SCN-073: sprich and billing open; picking sprich from billing's wi
     ui.close();
   } finally {
     await registry.closeAll();
-    rm(parent);
+    // TEMPORARY diagnostic for Windows' EBUSY: what still holds the folder.
+    const t0 = Date.now();
+    try {
+      rm(parent);
+    } catch (e) {
+      throw new Error(
+        `${(e as Error).message} after ${Date.now() - t0} ms; active ${JSON.stringify(process.getActiveResourcesInfo())}; hosts ${hosts.length}`,
+      );
+    }
   }
 });
 
