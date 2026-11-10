@@ -17,6 +17,10 @@ export interface Requests {
   "project.open": { params: Record<string, never>; result: ProjectOpened };
   "section.get": { params: { section: Section }; result: SectionData };
   "command.run": { params: SpecgateCommand; result: RunResult };
+  /** The project's files, relative with `/`, as Explorer lists them (draft-workbench REQ-032). */
+  "files.list": { params: Record<string, never>; result: string[] };
+  /** A file of the project, as text. */
+  "file.read": { params: { path: string }; result: { path: string; text: string } };
 }
 
 /** What the host tells every connected UI, unasked. */

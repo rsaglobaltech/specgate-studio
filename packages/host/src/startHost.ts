@@ -1,3 +1,4 @@
+import { createServer } from "node:http";
 import * as path from "node:path";
 import { WebSocketServer, type WebSocket } from "ws";
 import {
@@ -11,6 +12,7 @@ import {
   type SectionReader,
   type SpecgateCommand,
 } from "@specgate-studio/core";
+import { fromStudio, uiHandler } from "./serveUi.js";
 import { RPC_ERRORS, type Notifications, type ProjectOpened } from "@specgate-studio/protocol";
 
 export interface HostOptions {
@@ -23,6 +25,28 @@ export interface HostOptions {
   specgate?: Pick<SpecgatePort, "version">;
   /** The specgate version the studio needs. */
   needs?: string;
+  /** The UI's built files, served on the same port as the WebSocket. */
+  ui?: string;
+  /** The project's files for Explorer and the editor's tabs. */
+  files?: ProjectFiles;
+}
+
+/** The project's files, by paths relative to it with `/`. */
+export interface ProjectFiles {
+  list(): Promise<string[]>;
+  read(path: string): Promise<string>;
+}
+
+/** A path inside the project: relative, `/`-separated, never climbing out of it. */
+function insideProject(p: unknown): p is string {
+  return (
+    typeof p === "string" &&
+    p.length > 0 &&
+    !p.startsWith("/") &&
+    !/^[a-zA-Z]:/.test(p) &&
+    !p.includes("\\") &&
+    !p.split("/").includes("..")
+  );
 }
 
 export interface Host {
@@ -50,8 +74,23 @@ export async function startHost(options: HostOptions): Promise<Host> {
   const opening = checked.ok ? state.open() : Promise.resolve();
   opening.catch(() => undefined);
 
-  const server = new WebSocketServer({ host: "127.0.0.1", port: options.port });
-  await new Promise<void>((ok, ko) => server.once("listening", ok).once("error", ko));
+  // One address for the browser: the UI's files over HTTP and JSON-RPC over
+  // the WebSocket upgrade of the same port.
+  const serveFile = uiHandler(options.ui);
+  const boundPort = () => {
+    const a = http.address();
+    return typeof a === "object" && a ? a.port : options.port;
+  };
+  const http = createServer((req, res) =>
+    fromStudio(req, boundPort) ? serveFile(req, res) : res.writeHead(403).end(),
+  );
+  const server = new WebSocketServer({
+    server: http,
+    verifyClient: (info, done) => (fromStudio(info.req, boundPort) ? done(true) : done(false, 403)),
+  });
+  await new Promise<void>((ok, ko) =>
+    http.once("listening", ok).once("error", ko).listen(options.port, "127.0.0.1"),
+  );
 
   const broadcast = <N extends keyof Notifications>(method: N, params: Notifications[N]) => {
     const text = JSON.stringify({ jsonrpc: "2.0", method, params });
@@ -78,6 +117,13 @@ export async function startHost(options: HostOptions): Promise<Host> {
       return state.section(section as Section);
     },
     "command.run": async (params) => commands.run(params as SpecgateCommand),
+    "files.list": async () => (options.files ? options.files.list() : []),
+    "file.read": async (params) => {
+      const p = (params as { path?: unknown } | null)?.path;
+      if (!insideProject(p) || !options.files)
+        throw rpcError(RPC_ERRORS.params, "not a file of the project");
+      return { path: p, text: await options.files.read(p) };
+    },
   };
 
   server.on("connection", (ws: WebSocket) => {
@@ -111,7 +157,7 @@ export async function startHost(options: HostOptions): Promise<Host> {
     });
   });
 
-  const address = server.address();
+  const address = http.address();
   const port = typeof address === "object" && address ? address.port : options.port;
   return {
     url: `ws://127.0.0.1:${port}/`,
@@ -119,7 +165,7 @@ export async function startHost(options: HostOptions): Promise<Host> {
     close: () =>
       new Promise<void>((ok) => {
         for (const ws of server.clients) ws.terminate();
-        server.close(() => ok());
+        server.close(() => http.close(() => ok()));
       }),
   };
 }

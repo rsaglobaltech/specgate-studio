@@ -41,6 +41,11 @@ jobs:
           node-version: '22'
       # The project's dependencies, for its tests.
       - run: npm ci
+      # Chromium for the workbench's browser tests (apps/cli/test/*.e2e.test.ts),
+      # with its system libraries on Ubuntu.
+      # Remove: only together with those tests.
+      - name: Chromium for the browser tests
+        run: npx playwright install ${{ matrix.os == 'ubuntu-latest' && '--with-deps' || '' }} chromium
       # The gate: the specification (validate --strict), the links from each
       # requirement to its feature and test, the architecture check (arch_cmd)
       # and the project's tests (test_cmd), as `specgate check` runs them
