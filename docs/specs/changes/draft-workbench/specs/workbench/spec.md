@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-031 — The same activity bar on every screen
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL show, on every screen, one activity bar with the same eleven views in this order: Home, Explorer, Brief, Changes, Questions, Build, Live, Traceability and Report at the top, and Help and Settings at the bottom, the open view marked.
 
@@ -50,7 +50,7 @@ The system SHALL frame every view with editor tabs, a bottom panel with the tabs
 
 ### Requirement: REQ-033 — A command palette that names each command
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL open a command palette when the Developer presses Ctrl+Shift+P, or Cmd+Shift+P on macOS, that lists every feature of the studio with the specgate command it runs, filters the list as the Developer types, and opens the highlighted feature on Enter.
 
@@ -70,7 +70,7 @@ The system SHALL open a command palette when the Developer presses Ctrl+Shift+P,
 
 ### Requirement: REQ-034 — Spanish or English, dark or light
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL start in dark, and SHALL switch every label of the studio between Spanish and English, and its theme between dark and light, when the Developer chooses one, without reloading the project.
 
@@ -110,7 +110,7 @@ The system SHALL, on a cold start, show the workbench in under 300 ms and let th
 
 ### Requirement: REQ-036 — Views switch in under 50 ms; 5,000 rows scroll at 60 fps
 
-<!-- specgate:trace actor=Developer kind=non-functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=non-functional -->
 
 The system SHALL show a view the Developer opens from the activity bar in under 50 ms once the project is read, and SHALL scroll a list of 5,000 rows at 60 fps.
 
