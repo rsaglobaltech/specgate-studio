@@ -400,7 +400,8 @@ test("REQ-034 SCN-098: first time in the browser — dark; light turns the activ
     const dark = await bg();
     await page.selectOption('select[aria-label="Theme"]', "light");
     const light = await bg();
-    for (let i = 0; i < 3; i++) assert.notEqual(light[i], dark[i], `${i}: ${dark[i]} → ${light[i]}`);
+    for (let i = 0; i < 3; i++)
+      assert.notEqual(light[i], dark[i], `${i}: ${dark[i]} → ${light[i]}`);
     assert.equal(light[0], "rgb(240, 236, 229)");
     // Remembered on this machine (A10).
     await page.reload();
