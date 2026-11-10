@@ -11,3 +11,4 @@
 | A7 | Each terminal keeps at least 10,000 lines of scrollback; 1,200 lines of `npm test` fit | REQ-056, SCN-161 | xterm.js keeps 1,000 by default; a test run is often longer | to confirm |
 | A8 | Terminals are named by their shell and a number (`zsh 1`, `zsh 2`) in the bottom panel; there is no limit on how many are open | REQ-055, SCN-159, SCN-160 | VS Code's convention | to confirm |
 | A9 | `npm run dev`, `npm test`, `git status`, `git log`, `less spec.md`, `vim` are examples of what a Developer types; the change `add-coupons; rm -rf .` is the name used in core-host's SCN-013 | REQ-052, REQ-054, REQ-055, REQ-056 | Concrete values for the scenarios | confirmed |
+| A10 | node-pty in the core host for both: the desktop app runs the same Node host as a sidecar, so one adapter serves desktop and web. No Rust pty now. | REQ-051, REQ-052 | Q1 | decided |

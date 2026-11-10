@@ -4,9 +4,9 @@
 
 ### Requirement: REQ-051 — A terminal in the project's folder, with the Developer's shell
 
-<!-- specgate:trace status="Needs Clarification" actor=Developer kind=functional -->
+<!-- specgate:trace status=Draft actor=Developer kind=functional -->
 
-The system SHALL open each terminal as a pseudo-terminal (pty) that runs the Developer's own shell, started in the folder of the open project, so that what the Developer types runs exactly as in their system terminal.
+The system SHALL open each terminal as a pseudo-terminal (pty) of the core host — the same one for the desktop app and the browser — that runs the Developer's own shell, started in the folder of the open project, so that what the Developer types runs exactly as in their system terminal.
 
 > Brief: "A pty in the project's folder, with the Developer's shell, on macOS, Windows and Linux."
 
@@ -24,9 +24,9 @@ The system SHALL open each terminal as a pseudo-terminal (pty) that runs the Dev
 
 ### Requirement: REQ-052 — The same terminal on macOS, Windows and Linux
 
-<!-- specgate:trace status="Needs Clarification" actor=Developer kind=functional -->
+<!-- specgate:trace status=Draft actor=Developer kind=functional -->
 
-The system SHALL offer the terminal on macOS, Windows and Linux alike: the shell is the Developer's login shell on macOS and Linux and PowerShell on Windows, and a full-screen program such as `vim` or `less` draws and takes keys as it does in the system terminal.
+The system SHALL offer the terminal on macOS, Windows and Linux alike, through the core host's pty on all three: the shell is the Developer's login shell on macOS and Linux and PowerShell on Windows, and a full-screen program such as `vim` or `less` draws and takes keys as it does in the system terminal.
 
 > Brief: "A pty in the project's folder, with the Developer's shell, on macOS, Windows and Linux."
 
