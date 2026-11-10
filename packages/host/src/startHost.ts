@@ -12,7 +12,7 @@ import {
   type SectionReader,
   type SpecgateCommand,
 } from "@specgate-studio/core";
-import { uiHandler } from "./serveUi.js";
+import { fromStudio, uiHandler } from "./serveUi.js";
 import { RPC_ERRORS, type Notifications, type ProjectOpened } from "@specgate-studio/protocol";
 
 export interface HostOptions {
@@ -76,8 +76,18 @@ export async function startHost(options: HostOptions): Promise<Host> {
 
   // One address for the browser: the UI's files over HTTP and JSON-RPC over
   // the WebSocket upgrade of the same port.
-  const http = createServer(uiHandler(options.ui));
-  const server = new WebSocketServer({ server: http });
+  const serveFile = uiHandler(options.ui);
+  const boundPort = () => {
+    const a = http.address();
+    return typeof a === "object" && a ? a.port : options.port;
+  };
+  const http = createServer((req, res) =>
+    fromStudio(req, boundPort) ? serveFile(req, res) : res.writeHead(403).end(),
+  );
+  const server = new WebSocketServer({
+    server: http,
+    verifyClient: (info, done) => (fromStudio(info.req, boundPort) ? done(true) : done(false, 403)),
+  });
   await new Promise<void>((ok, ko) =>
     http.once("listening", ok).once("error", ko).listen(options.port, "127.0.0.1"),
   );
