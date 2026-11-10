@@ -1,0 +1,9 @@
+specgate_change_version: 1
+schema: spec-driven
+created: 2026-11-10
+rigor: lite
+skip_specs: false
+retire_capabilities: false
+req_range: [REQ-111, REQ-120]
+scn_range: [SCN-331, SCN-360]
+brief: docs/briefs/phase-2-specgate-flow.md
