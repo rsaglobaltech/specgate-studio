@@ -28,7 +28,8 @@ export class NodeWatcher implements WatcherPort {
       const w = fsWatch(root, { recursive: true }, (_event, name) => {
         if (name) tell(name.toString());
       });
-      w.on("error", () => undefined);
+      // A watch that fails — its folder deleted — is closed, never left to spin.
+      w.on("error", () => w.close());
       return { close: async () => w.close() };
     }
     return perFolder(root, ignored, tell);

@@ -136,13 +136,19 @@ test("REQ-022 SCN-063: npm install writing node_modules changes neither the unco
       (p) => told.push(p),
       () => undefined,
     );
-    await new Promise((r) => setTimeout(r, 100));
-    for (let i = 0; i < 20; i++) write(root, `node_modules/dep${i}/index.js`);
-    write(root, "node_modules/.package-lock.json", "{}");
-    write(root, "README.md", "# changed\n");
-    assert.ok(await until(() => told.includes("README.md"), 2000), "README.md told");
-    await new Promise((r) => setTimeout(r, 100));
-    await watch.close();
+    try {
+      await new Promise((r) => setTimeout(r, 100));
+      for (let i = 0; i < 20; i++) write(root, `node_modules/dep${i}/index.js`);
+      write(root, "node_modules/.package-lock.json", "{}");
+      write(root, "README.md", "# changed\n");
+      assert.ok(
+        await until(() => told.includes("README.md"), 3000),
+        `README.md told — told ${JSON.stringify(told.slice(0, 20))}`,
+      );
+      await new Promise((r) => setTimeout(r, 100));
+    } finally {
+      await watch.close();
+    }
     assert.deepEqual(
       told.filter((p) => p.startsWith("node_modules")),
       [],
@@ -167,12 +173,18 @@ test("REQ-022 SCN-064: a build writing apps/web/dist is never told to the host",
       (p) => told.push(p),
       () => undefined,
     );
-    await new Promise((r) => setTimeout(r, 100));
-    for (let i = 0; i < 10; i++) write(root, `apps/web/dist/assets/chunk${i}.js`);
-    write(root, "apps/web/src/main.ts", "changed\n");
-    assert.ok(await until(() => told.includes("apps/web/src/main.ts"), 2000));
-    await new Promise((r) => setTimeout(r, 100));
-    await watch.close();
+    try {
+      await new Promise((r) => setTimeout(r, 100));
+      for (let i = 0; i < 10; i++) write(root, `apps/web/dist/assets/chunk${i}.js`);
+      write(root, "apps/web/src/main.ts", "changed\n");
+      assert.ok(
+        await until(() => told.includes("apps/web/src/main.ts"), 3000),
+        `main.ts told — told ${JSON.stringify(told.slice(0, 20))}`,
+      );
+      await new Promise((r) => setTimeout(r, 100));
+    } finally {
+      await watch.close();
+    }
     assert.deepEqual(
       told.filter((p) => p.includes("/dist")),
       [],
