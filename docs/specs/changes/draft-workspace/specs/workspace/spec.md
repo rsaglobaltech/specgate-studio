@@ -104,9 +104,9 @@ The system SHALL show how many files of the open project are uncommitted and gro
 
 ### Requirement: REQ-026 — The last 10 projects of each Developer
 
-<!-- specgate:trace status="Needs Clarification" actor=Developer kind=functional -->
+<!-- specgate:trace status=Draft actor=Developer kind=functional -->
 
-The system SHALL remember the last 10 projects each Developer opened, the most recent first, and open one of them when the Developer picks it.
+The system SHALL remember the last 10 projects each Developer opened, the most recent first, and open one of them when the Developer picks it; several projects SHALL be open at once, one window per project on the desktop and one tab in the browser, each with its own core host, and picking a recent project that is already open SHALL bring its window forward instead of opening it again.
 
 > Brief: "The studio remembers each Developer's last 10 projects."
 
@@ -121,3 +121,9 @@ The system SHALL remember the last 10 projects each Developer opened, the most r
 - GIVEN `sprich` among the Developer's 10 recent projects
 - WHEN the Developer picks `sprich` from the recent projects in the browser
 - THEN the Developer sees sprich open, and `sprich` first in the recent projects
+
+#### Scenario: SCN-073 — A recent project already open, on the desktop
+
+- GIVEN `sprich` and `billing` open in two windows of the desktop app, the `billing` window in front
+- WHEN the Developer picks `sprich` from the recent projects in the `billing` window
+- THEN the `sprich` window comes to the front, and no second window or core host for sprich is started
