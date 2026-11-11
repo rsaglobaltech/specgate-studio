@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-151 — A Tauri 2 window, the core host as a sidecar with its own Node runtime
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL install as a Tauri 2 desktop app that starts the core host as a sidecar with the Node runtime it ships, so that it opens a project on a machine where Node is not installed; the sidecar SHALL listen on 127.0.0.1 only, and SHALL end, with every process it started, when its window closes.
 
@@ -24,7 +24,7 @@ The system SHALL install as a Tauri 2 desktop app that starts the core host as a
 
 ### Requirement: REQ-152 — One window per project, each over its own core host
 
-<!-- specgate:trace actor=Developer kind=business-rule -->
+<!-- specgate:trace status=Implemented actor=Developer kind=business-rule -->
 
 The system SHALL open each project in its own window over its own core host; opening a project that is already open SHALL bring its window to the front instead of starting a second window or host.
 
@@ -44,7 +44,7 @@ The system SHALL open each project in its own window over its own core host; ope
 
 ### Requirement: REQ-153 — A .dmg for macOS: unsigned with "Open anyway" steps now, signed and notarized once the certificate exists
 
-<!-- specgate:trace actor=Developer kind=non-functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=non-functional -->
 
 The system SHALL ship for macOS as a .dmg from one release pipeline in two stages: until a Developer ID certificate exists, the .dmg SHALL be unsigned (ad-hoc signed only) and its release SHALL link to documented "Open anyway" steps; once the certificate exists, the same pipeline SHALL gain the signing step — the app, sidecar included, signed with the Developer ID certificate in the owner's own name, built with the hardened runtime, notarized by Apple and stapled — so that Gatekeeper opens it on first launch without a warning and without a connection. Moving to the organization rsaglobaltech later SHALL change only the certificate the pipeline uses.
 
@@ -64,7 +64,7 @@ The system SHALL ship for macOS as a .dmg from one release pipeline in two stage
 
 ### Requirement: REQ-154 — An .msi for Windows: unsigned with SmartScreen steps now, code-signed once the certificate exists
 
-<!-- specgate:trace actor=Developer kind=non-functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=non-functional -->
 
 The system SHALL ship for Windows as an .msi from the same release pipeline in two stages: until a code-signing certificate exists, the .msi SHALL be unsigned and its release SHALL link to documented SmartScreen steps; once the certificate exists, the pipeline SHALL gain the signing step — installer, app and sidecar signed in the owner's own name and timestamped — so that Windows names the owner as publisher and no "unknown publisher" warning is shown. Moving to the organization rsaglobaltech later SHALL change only the certificate the pipeline uses.
 
@@ -84,7 +84,7 @@ The system SHALL ship for Windows as an .msi from the same release pipeline in t
 
 ### Requirement: REQ-155 — An .AppImage and a .deb for Linux, signed
 
-<!-- specgate:trace actor=Developer kind=non-functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=non-functional -->
 
 The system SHALL ship for Linux as an .AppImage and a .deb, each with a signature made with the project's published GPG key, so that a Developer can verify either before installing.
 
@@ -104,7 +104,7 @@ The system SHALL ship for Linux as an .AppImage and a .deb, each with a signatur
 
 ### Requirement: REQ-156 — Auto-update: offered on start, applied on restart, never during a build
 
-<!-- specgate:trace actor=Developer kind=business-rule -->
+<!-- specgate:trace status=Implemented actor=Developer kind=business-rule -->
 
 The system SHALL check for a newer release when it starts and offer it; it SHALL verify the update's signature before using it, install it only after the Developer accepts, and apply it on the next restart — never while a build or a write command runs; its notice SHALL say which version was installed, from which, and that a restart applies it. Updates SHALL work the same whether the installers are signed by the operating system's certificates yet or not.
 
@@ -150,7 +150,7 @@ The system SHALL use under 200 MB of memory while idle with one project open, co
 
 ### Requirement: REQ-158 — The same UI in a browser with `specgate-studio serve`
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL serve, with `specgate-studio serve`, the same UI the desktop window shows, over the same core host and its JSON-RPC, so that every view and action of the desktop app works in the browser; a project open in the desktop app and served to the browser SHALL share one core host.
 
