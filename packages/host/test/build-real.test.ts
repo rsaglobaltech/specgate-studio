@@ -9,6 +9,8 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { startProjectHost } from "../src/index.js";
+import { client } from "./rpc.js";
 import { endedOf, harnessProject, realHost, remove } from "./harness-fixture.js";
 
 test("REQ-102 SCN-303 against specgate: an uncommitted file makes Build wait; committed with the Developer's message, `harness run` builds REQ-000 on its branch", async () => {
@@ -172,6 +174,25 @@ test("REQ-105 SCN-309 against specgate: Stop now ends `harness run`, its agent a
     ui.close();
     await host.close();
     for (const pid of p.pids()) if (alive(pid)) process.kill(pid);
+    await remove(p.parent);
+  }
+});
+
+test("REQ-101: the studio as it runs — `specgate-studio serve` on a project answers build.get and live.get from the real specgate", async () => {
+  const p = harnessProject();
+  const host = await startProjectHost(p.dir, { home: path.join(p.parent, "home") });
+  const ui = await client(host.url);
+  try {
+    const list = await ui.ask<any>("build.get");
+    assert.equal(list.error, undefined, JSON.stringify(list.error));
+    assert.ok(list.result.ready.some((r: any) => r.id === "REQ-000"));
+    assert.equal(list.result.agent, "node");
+    const live = await ui.ask<any>("live.get");
+    assert.equal(live.error, undefined, JSON.stringify(live.error));
+    assert.equal(live.result.building, null);
+  } finally {
+    ui.close();
+    await host.close();
     await remove(p.parent);
   }
 });
