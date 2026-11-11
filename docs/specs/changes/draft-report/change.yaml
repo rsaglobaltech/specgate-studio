@@ -1,0 +1,9 @@
+specgate_change_version: 1
+schema: spec-driven
+created: 2026-11-11
+rigor: lite
+skip_specs: false
+retire_capabilities: false
+req_range: [REQ-131, REQ-140]
+scn_range: [SCN-391, SCN-420]
+brief: docs/briefs/phase-3-proof-and-desktop.md
