@@ -7,3 +7,4 @@ retire_capabilities: false
 req_range: [REQ-121, REQ-130]
 scn_range: [SCN-361, SCN-390]
 brief: docs/briefs/phase-3-proof-and-desktop.md
+approved: 2026-11-11
