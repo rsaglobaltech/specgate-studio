@@ -297,7 +297,7 @@ export async function startHost(options: HostOptions): Promise<Host> {
     url: `ws://127.0.0.1:${port}/`,
     state,
     close: async () => {
-      terminals?.close();
+      await terminals?.close();
       await workspace?.close();
       await new Promise<void>((ok) => {
         for (const ws of server.clients) ws.terminate();
