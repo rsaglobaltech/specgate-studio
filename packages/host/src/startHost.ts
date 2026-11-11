@@ -27,6 +27,7 @@ import { fromStudio, uiHandler } from "./serveUi.js";
 import { attachTerminals, type TerminalWiring } from "./terminals.js";
 import { RPC_ERRORS, type Notifications, type ProjectOpened } from "@specgate-studio/protocol";
 import { attachWorkspace, type WorkspaceWiring } from "./workspace.js";
+import { attachSetup, type SetupWiring } from "./setup.js";
 
 export interface HostOptions {
   projectDir: string;
@@ -48,6 +49,8 @@ export interface HostOptions {
   files?: ProjectFiles;
   /** The specification's findings with file and line (`validate --strict`), for the editor (REQ-043). */
   findings?: () => Promise<Finding[]>;
+  /** Creating or adopting a folder that is no project yet (draft-project-setup). */
+  setup?: SetupWiring;
 }
 
 /** The project's files, by paths relative to it with `/`. */
@@ -96,7 +99,7 @@ export async function startHost(options: HostOptions): Promise<Host> {
     options.specgate && options.needs
       ? await checkSpecgate(options.specgate, options.needs)
       : ({ ok: true } as const);
-  const opening = checked.ok ? state.open() : Promise.resolve();
+  let opening = checked.ok ? state.open() : Promise.resolve();
   opening.catch(() => undefined);
 
   // One address for the browser: the UI's files over HTTP and JSON-RPC over
@@ -146,11 +149,25 @@ export async function startHost(options: HostOptions): Promise<Host> {
       )
     : null;
 
+  const setup = options.setup
+    ? attachSetup(
+        options.projectDir,
+        options.setup,
+        commands,
+        async () => (options.files ? options.files.list() : []),
+        (m) => rpcError(RPC_ERRORS.params, m),
+      )
+    : null;
+
   const handlers: Record<string, (params: unknown) => Promise<unknown>> = {
     "project.open": async () => {
       if (!checked.ok)
         throw rpcError(RPC_ERRORS.specgate, `${checked.message}. Fix: ${checked.fix}`);
-      await opening;
+      // A folder created or adopted since the host started is read now (draft-project-setup).
+      await opening.catch(() => {
+        opening = state.open();
+        return opening.then(readNext);
+      });
       const sections: ProjectOpened["sections"] = {};
       for (const s of SECTIONS) sections[s] = await state.section(s);
       return { project: path.basename(options.projectDir), sections } satisfies ProjectOpened;
@@ -240,6 +257,7 @@ export async function startHost(options: HostOptions): Promise<Host> {
     },
     ...workspace?.handlers,
     ...terminals?.handlers,
+    ...setup?.handlers,
   };
 
   server.on("connection", (ws: WebSocket) => {

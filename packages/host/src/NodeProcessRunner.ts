@@ -15,8 +15,8 @@ export interface NodeProcessRunnerOptions {
  *
  * Every value is one element of the argument array and no shell ever runs
  * (REQ-007), on Windows too. The project goes where specgate expects it:
- * `check [dir]` takes it as its positional argument, every other command as
- * `--project-dir`. Output is handed over chunk by chunk as it is written
+ * `check [dir]` takes it as its positional argument, `init` none, every other
+ * command `--project-dir`. Output is handed over chunk by chunk as it is written
  * (REQ-005).
  */
 export class NodeProcessRunner implements ProcessRunner {
@@ -24,7 +24,9 @@ export class NodeProcessRunner implements ProcessRunner {
 
   run(args: readonly string[], onOutput: (chunk: string) => void): Promise<number> {
     const { program, prefix, projectDir } = this.options;
-    const where = args[0] === "check" ? [projectDir] : ["--project-dir", projectDir];
+    // `init` takes no project: it writes the one its `--out` names.
+    const where =
+      args[0] === "check" ? [projectDir] : args[0] === "init" ? [] : ["--project-dir", projectDir];
     return new Promise((resolve) => {
       const child = spawn(program, [...prefix, ...args, ...where], {
         cwd: projectDir,
