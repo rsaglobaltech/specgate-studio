@@ -205,10 +205,15 @@ export async function startHost(options: HostOptions): Promise<Host> {
         checked.ok ? state.section("questions").catch(() => null) : Promise.resolve(null),
       ]);
       const open =
-        (questionsData as { questions?: { open?: Array<Omit<OpenQuestion, "options">> } } | null)
-          ?.questions?.open ?? [];
+        (
+          questionsData as {
+            questions?: { open?: Array<Omit<OpenQuestion, "options"> & { options?: string[] }> };
+          } | null
+        )?.questions?.open ?? [];
       const questions: OpenQuestion[] = await Promise.all(
         open.map(async (q) => {
+          // specgate 0.33.1 says the options (REQ-479); an older one is read from its table.
+          if (Array.isArray(q.options)) return { ...q, options: q.options };
           const md =
             q.change === "project"
               ? "docs/specs/questions.md"
