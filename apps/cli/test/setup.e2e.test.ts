@@ -14,6 +14,9 @@ import { codeFolder, snapshot, withClaude } from "@specgate-studio/adapter-specg
 import { serve } from "../src/index.js";
 import { close, open, studio, untilTerm, type Page } from "./support.js";
 
+/** On Windows a shell or watcher of the folder lets go of it a moment after the host closes. */
+const RM = { recursive: true, force: true, maxRetries: 20, retryDelay: 250 } as const;
+
 /** Long enough for the real specgate on a loaded Windows runner. */
 const SLOW = { timeout: 180_000 };
 
@@ -26,7 +29,7 @@ async function studioOn(dir: string) {
     url: host.url.replace(/^ws/, "http"),
     done: async (page?: Page) => {
       await close({ host }, page);
-      fs.rmSync(home, { recursive: true, force: true });
+      fs.rmSync(home, RM);
     },
   };
 }
@@ -80,7 +83,7 @@ test(
       assert.match(await text(page, '[data-ready="agent"]'), /Claude Code/);
     } finally {
       await s.done(page);
-      fs.rmSync(parent, { recursive: true, force: true });
+      fs.rmSync(parent, RM);
     }
   },
 );
@@ -148,7 +151,7 @@ test(
     } finally {
       await s.done(page);
       claude.restore();
-      fs.rmSync(path.dirname(dir), { recursive: true, force: true });
+      fs.rmSync(path.dirname(dir), RM);
     }
   },
 );
@@ -180,7 +183,7 @@ test(
     } finally {
       await s.done(page);
       claude.restore();
-      fs.rmSync(path.dirname(dir), { recursive: true, force: true });
+      fs.rmSync(path.dirname(dir), RM);
     }
   },
 );
@@ -203,7 +206,7 @@ test(
       assert.match(await text(page, '[data-next="specify"]'), /Specify a behaviour you rely on/);
     } finally {
       await s.done(page);
-      fs.rmSync(path.dirname(dir), { recursive: true, force: true });
+      fs.rmSync(path.dirname(dir), RM);
     }
   },
 );
