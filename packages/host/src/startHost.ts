@@ -29,6 +29,7 @@ import { RPC_ERRORS, type Notifications, type ProjectOpened } from "@specgate-st
 import { attachWorkspace, type WorkspaceWiring } from "./workspace.js";
 import { attachChanges, type ChangesWiring } from "./changes.js";
 import { attachSetup, type SetupWiring } from "./setup.js";
+import { attachBuilds, type BuildsWiring } from "./builds.js";
 
 export interface HostOptions {
   projectDir: string;
@@ -54,6 +55,8 @@ export interface HostOptions {
   changes?: ChangesWiring;
   /** Creating or adopting a folder that is no project yet (draft-project-setup). */
   setup?: SetupWiring;
+  /** Build and Live: what is ready, the build, its events (draft-build-live). */
+  builds?: BuildsWiring;
 }
 
 /** The project's files, by paths relative to it with `/`. */
@@ -168,6 +171,8 @@ export async function startHost(options: HostOptions): Promise<Host> {
       )
     : null;
 
+  const builds = options.builds ? attachBuilds(options.builds, state) : null;
+
   const handlers: Record<string, (params: unknown) => Promise<unknown>> = {
     "project.open": async () => {
       if (!checked.ok)
@@ -268,6 +273,7 @@ export async function startHost(options: HostOptions): Promise<Host> {
     ...terminals?.handlers,
     ...changes?.handlers,
     ...setup?.handlers,
+    ...builds?.handlers,
   };
 
   server.on("connection", (ws: WebSocket) => {

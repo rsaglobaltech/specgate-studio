@@ -29,6 +29,11 @@ import type {
   Area,
   InitAnswers,
   ReadyItem,
+  BuildItem,
+  BuildList,
+  Estimate,
+  WaitReason,
+  WaitingItem,
 } from "@specgate-studio/core";
 
 export type { CommandEvent, RunResult, Section, SectionData, SpecgateCommand };
@@ -42,6 +47,8 @@ export type { ActionId, Explanation, HelpVars, Lang, Notice };
 export type { ArchivePreview, ChangeCard, ChangeGroup, ChangesView, Finding, TicketReview };
 /** Setting up a folder that is no project yet (draft-project-setup). */
 export type { AdoptPreview, Area, InitAnswers, ReadyItem };
+/** Build and Live (draft-build-live). */
+export type { BuildItem, BuildList, Estimate, WaitReason, WaitingItem };
 
 /** What the UI may ask, and what it gets back. */
 export interface Requests {
@@ -109,6 +116,8 @@ export interface Requests {
     params: Record<string, never>;
     result: { adopted: boolean; byKind: boolean; areas: Area[] };
   };
+  /** What is ready to build, its estimate and who codes; runs nothing (draft-build-live REQ-101). */
+  "build.get": { params: Record<string, never>; result: BuildList };
 }
 
 /** What the host tells every connected UI, unasked. */

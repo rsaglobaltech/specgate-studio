@@ -26,7 +26,10 @@ export type SpecgateCommand =
   | { name: "adopt-preview" }
   | { name: "adopt" }
   | { name: "agents-init"; tool: string }
-  | { name: "ci-init" };
+  | { name: "ci-init" }
+  // draft-build-live: Build's estimate and who codes, read with --json (REQ-101).
+  | { name: "harness-report" }
+  | { name: "config-list" };
 
 export interface CommandLine {
   args: string[];
@@ -106,6 +109,10 @@ export function commandLine(c: SpecgateCommand): CommandLine | null {
         : null;
     case "ci-init":
       return { args: ["ci", "init"], write: true };
+    case "harness-report":
+      return { args: ["harness", "report"], write: false, json: true };
+    case "config-list":
+      return { args: ["config", "list"], write: false, json: true };
     default:
       return null;
   }

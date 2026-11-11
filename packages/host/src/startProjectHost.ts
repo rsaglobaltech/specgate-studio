@@ -104,6 +104,8 @@ export async function startProjectHost(
     ...(options.terminals ? { terminals: options.terminals } : {}),
     // The Changes view reads specgate's `--json` through the same port (draft-changes).
     ...(hasCall(reader) ? { changes: { specgate: reader } } : {}),
+    // Build and Live read specgate's `--json` through the same port (draft-build-live).
+    builds: { specgate: cli },
     setup: { port: new SpecgateSetup(cli), fs, onPath: options.onPath ?? (() => false) },
   });
   await recent.opened(projectDir);

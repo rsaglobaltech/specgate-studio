@@ -15,6 +15,7 @@ import {
   type ProjectFiles,
   type TerminalWiring,
   type WorkspaceWiring,
+  type BuildsWiring,
 } from "@specgate-studio/host";
 import { NodePty, hasProgram } from "@specgate-studio/adapter-pty-node";
 import { SpecgateCli, specgateBin } from "@specgate-studio/adapter-specgate-cli";
@@ -41,6 +42,8 @@ export interface ServeOptions {
   terminals?: TerminalWiring;
   /** The studio's settings folder; the user's when not given (draft-workspace A6). */
   home?: string;
+  /** Build and Live's fakes over `specgate` (draft-build-live). */
+  builds?: Omit<BuildsWiring, "specgate">;
 }
 
 /**
@@ -71,6 +74,7 @@ export async function serve(options: ServeOptions): Promise<Host> {
       ...(options.findings ? { findings: options.findings } : {}),
       ...(options.workspace ? { workspace: options.workspace } : {}),
       ...(options.specgate ? { changes: { specgate: options.specgate } } : {}),
+      ...(options.specgate ? { builds: { ...options.builds, specgate: options.specgate } } : {}),
       terminals,
       port,
       ui,

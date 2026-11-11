@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-101 — Build lists what is ready, its estimate and who codes
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL list in Build every requirement ready to build — approved, with its scenario and no open question blocking it — each with its estimate and the agent that will code it, and SHALL say for each one left out why it is not ready.
 

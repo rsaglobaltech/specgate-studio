@@ -143,3 +143,16 @@ export {
 } from "./domain/setup.js";
 export type { Onboarding, SetupPort } from "./ports/SetupPort.js";
 export { Setup, type SetupOptions } from "./application/Setup.js";
+export {
+  REQ_ID,
+  SET_AGENT,
+  agentProgram,
+  buildList,
+  estimateOf,
+  type BuildItem,
+  type BuildList,
+  type Estimate,
+  type WaitReason,
+  type WaitingItem,
+} from "./domain/build.js";
+export { Builds, type BuildsOptions } from "./application/Builds.js";
