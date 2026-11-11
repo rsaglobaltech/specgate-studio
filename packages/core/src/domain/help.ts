@@ -1,4 +1,5 @@
 import type { Finding } from "./finding.js";
+import { quoted } from "./args.js";
 
 /**
  * What every action of the studio that writes, runs, commits, pushes or sends
@@ -27,6 +28,8 @@ export const ACTIONS = [
   "adopt",
   "agents-init",
   "ci-init",
+  "brief-check",
+  "draft-modules",
 ] as const;
 export type ActionId = (typeof ACTIONS)[number];
 
@@ -461,6 +464,62 @@ export const HELP: Catalog = {
       notice: { ranOk: "`{command}` escribió el gate.", next: "specgate ci status" },
     },
   },
+  // draft-brief: the brief's checks, on every save (REQ-072).
+  "brief-check": {
+    en: {
+      does: "Checks the brief on every save, from the form or as markdown: the brief rules B1–B13 — a vague word, a promised quantity with no number, a module with no example… Each finding goes to Problems with its code, message, fix and line, and is underlined in the editor.",
+      command: "specgate propose --from-brief --check --brief docs/brief.md",
+      files: "None: no file is changed.",
+      doesNot:
+        "It does not fix the brief, draft a module or block the save: the file is saved as you wrote it.",
+      next: "Fix what Problems lists and save again; then `specgate propose --from-brief <module>` drafts a module.",
+      notice: {
+        ranOk: "`{command}` checked the brief: what it found is in Problems.",
+        next: "specgate propose --from-brief <module>",
+      },
+    },
+    es: {
+      does: "Comprueba el brief cada vez que guardas, desde el formulario o como markdown: las reglas del brief B1–B13 — una palabra vaga, una cantidad prometida sin número, un módulo sin ejemplo… Cada hallazgo va a Problemas con su código, mensaje, arreglo y línea, y se subraya en el editor.",
+      command: "specgate propose --from-brief --check --brief docs/brief.md",
+      files: "Ninguno: no cambia ningún archivo.",
+      doesNot:
+        "No arregla el brief, no redacta ningún módulo ni impide guardar: el archivo se guarda como lo escribiste.",
+      next: "Arregla lo que lista Problemas y guarda otra vez; después `specgate propose --from-brief <módulo>` redacta un módulo.",
+      notice: {
+        ranOk: "`{command}` comprobó el brief: lo que encontró está en Problemas.",
+        next: "specgate propose --from-brief <módulo>",
+      },
+    },
+  },
+  // draft-brief: "Draft the modules", one module at a time with the agent (REQ-073).
+  "draft-modules": {
+    en: {
+      does: "Has the project's agent draft each module of the brief not drafted yet, in the brief's order, one at a time: the next starts only when the previous one has ended. specgate checks each draft until it is ready to review.",
+      command: "specgate propose --from-brief {module} --agent {agent}",
+      files:
+        "`docs/specs/changes/draft-{module}/` of each module: DRAFTING.md, the delta, assumptions and questions. Whatever the agent writes outside its draft is undone.",
+      doesNot:
+        "It does not edit the brief, approve, build or archive a draft, commit or push: a person reviews each draft in Changes. With no agent set it runs nothing.",
+      next: "Review each draft in Changes; `specgate propose --from-brief {module}` checks one again.",
+      notice: {
+        ranOk: "`{command}` had the agent draft {module}.",
+        next: "specgate propose --from-brief {module}",
+      },
+    },
+    es: {
+      does: "Hace que el agente del proyecto redacte cada módulo del brief aún sin redactar, en el orden del brief, de uno en uno: el siguiente empieza solo cuando el anterior ha terminado. specgate comprueba cada borrador hasta que está listo para revisar.",
+      command: "specgate propose --from-brief {module} --agent {agent}",
+      files:
+        "`docs/specs/changes/draft-{module}/` de cada módulo: DRAFTING.md, el delta, los supuestos y las preguntas. Lo que el agente escriba fuera de su borrador se deshace.",
+      doesNot:
+        "No edita el brief, ni aprueba, construye o archiva un borrador, ni hace commit ni push: una persona revisa cada borrador en Cambios. Sin agente configurado no ejecuta nada.",
+      next: "Revisa cada borrador en Cambios; `specgate propose --from-brief {module}` vuelve a comprobar uno.",
+      notice: {
+        ranOk: "`{command}` hizo que el agente redactara {module}.",
+        next: "specgate propose --from-brief {module}",
+      },
+    },
+  },
 };
 
 /** What a placeholder reads as when the action has no value for it yet. */
@@ -470,13 +529,18 @@ const UNSET: Record<string, string> = {
   module: "<module>",
   key: "<KEY>",
   q: "<Q>",
+  agent: "<agent>",
   command: "<command>",
 };
 
-export type HelpVars = Partial<Record<"req" | "change" | "module" | "key" | "q", string>>;
+export type HelpVars = Partial<Record<"req" | "change" | "module" | "key" | "q" | "agent", string>>;
 
 function fill(text: string, vars: Record<string, string | undefined>): string {
-  return text.replace(/\{(\w+)\}/g, (_, name: string) => vars[name] ?? UNSET[name] ?? `{${name}}`);
+  return text.replace(/\{(\w+)\}/g, (_, name: string) => {
+    const v = vars[name];
+    if (v === undefined) return UNSET[name] ?? `{${name}}`;
+    return name === "agent" ? quoted(v) : v;
+  });
 }
 
 /** The "?" of an action, filled with what the person is looking at (REQ-061, REQ-062). */

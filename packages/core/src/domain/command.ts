@@ -1,6 +1,7 @@
 import type { Finding } from "./finding.js";
 import type { Lang, Notice } from "./help.js";
 import { AGENT_TOOLS } from "./setup.js";
+import { BRIEF_FILE } from "./brief.js";
 
 /**
  * The specgate commands the host may run, and the argument array each one is
@@ -26,7 +27,14 @@ export type SpecgateCommand =
   | { name: "adopt-preview" }
   | { name: "adopt" }
   | { name: "agents-init"; tool: string }
-  | { name: "ci-init" };
+  | { name: "ci-init" }
+  // draft-brief: the brief's checks on every save (REQ-072), read with --json.
+  | { name: "brief-check" }
+  // The brief's modules and where each stands, and the project's settings (REQ-073).
+  | { name: "brief-modules" }
+  | { name: "config-list" }
+  // A module drafted by the project's agent (REQ-073, A6): the host's, never the wire's.
+  | { name: "draft-module"; module: string; agent: string };
 
 export interface CommandLine {
   args: string[];
@@ -41,6 +49,19 @@ export interface CommandLine {
 /** A change id or a ticket key: one value, never a flag or a path (REQ-007). */
 const CHANGE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const TICKET_KEY = /^[A-Z][A-Z0-9_]+-\d+$/;
+/** A module of the brief: lowercase words with dashes, as specgate names them. */
+const MODULE = /^[a-z0-9][a-z0-9-]*$/;
+/** An agent's command: one value, never a flag, on one line. */
+const AGENT = /^[^-\r\n][^\r\n]*$/;
+
+/**
+ * The commands the host runs itself and a request over the wire may not
+ * name: a module's draft runs the project's agent, never one the request
+ * names (draft-brief A6).
+ */
+export function fromWire(c: SpecgateCommand): boolean {
+  return (c as { name?: unknown } | null)?.name !== "draft-module";
+}
 
 /**
  * The argument array of a command the port offers, or null for any other name
@@ -106,6 +127,27 @@ export function commandLine(c: SpecgateCommand): CommandLine | null {
         : null;
     case "ci-init":
       return { args: ["ci", "init"], write: true };
+    case "brief-check":
+      return {
+        args: ["propose", "--from-brief", "--check", "--brief", BRIEF_FILE],
+        write: false,
+        json: true,
+      };
+    case "brief-modules":
+      return { args: ["propose", "--from-brief"], write: false, json: true };
+    case "config-list":
+      return { args: ["config", "list"], write: false, json: true };
+    case "draft-module":
+      return typeof c.module === "string" &&
+        MODULE.test(c.module) &&
+        typeof c.agent === "string" &&
+        AGENT.test(c.agent)
+        ? {
+            args: ["propose", "--from-brief", c.module, "--agent", c.agent],
+            write: true,
+            json: true,
+          }
+        : null;
     default:
       return null;
   }

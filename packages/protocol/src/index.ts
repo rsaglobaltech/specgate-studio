@@ -29,6 +29,9 @@ import type {
   Area,
   InitAnswers,
   ReadyItem,
+  BriefModule,
+  BriefView,
+  DraftResult,
 } from "@specgate-studio/core";
 
 export type { CommandEvent, RunResult, Section, SectionData, SpecgateCommand };
@@ -42,6 +45,8 @@ export type { ActionId, Explanation, HelpVars, Lang, Notice };
 export type { ArchivePreview, ChangeCard, ChangeGroup, ChangesView, Finding, TicketReview };
 /** Setting up a folder that is no project yet (draft-project-setup). */
 export type { AdoptPreview, Area, InitAnswers, ReadyItem };
+/** The Brief view (draft-brief). */
+export type { BriefModule, BriefView, DraftResult };
 
 /** What the UI may ask, and what it gets back. */
 export interface Requests {
@@ -109,6 +114,12 @@ export interface Requests {
     params: Record<string, never>;
     result: { adopted: boolean; byKind: boolean; areas: Area[] };
   };
+  /** What the brief's last check found, for Problems (draft-brief REQ-072). */
+  "problems.get": { params: Record<string, never>; result: Finding[] };
+  /** The brief's modules, where each stands, and the project's agent; runs nothing (REQ-073). */
+  "brief.get": { params: Record<string, never>; result: BriefView };
+  /** "Draft the modules": each module not drafted yet with the agent, one at a time (REQ-073). */
+  "brief.draft": { params: Record<string, never>; result: DraftResult };
 }
 
 /** What the host tells every connected UI, unasked. */
@@ -120,6 +131,8 @@ export interface Notifications {
   "terminal.exit": { id: string; code: number };
   /** The folder changed: its new state (REQ-023). */
   "workspace.changed": { state: WorkspaceState };
+  /** The brief was saved and checked: what Problems lists now (draft-brief REQ-072). */
+  "problems.changed": { findings: Finding[] };
 }
 
 export interface ProjectOpened {

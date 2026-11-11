@@ -24,7 +24,7 @@ The system SHALL let the Developer edit the brief both as a form and as markdown
 
 ### Requirement: REQ-072 — The brief's checks on every save, in Problems
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL run the brief's checks each time `docs/brief.md` is saved, from the form or as markdown, and SHALL show each finding in the bottom panel's Problems with its code, its message, its fix and the line it points at.
 

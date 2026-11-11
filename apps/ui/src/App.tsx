@@ -5,6 +5,7 @@ import type { TerminalPaneProps } from "./TerminalPane.js";
 import type {
   Annotations,
   CommandEvent,
+  Finding,
   Lang as NoticeLang,
   Notice,
   Question,
@@ -28,6 +29,9 @@ import { Changes } from "./views/Changes.js";
 import { loadSettings, saveSettings, type Theme } from "./settings.js";
 import Questions from "./views/Questions.js";
 import { AdoptedAreas, SetupNext, SetupPane, type SetupStep } from "./Setup.js";
+import { Problems } from "./views/Problems.js";
+import { Brief } from "./views/Brief.js";
+import { bt } from "./views/briefText.js";
 
 type Sections = Partial<
   Record<"home" | "changes" | "questions" | "matrix" | "report", SectionData>
@@ -92,6 +96,8 @@ export function App({ rpc }: { rpc: Rpc }) {
   // Setting up a folder that is no project yet (draft-project-setup).
   const [setup, setSetup] = useState<SetupStep | null>(null);
   const [areas, setAreas] = useState<Requests["setup.areas"]["result"] | null>(null);
+  // What the brief's last check found (draft-brief REQ-072).
+  const [problems, setProblems] = useState<Finding[]>([]);
   // The terminals (draft-terminal): xterm.js loads after the first paint.
   const [TerminalPane, setTerminalPane] = useState<ComponentType<TerminalPaneProps> | null>(null);
   const [echo, setEcho] = useState("");
@@ -99,6 +105,9 @@ export function App({ rpc }: { rpc: Rpc }) {
   const [openShell, setOpenShell] = useState(0);
   /** The button whose command runs next: the echo names it (REQ-053). */
   const pendingLabel = useRef<string | null>(null);
+  /** The button whose agent runs, one module after another: the echo names it for each (draft-brief). */
+  const draftLabel = useRef<string | null>(null);
+  const [briefRead, setBriefRead] = useState(0);
   const filterRef = useRef<HTMLInputElement>(null);
   const tr = useCallback(
     (key: string, vars?: Record<string, string | number>) => t(lang, key, vars),
@@ -149,6 +158,12 @@ export function App({ rpc }: { rpc: Rpc }) {
     // The open folder: its branch, team and ticket (draft-workspace), kept current.
     rpc.ask("workspace.get", {}).then(setWorkspace, () => undefined);
     const offWorkspace = rpc.on("workspace.changed", ({ state }) => setWorkspace(state));
+    // The brief's checks on every save: Problems, and the open file's underlines (REQ-072).
+    rpc.ask("problems.get", {}).then(setProblems, () => undefined);
+    const offProblems = rpc.on("problems.changed", ({ findings }) => {
+      setProblems(findings);
+      if (activeRef.current) void annotateRef.current(activeRef.current);
+    });
     const offState = rpc.on("state.changed", ({ sections: changed }) => {
       // The open file's findings and questions may have changed with them (REQ-044).
       if (activeRef.current) void annotateRef.current(activeRef.current);
@@ -161,7 +176,9 @@ export function App({ rpc }: { rpc: Rpc }) {
     const offCommand = rpc.on("command.event", (e: CommandEvent) => {
       if (e.type === "started") {
         setOutput((o) => `${o}$ ${e.command}\n`);
-        const label = pendingLabel.current ?? e.command;
+        const label =
+          pendingLabel.current ??
+          (draftLabel.current && / --agent /.test(e.command) ? draftLabel.current : e.command);
         pendingLabel.current = null;
         setEcho((t) => `${t}\u25b6 "${label}" \u00b7 ${e.command}\n`);
         if (e.command === "specgate check") setGate("running");
@@ -177,6 +194,7 @@ export function App({ rpc }: { rpc: Rpc }) {
     });
     return () => {
       offWorkspace();
+      offProblems();
       offState();
       offCommand();
     };
@@ -263,6 +281,34 @@ export function App({ rpc }: { rpc: Rpc }) {
     (label: string, command: SpecgateCommand): Promise<RunResult> => {
       announce(label);
       return rpc.ask("command.run", command);
+    },
+    [rpc, announce],
+  );
+
+  /**
+   * "Draft the modules" (draft-brief REQ-073): the host drafts each module in
+   * turn; the echo names the button for each, and the end says what happened.
+   */
+  const draftModules = useCallback(
+    async (label: string) => {
+      announce(label);
+      const mine = draftLabel.current === null;
+      if (mine) draftLabel.current = label;
+      try {
+        const r = await rpc.ask("brief.draft", {});
+        // Refused or nothing to draft: no run consumed the button's name.
+        if (!r.ok || r.drafted.length === 0) pendingLabel.current = null;
+        if (r.notice) setEnded(r.notice);
+        else if (!r.ok) setNotice(r.message);
+      } catch (e) {
+        pendingLabel.current = null;
+        setNotice(e instanceof Error ? e.message : String(e));
+      } finally {
+        if (mine) {
+          draftLabel.current = null;
+          setBriefRead((n) => n + 1);
+        }
+      }
     },
     [rpc, announce],
   );
@@ -571,6 +617,18 @@ export function App({ rpc }: { rpc: Rpc }) {
                     }
                   />
                 }
+                briefView={
+                  <Brief
+                    rpc={rpc}
+                    lang={lang}
+                    stamp={[sections.home, sections.changes, briefRead]}
+                    openFile={openFile}
+                    onDraft={(label) => void draftModules(label)}
+                    onHelp={(feature, requests) =>
+                      setHelp({ title: tr("help.title", { feature }), requests })
+                    }
+                  />
+                }
                 reportTotal={(sections.report as { total?: number } | undefined)?.total}
                 onCheck={() =>
                   runFeature(
@@ -605,6 +663,7 @@ export function App({ rpc }: { rpc: Rpc }) {
               onClick={() => setPanel({ open: true, tab: p })}
             >
               {tr(`panel.${p}`)}
+              {p === "problems" && problems.length > 0 && ` (${problems.length})`}
             </button>
           ))}
         </div>
@@ -631,6 +690,18 @@ export function App({ rpc }: { rpc: Rpc }) {
             !TerminalPane && tr("panel.empty")
           ) : panel.tab === "gate" ? (
             <pre style="margin:0;white-space:pre-wrap">{output || tr("panel.empty")}</pre>
+          ) : panel.tab === "problems" ? (
+            <Problems
+              lang={lang}
+              findings={problems}
+              onOpen={openFile}
+              onHelp={() =>
+                setHelp({
+                  title: tr("help.title", { feature: bt(lang, "problems.feature") }),
+                  requests: [{ action: "brief-check", feature: bt(lang, "problems.feature") }],
+                })
+              }
+            />
           ) : (
             tr("panel.empty")
           )}
@@ -835,6 +906,8 @@ interface ViewProps {
   ticketPanel: boolean;
   /** The Changes view (draft-changes). */
   changesView: JSX.Element;
+  /** The Brief view (draft-brief). */
+  briefView: JSX.Element;
   reportTotal: number | undefined;
   onCheck: () => void;
   onHelp: (r: HelpRequest) => void;
@@ -953,6 +1026,8 @@ function View(p: ViewProps) {
           {p.changesView}
         </>
       );
+    case "brief":
+      return p.briefView;
     case "questions":
       return (
         <Questions

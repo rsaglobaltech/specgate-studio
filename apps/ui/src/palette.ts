@@ -39,9 +39,9 @@ export const FEATURES: readonly Feature[] = [
   },
   {
     id: "brief.draft",
-    action: "propose-brief",
-    title: { en: "Draft a module of the brief", es: "Redactar un módulo del brief" },
-    command: "specgate propose --from-brief <module>",
+    action: "draft-modules",
+    title: { en: "Draft the modules", es: "Redactar los módulos" },
+    command: "specgate propose --from-brief <module> --agent <agent>",
     run: { kind: "view", view: "brief" },
   },
   {
