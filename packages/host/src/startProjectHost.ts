@@ -104,9 +104,17 @@ export async function startProjectHost(
     ...(options.files ? { files: options.files(projectDir) } : {}),
     ...(options.findings ? { findings: options.findings(projectDir) } : {}),
     ...(options.terminals ? { terminals: options.terminals } : {}),
-    // The Changes view reads specgate's `--json` through the same port (draft-changes).
-    ...(hasCall(reader) ? { changes: { specgate: reader } } : {}),
-    // Build and Live read specgate's `--json` through the same port (draft-build-live).
+    // The Changes view reads specgate's `--json` (draft-changes): through the
+    // project's reader when it answers `--json`, the CLI otherwise.
+    changes: {
+      specgate: {
+        call: async (args) => {
+          const r = project ? await project : cli;
+          return hasCall(r) ? r.call(args) : cli.call(args);
+        },
+      },
+    },
+    // Build and Live read specgate's `--json` through the CLI (draft-build-live).
     builds: {
       specgate: cli,
       git,

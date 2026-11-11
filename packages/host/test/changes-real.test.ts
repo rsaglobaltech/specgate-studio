@@ -12,7 +12,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { SpecgateCli, specgateBin } from "@specgate-studio/adapter-specgate-cli";
-import { NodeProcessRunner, startHost } from "../src/index.js";
+import { NodeProcessRunner, startHost, startProjectHost } from "../src/index.js";
 import { client } from "./rpc.js";
 
 const CONFIG = `PROJECT_NAME: Sprich
@@ -154,5 +154,23 @@ test("REQ-081 REQ-085 REQ-086 against specgate: grouped, the archive previewed w
     ui.close();
     await host.close();
     fs.rmSync(p.parent, { recursive: true, force: true });
+  }
+});
+
+test("REQ-081: the studio as it runs — `specgate-studio serve` on a project answers changes.get from the real specgate", async () => {
+  const p = sprich();
+  const host = await startProjectHost(p.dir, { home: path.join(p.parent, "home") });
+  const ui = await client(host.url);
+  try {
+    const answer = await ui.ask<any>("changes.get");
+    assert.equal(answer.error, undefined, JSON.stringify(answer.error));
+    assert.deepEqual(
+      answer.result.groups.ready.map((c: any) => c.id),
+      ["fix-rounding"],
+    );
+  } finally {
+    ui.close();
+    await host.close();
+    fs.rmSync(p.parent, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
   }
 });
