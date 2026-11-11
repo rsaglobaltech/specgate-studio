@@ -14,8 +14,11 @@ import { codeFolder, snapshot, withClaude } from "@specgate-studio/adapter-specg
 import { serve } from "../src/index.js";
 import { close, open, studio, untilTerm, type Page } from "./support.js";
 
-/** On Windows a shell or watcher of the folder lets go of it a moment after the host closes. */
-const RM = { recursive: true, force: true, maxRetries: 20, retryDelay: 250 } as const;
+/**
+ * On Windows a shell, or a git or specgate read still running when the host
+ * closes, lets go of the folder a moment later — seconds on a loaded runner.
+ */
+const RM = { recursive: true, force: true, maxRetries: 60, retryDelay: 500 } as const;
 
 /** Long enough for the real specgate on a loaded Windows runner. */
 const SLOW = { timeout: 180_000 };
