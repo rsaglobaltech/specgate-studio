@@ -27,6 +27,7 @@ import { fromStudio, uiHandler } from "./serveUi.js";
 import { attachTerminals, type TerminalWiring } from "./terminals.js";
 import { RPC_ERRORS, type Notifications, type ProjectOpened } from "@specgate-studio/protocol";
 import { attachWorkspace, type WorkspaceWiring } from "./workspace.js";
+import { attachChanges, type ChangesWiring } from "./changes.js";
 
 export interface HostOptions {
   projectDir: string;
@@ -48,6 +49,8 @@ export interface HostOptions {
   files?: ProjectFiles;
   /** The specification's findings with file and line (`validate --strict`), for the editor (REQ-043). */
   findings?: () => Promise<Finding[]>;
+  /** specgate's `--json` answers for the Changes view and its commands (draft-changes). */
+  changes?: ChangesWiring;
 }
 
 /** The project's files, by paths relative to it with `/`. */
@@ -88,8 +91,14 @@ export async function startHost(options: HostOptions): Promise<Host> {
   const state = new ProjectState(options.reader);
   // The requirement Home says to apply next, for the notices (REQ-063).
   let nextReq: string | undefined;
+  const changes = options.changes
+    ? attachChanges(options.projectDir, options.changes, state, options.workspace?.git, (m) =>
+        rpcError(RPC_ERRORS.params, m),
+      )
+    : null;
   const commands = new Commands(options.runner, {
     helpVars: () => (nextReq ? { req: nextReq } : {}),
+    ...changes?.commands,
   });
   // The installed specgate first: an older one reads nothing (REQ-013).
   const checked =
@@ -232,6 +241,7 @@ export async function startHost(options: HostOptions): Promise<Host> {
     },
     ...workspace?.handlers,
     ...terminals?.handlers,
+    ...changes?.handlers,
   };
 
   server.on("connection", (ws: WebSocket) => {
