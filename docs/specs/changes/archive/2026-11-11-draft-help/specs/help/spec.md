@@ -44,7 +44,7 @@ The system SHALL show the Reviewer the same five-part explanation beside every f
 
 ### Requirement: REQ-063 — The notice when an action ends names what happened and the next step
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL, when an action ends, show a notice that names the command that ran, what it wrote, committed or pushed — or that it wrote nothing — and the next step as a command; the notice SHALL never be only "done", and an action that fails SHALL name what failed and its fix.
 
