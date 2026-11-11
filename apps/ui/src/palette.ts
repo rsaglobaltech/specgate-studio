@@ -52,6 +52,16 @@ export const FEATURES: readonly Feature[] = [
     run: { kind: "view", view: "questions" },
   },
   {
+    id: "question.reviewed",
+    action: "answer-reviewed",
+    title: {
+      en: "Confirm the spec says an answer",
+      es: "Confirmar que la spec dice una respuesta",
+    },
+    command: "specgate answer <Q> --reviewed",
+    run: { kind: "view", view: "questions" },
+  },
+  {
     id: "gate.check",
     action: "check",
     title: { en: "Check the gate", es: "Comprobar el gate" },

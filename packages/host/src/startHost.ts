@@ -27,6 +27,8 @@ import { fromStudio, uiHandler } from "./serveUi.js";
 import { attachTerminals, type TerminalWiring } from "./terminals.js";
 import { RPC_ERRORS, type Notifications, type ProjectOpened } from "@specgate-studio/protocol";
 import { attachWorkspace, type WorkspaceWiring } from "./workspace.js";
+import { attachChanges, type ChangesWiring } from "./changes.js";
+import { attachSetup, type SetupWiring } from "./setup.js";
 
 export interface HostOptions {
   projectDir: string;
@@ -48,6 +50,10 @@ export interface HostOptions {
   files?: ProjectFiles;
   /** The specification's findings with file and line (`validate --strict`), for the editor (REQ-043). */
   findings?: () => Promise<Finding[]>;
+  /** specgate's `--json` answers for the Changes view and its commands (draft-changes). */
+  changes?: ChangesWiring;
+  /** Creating or adopting a folder that is no project yet (draft-project-setup). */
+  setup?: SetupWiring;
 }
 
 /** The project's files, by paths relative to it with `/`. */
@@ -88,15 +94,21 @@ export async function startHost(options: HostOptions): Promise<Host> {
   const state = new ProjectState(options.reader);
   // The requirement Home says to apply next, for the notices (REQ-063).
   let nextReq: string | undefined;
+  const changes = options.changes
+    ? attachChanges(options.projectDir, options.changes, state, options.workspace?.git, (m) =>
+        rpcError(RPC_ERRORS.params, m),
+      )
+    : null;
   const commands = new Commands(options.runner, {
     helpVars: () => (nextReq ? { req: nextReq } : {}),
+    ...changes?.commands,
   });
   // The installed specgate first: an older one reads nothing (REQ-013).
   const checked =
     options.specgate && options.needs
       ? await checkSpecgate(options.specgate, options.needs)
       : ({ ok: true } as const);
-  const opening = checked.ok ? state.open() : Promise.resolve();
+  let opening = checked.ok ? state.open() : Promise.resolve();
   opening.catch(() => undefined);
 
   // One address for the browser: the UI's files over HTTP and JSON-RPC over
@@ -146,11 +158,25 @@ export async function startHost(options: HostOptions): Promise<Host> {
       )
     : null;
 
+  const setup = options.setup
+    ? attachSetup(
+        options.projectDir,
+        options.setup,
+        commands,
+        async () => (options.files ? options.files.list() : []),
+        (m) => rpcError(RPC_ERRORS.params, m),
+      )
+    : null;
+
   const handlers: Record<string, (params: unknown) => Promise<unknown>> = {
     "project.open": async () => {
       if (!checked.ok)
         throw rpcError(RPC_ERRORS.specgate, `${checked.message}. Fix: ${checked.fix}`);
-      await opening;
+      // A folder created or adopted since the host started is read now (draft-project-setup).
+      await opening.catch(() => {
+        opening = state.open();
+        return opening.then(readNext);
+      });
       const sections: ProjectOpened["sections"] = {};
       for (const s of SECTIONS) sections[s] = await state.section(s);
       return { project: path.basename(options.projectDir), sections } satisfies ProjectOpened;
@@ -168,6 +194,14 @@ export async function startHost(options: HostOptions): Promise<Host> {
       // What it wrote feeds sections: read them again now, not when the watcher says.
       if (result.ok)
         for (const f of result.written) await state.fileChanged(f).catch(() => undefined);
+      // "The spec says it" lifts Needs Clarification where each requirement is
+      // defined, a file the studio does not know: every section is read again.
+      if (
+        result.ok &&
+        result.exitCode === 0 &&
+        (params as SpecgateCommand).name === "answer-reviewed"
+      )
+        await state.fileChanged("*").catch(() => undefined);
       return result;
     },
     // The "?": data shipped with the studio; nothing runs, specgate is not asked (A2).
@@ -205,10 +239,15 @@ export async function startHost(options: HostOptions): Promise<Host> {
         checked.ok ? state.section("questions").catch(() => null) : Promise.resolve(null),
       ]);
       const open =
-        (questionsData as { questions?: { open?: Array<Omit<OpenQuestion, "options">> } } | null)
-          ?.questions?.open ?? [];
+        (
+          questionsData as {
+            questions?: { open?: Array<Omit<OpenQuestion, "options"> & { options?: string[] }> };
+          } | null
+        )?.questions?.open ?? [];
       const questions: OpenQuestion[] = await Promise.all(
         open.map(async (q) => {
+          // specgate 0.33.1 says the options (REQ-479); an older one is read from its table.
+          if (Array.isArray(q.options)) return { ...q, options: q.options };
           const md =
             q.change === "project"
               ? "docs/specs/questions.md"
@@ -227,6 +266,8 @@ export async function startHost(options: HostOptions): Promise<Host> {
     },
     ...workspace?.handlers,
     ...terminals?.handlers,
+    ...changes?.handlers,
+    ...setup?.handlers,
   };
 
   server.on("connection", (ws: WebSocket) => {
@@ -266,7 +307,7 @@ export async function startHost(options: HostOptions): Promise<Host> {
     url: `ws://127.0.0.1:${port}/`,
     state,
     close: async () => {
-      terminals?.close();
+      await terminals?.close();
       await workspace?.close();
       await new Promise<void>((ok) => {
         for (const ws of server.clients) ws.terminate();

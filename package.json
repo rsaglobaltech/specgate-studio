@@ -21,7 +21,7 @@
     "format:check": "prettier --check \"packages/*/src/**/*.ts\" \"packages/*/test/**/*.ts\" \"apps/*/src/**/*.{ts,tsx,css}\" \"apps/*/test/**/*.ts\""
   },
   "devDependencies": {
-    "@rsaglobaltech/specgate": "^0.32.0",
+    "@rsaglobaltech/specgate": "^0.33.2",
     "@types/node": "^22.20.5",
     "@types/ws": "^8.18.2",
     "dependency-cruiser": "^16.10.4",
