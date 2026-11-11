@@ -24,7 +24,7 @@ export function attachTerminals(
   wiring: TerminalWiring,
   broadcast: Broadcast,
   refuse: Refuse,
-): { handlers: Record<string, (params: unknown) => Promise<unknown>>; close(): void } {
+): { handlers: Record<string, (params: unknown) => Promise<unknown>>; close(): Promise<void> } {
   const terminals = new Terminals(wiring.pty, { cwd: projectDir, shell: wiring.shell });
   terminals.onData((id, data) => broadcast("terminal.data", { id, data }));
   terminals.onExit((id, code) => broadcast("terminal.exit", { id, code }));
@@ -52,7 +52,7 @@ export function attachTerminals(
     "terminal.close": async (params) => {
       const id = (params as { id?: unknown } | null)?.id;
       if (!known(id)) throw refuse("no such terminal");
-      terminals.close(id);
+      void terminals.close(id);
       return {};
     },
     "terminal.list": async () => terminals.list(),

@@ -25,6 +25,10 @@ import type {
   SpecgateCommand,
   UncommittedGroup,
   WorkspaceState,
+  AdoptPreview,
+  Area,
+  InitAnswers,
+  ReadyItem,
 } from "@specgate-studio/core";
 
 export type { CommandEvent, RunResult, Section, SectionData, SpecgateCommand };
@@ -36,6 +40,8 @@ export type { FolderKind, GitState, RecentProject, UncommittedGroup, WorkspaceSt
 export type { ActionId, Explanation, HelpVars, Lang, Notice };
 /** The Changes view (draft-changes). */
 export type { ArchivePreview, ChangeCard, ChangeGroup, ChangesView, Finding, TicketReview };
+/** Setting up a folder that is no project yet (draft-project-setup). */
+export type { AdoptPreview, Area, InitAnswers, ReadyItem };
 
 /** What the UI may ask, and what it gets back. */
 export interface Requests {
@@ -76,6 +82,33 @@ export interface Requests {
   "changes.get": { params: Record<string, never>; result: ChangesView };
   /** A ticket's review and what its confirmation runs; runs nothing that writes (REQ-084). */
   "changes.ticket": { params: { key: string }; result: TicketReview };
+  /** What the five questions offer, and the folder's name (draft-project-setup REQ-111). */
+  "setup.options": {
+    params: Record<string, never>;
+    result: {
+      kinds: string[];
+      stacks: Array<{ id: string; label: string }>;
+      agents: Array<{ id: string; label: string }>;
+      architectures: string[];
+      name: string;
+    };
+  };
+  /** The config and commands the answers make; runs nothing (SCN-332). */
+  "setup.plan": {
+    params: InitAnswers;
+    result: { problem: string | null; config: string; commands: string[] };
+  };
+  /** Create the project in the open folder with `specgate init` (REQ-111). */
+  "setup.create": { params: InitAnswers; result: RunResult };
+  /** What adopting the folder writes and saves (REQ-112, REQ-113). */
+  "setup.preview": { params: Record<string, never>; result: AdoptPreview };
+  /** Tests, Agent, Architecture, CI gate: set or not (REQ-114). */
+  "setup.readiness": { params: Record<string, never>; result: ReadyItem[] };
+  /** The areas adoption wrote to `docs/specs/adoption.md` (REQ-115). */
+  "setup.areas": {
+    params: Record<string, never>;
+    result: { adopted: boolean; byKind: boolean; areas: Area[] };
+  };
 }
 
 /** What the host tells every connected UI, unasked. */
@@ -122,3 +155,30 @@ export const RPC_ERRORS = {
   /** The installed specgate is missing or older than the studio needs (REQ-013). */
   specgate: -32001,
 } as const;
+
+/** Where a question was asked: the brief, a draft, or the agent while it builds (draft-questions A3). */
+export type Asked = "brief" | "draft" | "build";
+
+/** A question as `specgate questions --json` gives it (draft-questions REQ-091). */
+export interface Question {
+  id: string;
+  /** The change it was asked in, or `project`. */
+  change: string;
+  text: string;
+  blocks: string[];
+  /** specgate 0.33.1 and later (REQ-479). */
+  options?: string[];
+  /** specgate 0.33.2 and later (specgate REQ-481). */
+  asked?: Asked;
+  /** In `answered` only: the answer, waiting for "The spec says it" (specgate REQ-482). */
+  answer?: string;
+}
+
+/** The Questions section: `specgate questions --json`. */
+export interface QuestionsSection {
+  questions?: {
+    open?: Question[];
+    /** Answered and not yet confirmed; specgate 0.33.2 and later. */
+    answered?: Question[];
+  };
+}

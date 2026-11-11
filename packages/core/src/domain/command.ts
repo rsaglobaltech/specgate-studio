@@ -1,5 +1,6 @@
 import type { Finding } from "./finding.js";
 import type { Lang, Notice } from "./help.js";
+import { AGENT_TOOLS } from "./setup.js";
 
 /**
  * The specgate commands the host may run, and the argument array each one is
@@ -14,13 +15,18 @@ export type SpecgateCommand =
   | { name: "archive"; change: string }
   | { name: "config-set"; key: string; value: string }
   | { name: "answer"; q: string; answer: string; change: string }
+  | { name: "answer-reviewed"; q: string; change: string }
   | { name: "change-note"; change: string; text: string; req?: string }
   // draft-changes: read with --json, never written (REQ-081, REQ-084, REQ-085).
   | { name: "change-show"; change: string }
   | { name: "archive-preview"; change: string }
   | { name: "propose-ticket-check"; key: string }
   // Opens the ticket's change: on its branch already, --no-branch; "Don't push yet", --no-push (REQ-084).
-  | { name: "propose-ticket"; key: string; noBranch?: boolean; noPush?: boolean };
+  | { name: "propose-ticket"; key: string; noBranch?: boolean; noPush?: boolean }
+  | { name: "adopt-preview" }
+  | { name: "adopt" }
+  | { name: "agents-init"; tool: string }
+  | { name: "ci-init" };
 
 export interface CommandLine {
   args: string[];
@@ -56,6 +62,9 @@ export function commandLine(c: SpecgateCommand): CommandLine | null {
       return { args: ["config", "set", c.key, c.value], write: true };
     case "answer":
       return { args: ["answer", c.q, c.answer, "--change", c.change], write: true };
+    // "The spec says it" (draft-questions REQ-093).
+    case "answer-reviewed":
+      return { args: ["answer", c.q, "--reviewed", "--change", c.change], write: true };
     case "change-note":
       return {
         args: ["change", "note", c.change, c.text, ...(c.req ? ["--req", c.req] : [])],
@@ -87,6 +96,16 @@ export function commandLine(c: SpecgateCommand): CommandLine | null {
             json: true,
           }
         : null;
+    case "adopt-preview":
+      return { args: ["adopt", "--dry-run"], write: false };
+    case "adopt":
+      return { args: ["adopt", "--yes"], write: true };
+    case "agents-init":
+      return Object.prototype.hasOwnProperty.call(AGENT_TOOLS, c.tool)
+        ? { args: ["agents", "init", "--tool", c.tool], write: true }
+        : null;
+    case "ci-init":
+      return { args: ["ci", "init"], write: true };
     default:
       return null;
   }

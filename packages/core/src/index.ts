@@ -111,3 +111,35 @@ export type { Pty, PtyOptions, PtyPort, Shell } from "./ports/PtyPort.js";
 export { Scrollback, shellFor } from "./domain/terminal.js";
 export { SCROLLBACK_LINES, Terminals } from "./application/Terminals.js";
 export { FakePty, InMemoryPty } from "./fakes/InMemoryPty.js";
+export {
+  ADOPTION_AREAS,
+  ADOPT_FILES,
+  AGENT_TOOLS,
+  ARCHITECTURES,
+  CI_GATE,
+  DETECTED_AGENTS,
+  HARNESS_CONFIG,
+  PROJECT_KINDS,
+  STACKS,
+  adoptPreview,
+  adoptionAreas,
+  agentLabel,
+  hasTests,
+  initArgs,
+  initConfig,
+  initProblem,
+  readiness,
+  setupStep,
+  type AdoptPreview,
+  type AgentTool,
+  type Architecture,
+  type Area,
+  type InitAnswers,
+  type ProjectKind,
+  type ReadyId,
+  type ReadyItem,
+  type SetupStep,
+  type StackId,
+} from "./domain/setup.js";
+export type { Onboarding, SetupPort } from "./ports/SetupPort.js";
+export { Setup, type SetupOptions } from "./application/Setup.js";

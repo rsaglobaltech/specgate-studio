@@ -1,6 +1,7 @@
 import {
   commandLine,
   shown,
+  type CommandLine,
   type CommandEvent,
   type RunResult,
   type SpecgateCommand,
@@ -10,6 +11,7 @@ import type { SpecgatePort } from "../ports/SpecgatePort.js";
 import type { Finding } from "../domain/finding.js";
 import { notice, type ActionId, type HelpVars } from "../domain/help.js";
 import { archivePreviewOf, archiveWritten, findingLine } from "../domain/changes.js";
+import { CI_GATE, HARNESS_CONFIG, initArgs } from "../domain/setup.js";
 
 export interface CommandsOptions {
   /** What the notices name: the next requirement to apply, the change… (REQ-063). */
@@ -23,6 +25,12 @@ export interface CommandsOptions {
   /** The files a command wrote that its answer does not list: Apply's delta (REQ-086). */
   written?: (command: SpecgateCommand, data: unknown) => Promise<string[]>;
 }
+
+/** The files an answer writes: its change's, or the project's for `project` (A4). */
+const answerFiles = (change: string) =>
+  change === "project"
+    ? ["docs/specs/questions.md", "docs/specs/assumptions.md"]
+    : [`docs/specs/changes/${change}/questions.md`, `docs/specs/changes/${change}/assumptions.md`];
 
 /**
  * The commands whose closing notice is known from their exit code alone —
@@ -38,10 +46,13 @@ function noticed(
     case "answer":
       return {
         action: "answer",
-        written: [
-          `docs/specs/changes/${c.change}/questions.md`,
-          `docs/specs/changes/${c.change}/assumptions.md`,
-        ],
+        written: answerFiles(c.change),
+        vars: { q: c.q, change: c.change },
+      };
+    case "answer-reviewed":
+      return {
+        action: "answer-reviewed",
+        written: answerFiles(c.change),
         vars: { q: c.q, change: c.change },
       };
     case "change-note":
@@ -54,6 +65,21 @@ function noticed(
           ...(c.req ? { req: c.req } : {}),
         },
       };
+    case "adopt":
+      return {
+        action: "adopt",
+        written: [
+          "spec.md",
+          "AGENTS.md",
+          "features/adoption/baseline.feature",
+          "docs/specs/traceability.md",
+        ],
+        vars: {},
+      };
+    case "agents-init":
+      return { action: "agents-init", written: [HARNESS_CONFIG], vars: {} };
+    case "ci-init":
+      return { action: "ci-init", written: [CI_GATE], vars: {} };
     default:
       return null;
   }
@@ -86,6 +112,7 @@ function writtenIn(c: SpecgateCommand, data: unknown): string[] {
   }
   return [];
 }
+type Known = ReturnType<typeof noticed>;
 
 export type EventListener = (event: CommandEvent) => void;
 
@@ -118,6 +145,26 @@ export class Commands {
         message: `specgate has no command ${JSON.stringify(name)} the studio may run.`,
       };
     }
+    return this.exec(line, noticed(command), command);
+  }
+
+  /**
+   * `specgate init` with the five answers' config, into `out` (draft-project-setup
+   * REQ-111): told and guarded as any write. The host builds the config; the
+   * wire never names a path for it.
+   */
+  runInit(config: string, out: string, git: boolean): Promise<RunResult> {
+    return this.exec(
+      { args: initArgs(config, out, git), write: true },
+      { action: "init", written: ["spec.md", "docs/specs/traceability.md"], vars: {} },
+    );
+  }
+
+  private async exec(
+    line: CommandLine,
+    known: Known,
+    command?: SpecgateCommand,
+  ): Promise<RunResult> {
     if (line.write && this.writing) {
       return {
         ok: false,
@@ -129,15 +176,16 @@ export class Commands {
     const text = shown(line.args);
     if (line.write) this.writing = text;
     try {
-      if (line.json && this.options.json) return await this.runJson(command, line.args, run, text);
+      if (line.json && this.options.json && command)
+        return await this.runJson(command, line.args, run, text);
       this.emit({ type: "started", run, command: text });
       const exitCode = await this.runner.run(line.args, (chunk) =>
         this.emit({ type: "output", run, chunk }),
       );
-      const known = noticed(command);
       if (known) {
         const vars = { ...(this.options.helpVars?.() ?? {}), ...known.vars };
-        const outcome = { exitCode, findings: [], written: known.written };
+        // A run that failed is not said to have written its files.
+        const outcome = { exitCode, findings: [], written: exitCode === 0 ? known.written : [] };
         this.emit({
           type: "ended",
           run,
@@ -148,7 +196,7 @@ export class Commands {
           },
         });
       } else this.emit({ type: "ended", run, exitCode });
-      const written = exitCode === 0 ? (noticed(command)?.written ?? []) : [];
+      const written = exitCode === 0 ? (known?.written ?? []) : [];
       return { ok: true, run, exitCode, written };
     } finally {
       if (line.write) this.writing = null;

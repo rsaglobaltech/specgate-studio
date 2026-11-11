@@ -39,6 +39,8 @@ export interface ServeOptions {
   specgate?: Pick<SpecgatePort, "call">;
   /** The Developer's terminals; the real pty and their shell when not given. */
   terminals?: TerminalWiring;
+  /** The studio's settings folder; the user's when not given (draft-workspace A6). */
+  home?: string;
 }
 
 /**
@@ -78,7 +80,10 @@ export async function serve(options: ServeOptions): Promise<Host> {
     port,
     ui,
     terminals,
+    ...(options.home ? { home: options.home } : {}),
     reader: async (dir) => (await inProcessSpecgate(cliFor(dir), dir)) ?? cliFor(dir),
+    // The agent an adoption saves is the one on the PATH (draft-project-setup A8).
+    onPath: hasProgram,
     files: nodeFiles,
     // The specification's findings with file and line, for the editor (REQ-043): read-only.
     findings: (dir) => async () => (await cliFor(dir).call(["validate", "--strict"])).findings,
