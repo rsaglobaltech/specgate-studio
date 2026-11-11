@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Studio IDE — construir</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0;background:#15161A}
+a{color:#FF8A5C}a:hover{color:#FFB08F}
+.ab{width:44px;height:44px;border:0;background:transparent;border-radius:4px;display:flex;align-items:center;justify-content:center;position:relative;color:#9C978E}
+.ab[aria-current="page"]{color:#ECE7DE;box-shadow:inset 2px 0 0 #FF5B1F}
+.dot{width:8px;height:8px;border-radius:999px;flex:none}
+.hq{width:18px;height:18px;border-radius:999px;border:1px solid #6B665E;background:transparent;color:#C9C3B9;font:600 11px 'IBM Plex Sans',sans-serif;display:inline-flex;align-items:center;justify-content:center;padding:0}
+.btn{height:32px;padding:0 14px;border:1px solid #34353C;border-radius:4px;background:transparent;color:#ECE7DE;font:13px 'IBM Plex Sans',sans-serif}
+.pri{border:0;background:#FF5B1F;color:#160600;font-weight:600}
+.rq{display:flex;align-items:center;gap:10px;min-height:34px;padding:0 12px;font-size:13px;color:#C9C3B9}
+.rq input{width:16px;height:16px;accent-color:#FF5B1F;margin:0}
+.fg{display:flex;align-items:center;gap:10px;min-height:28px;padding:0 14px;font-size:13px}
+.ptab{height:32px;padding:0 10px;border:0;background:transparent;color:#9C978E;font:600 11px 'IBM Plex Sans',sans-serif;letter-spacing:.06em}
+.ptab[aria-selected="true"]{color:#ECE7DE;box-shadow:inset 0 -2px 0 #FF5B1F}
+.sga{width:44px;height:40px;border:0;background:transparent;border-radius:4px;display:flex;align-items:center;justify-content:center;position:relative;color:#9C978E;padding:0}
+.sga[aria-current="page"]{color:#ECE7DE;background:#1C1D22;box-shadow:inset 2px 0 0 #FF5B1F}
+.sgb{position:absolute;right:4px;top:3px;min-width:16px;height:16px;border-radius:999px;background:#FF5B1F;color:#160600;font:600 10px 'IBM Plex Sans',sans-serif;display:flex;align-items:center;justify-content:center;padding:0 3px;box-sizing:border-box}
+</style>
+</helmet>
+<div style="display: flex; flex-direction: column; min-height: 900px; background: #15161A; color: #ECE7DE; font-family: 'IBM Plex Sans', system-ui, sans-serif">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px; min-height: 42px; padding: 0 12px; background: #111215; border-bottom: 1px solid #2A2B31">
+<span style="display: flex; align-items: center; gap: 8px; font-family: Syne, sans-serif; font-weight: 800; font-size: 15px; letter-spacing: -0.02em"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF5B1F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h6"></path><path d="M16 15l2 2 4-4"></path></svg>specgate<span style="color: #FF8A5C">studio</span></span>
+<button type="button" style="flex: 1 1 360px; max-width: 560px; margin: 0 auto; display: flex; align-items: center; height: 30px; padding: 0 12px; border: 1px solid #34353C; border-radius: 4px; background: #1C1D22; color: #9C978E; font: 13px 'IBM Plex Sans', sans-serif; text-align: left">sprich — buscar requisito, archivo o comando<span style="margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-size: 11px; border: 1px solid #34353C; border-radius: 3px; padding: 0 5px">Ctrl ⇧ P</span></button>
+<button type="button" style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 1px solid #5C4A1F; border-radius: 4px; background: #241F14; color: #F0C96A; font: 600 12px 'IBM Plex Sans', sans-serif"><span class="dot" style="background: #E3B341"></span>325 sin guardar</button>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; flex: 1 1 auto; min-height: 0">
+
+<nav aria-label="Vistas" style="flex: 0 0 52px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0; background: #111215; border-right: 1px solid #2A2B31">
+<button type="button" class="sga" aria-label="Inicio"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"></path></svg></button>
+<button type="button" class="sga" aria-label="Explorador de la spec"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><path d="M14 3v6h6"></path></svg></button>
+<button type="button" class="sga" aria-label="Brief"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg></button>
+<button type="button" class="sga" aria-label="Cambios, 1"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="2.5"></circle><circle cx="6" cy="18" r="2.5"></circle><circle cx="18" cy="9" r="2.5"></circle><path d="M6 8.5v7M18 11.5c0 4-6 3-11 4.5"></path></svg><span class="sgb">1</span></button>
+<button type="button" class="sga" aria-label="Preguntas, 2"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"></path></svg><span class="sgb">2</span></button>
+<button type="button" class="sga" aria-label="Construir" aria-current="page"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4l13 8-13 8z"></path></svg></button>
+<button type="button" class="sga" aria-label="En vivo"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4"></path></svg></button>
+<button type="button" class="sga" aria-label="Trazabilidad"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect><path d="M10 6.5h4a3 3 0 0 1 3 3V14"></path></svg></button>
+<button type="button" class="sga" aria-label="Informe y calidad"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"></path><path d="M8.5 12l2.5 2.5 4.5-5"></path></svg></button>
+<div style="flex-grow: 1"></div>
+<button type="button" class="sga" aria-label="Ayuda: qué hace cada vista"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5M12 17h.01"></path></svg></button>
+<button type="button" class="sga" aria-label="Ajustes"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"></path><circle cx="15" cy="6" r="2"></circle><circle cx="9" cy="12" r="2"></circle><circle cx="17" cy="18" r="2"></circle></svg></button>
+</nav>
+
+<aside aria-label="Construir" style="flex: 0 1 300px; min-width: 240px; display: flex; flex-direction: column; background: #1C1D22; border-right: 1px solid #2A2B31">
+<div style="display: flex; align-items: center; justify-content: space-between; height: 36px; padding: 0 12px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: #9C978E"><span>CONSTRUIR</span><button type="button" class="hq" aria-label="Qué hace Construir">?</button></div>
+<div style="display: flex; flex-direction: column; gap: 6px; padding: 4px 12px 12px; border-bottom: 1px solid #2A2B31">
+<label for="who" style="font-size: 12px; color: #9C978E">Quién programa</label>
+<select id="who" style="height: 32px; border: 1px solid #34353C; border-radius: 4px; background: #15161A; color: #ECE7DE; font: 13px 'IBM Plex Sans', sans-serif; padding: 0 8px"><option>claude (perfil por defecto)</option><option>codex</option></select>
+</div>
+<div style="padding: 10px 12px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; color: #9C978E">LISTOS · APROBADOS, SIN PREGUNTAS</div>
+<label class="rq"><input type="checkbox" checked><span style="font-family: 'IBM Plex Mono', monospace; color: #9C978E">012</span>Cerrar sesión<span style="margin-left: auto; font-size: 12px; color: #9C978E">~6 min</span></label>
+<label class="rq"><input type="checkbox"><span style="font-family: 'IBM Plex Mono', monospace; color: #9C978E">021</span>Pagar con tarjeta<span style="margin-left: auto; font-size: 12px; color: #9C978E">~14 min</span></label>
+<div style="padding: 10px 12px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; color: #9C978E">ESPERAN · NO SE PUEDEN ELEGIR AÚN</div>
+<div class="rq" style="color: #9C978E"><span class="dot" style="background: #E3B341"></span><span style="font-family: 'IBM Plex Mono', monospace">031</span>Cancelar un pedido<span style="margin-left: auto; font-size: 12px">Q2</span></div>
+<div style="flex-grow: 1"></div>
+<div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border-top: 1px solid #2A2B31">
+<button type="button" class="btn pri" disabled style="opacity: 1; background: #3A3A40; color: #B9B3A9; cursor: not-allowed">Construir 1 requisito</button>
+<span style="font-size: 12px; color: #F0C96A; line-height: 1.45">Espera: hay trabajo tuyo sin guardar en git. Mira a la derecha.</span>
+</div>
+</aside>
+
+<main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+<div style="flex: 1 1 auto; display: flex; flex-direction: column; gap: 16px; padding: 18px 22px; overflow: auto">
+
+<section aria-labelledby="dirty-h" style="border: 1px solid #5C4A1F; border-radius: 6px; background: #1E1B14">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid #3A3220">
+<h2 id="dirty-h" style="margin: 0; font-size: 16px; font-weight: 600; color: #F0C96A">Tu trabajo sin guardar frena la construcción</h2>
+<button type="button" class="hq" aria-expanded="false" aria-label="Por qué hace falta un árbol limpio">?</button>
+</div>
+<div style="padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; font-size: 13px; line-height: 1.55; color: #D9D3C8">
+<p style="margin: 0">El harness construye cada requisito en <b>su propia rama</b> y hace commit de lo que escribe el agente. Con 325 archivos tuyos sin commit, se mezclarían en sus commits o se perderían al cambiar de rama. Por eso el studio no los toca sin ti. La spec (brief, cambios, preguntas) sí la guarda él solo.</p>
+<div style="display: flex; flex-direction: column; border: 1px solid #3A3220; border-radius: 4px; background: #18160F">
+<div class="fg"><span style="font-family: 'IBM Plex Mono', monospace; color: #F0C96A; width: 34px">129</span><span style="font-family: 'IBM Plex Mono', monospace">packages/core/</span><span style="margin-left: auto; color: #9C978E; font-size: 12px">código · 21 modificados, 108 nuevos</span></div>
+<div class="fg"><span style="font-family: 'IBM Plex Mono', monospace; color: #F0C96A; width: 34px">96</span><span style="font-family: 'IBM Plex Mono', monospace">apps/web/</span><span style="margin-left: auto; color: #9C978E; font-size: 12px">código · 12 modificados, 84 nuevos</span></div>
+<div class="fg"><span style="font-family: 'IBM Plex Mono', monospace; color: #7FDCAA; width: 34px">84</span><span style="font-family: 'IBM Plex Mono', monospace">docs/specs, spec.md, brief, features</span><span style="margin-left: auto; color: #7FDCAA; font-size: 12px">spec · el studio lo guarda solo</span></div>
+<div class="fg"><span style="font-family: 'IBM Plex Mono', monospace; color: #9C978E; width: 34px">5</span><span style="font-family: 'IBM Plex Mono', monospace">.idea/</span><span style="margin-left: auto; color: #9C978E; font-size: 12px">del editor · ¿ignorar?</span></div>
+<div class="fg" style="padding-bottom: 6px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F0C96A; width: 34px">11</span><span style="font-family: 'IBM Plex Mono', monospace">otros: pnpm-lock.yaml, AGENTS.md, .env.example…</span><button type="button" style="margin-left: auto; border: 0; background: transparent; color: #FF8A5C; font: 12px 'IBM Plex Sans', sans-serif">ver los 325</button></div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px">
+<div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid #34353C; border-radius: 4px; background: #18191D">
+<span style="font-weight: 600; color: #ECE7DE">Guardar mi trabajo</span>
+<span style="font-size: 12px; color: #9C978E">Un commit con todo, en tu nombre, en la rama actual.</span>
+<label for="msg" style="font-size: 12px; color: #9C978E">Mensaje</label>
+<input id="msg" type="text" value="Trabajo previo al primer build" style="height: 30px; padding: 0 8px; border: 1px solid #34353C; border-radius: 4px; background: #15161A; color: #ECE7DE; font: 13px 'IBM Plex Sans', sans-serif">
+<button type="button" class="btn pri">Hacer commit y construir</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid #34353C; border-radius: 4px; background: #18191D">
+<span style="font-weight: 600; color: #ECE7DE">Apartarlo</span>
+<span style="font-size: 12px; color: #9C978E"><span style="font-family: 'IBM Plex Mono', monospace">git stash -u</span>: lo guarda aparte y lo devuelve al terminar la construcción.</span>
+<div style="flex-grow: 1"></div>
+<button type="button" class="btn">Apartar y construir</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid #34353C; border-radius: 4px; background: #18191D">
+<span style="font-weight: 600; color: #ECE7DE">Ignorar .idea/</span>
+<span style="font-size: 12px; color: #9C978E">Añade <span style="font-family: 'IBM Plex Mono', monospace">.idea/</span> a <span style="font-family: 'IBM Plex Mono', monospace">.gitignore</span>; no borra nada.</span>
+<div style="flex-grow: 1"></div>
+<button type="button" class="btn">Añadir a .gitignore</button>
+</div>
+</div>
+<span style="font-size: 12px; color: #9C978E">Cada botón pide confirmación y muestra el comando en el terminal antes de correrlo.</span>
+</div>
+</section>
+
+<section aria-label="Cómo será la construcción" style="border: 1px solid #34353C; border-radius: 6px; background: #18191D; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: center; gap: 10px"><span style="font-weight: 600">REQ-012 · Cerrar sesión</span><span style="font-size: 12px; color: #9C978E">lo que hará el harness, paso a paso</span></div>
+<ol style="margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; font-size: 12px">
+<li style="padding: 10px; border-radius: 4px; background: #222329; display: flex; flex-direction: column; gap: 4px"><span style="color: #FF8A5C; font-family: 'IBM Plex Mono', monospace">1 · rama</span><span style="color: #C9C3B9">harness/REQ-012</span></li>
+<li style="padding: 10px; border-radius: 4px; background: #222329; display: flex; flex-direction: column; gap: 4px"><span style="color: #FF8A5C; font-family: 'IBM Plex Mono', monospace">2 · agente</span><span style="color: #C9C3B9">escribe la prueba y el código</span></li>
+<li style="padding: 10px; border-radius: 4px; background: #222329; display: flex; flex-direction: column; gap: 4px"><span style="color: #FF8A5C; font-family: 'IBM Plex Mono', monospace">3 · gate</span><span style="color: #C9C3B9">validate · pnpm test · arquitectura</span></li>
+<li style="padding: 10px; border-radius: 4px; background: #222329; display: flex; flex-direction: column; gap: 4px"><span style="color: #FF8A5C; font-family: 'IBM Plex Mono', monospace">4 · aplicar</span><span style="color: #C9C3B9">REQ-012 → Implemented</span></li>
+<li style="padding: 10px; border-radius: 4px; background: #222329; display: flex; flex-direction: column; gap: 4px"><span style="color: #FF8A5C; font-family: 'IBM Plex Mono', monospace">5 · commit</span><span style="color: #C9C3B9">en su rama; tú lo fusionas</span></li>
+</ol>
+</section>
+</div>
+
+<section aria-label="Panel" style="flex: 0 0 180px; display: flex; flex-direction: column; border-top: 1px solid #2A2B31; background: #111215">
+<div role="tablist" aria-label="Panel inferior" style="display: flex; gap: 4px; padding: 0 10px; border-bottom: 1px solid #222329">
+<button type="button" role="tab" class="ptab" aria-selected="false">TERMINAL</button>
+<button type="button" role="tab" class="ptab" aria-selected="true">PROBLEMAS 1</button>
+<button type="button" role="tab" class="ptab" aria-selected="false">GATE</button>
+</div>
+<div style="padding: 10px 16px; display: flex; flex-direction: column; gap: 6px; font-size: 13px">
+<div style="display: flex; gap: 10px; align-items: baseline"><span style="color: #E3B341" aria-hidden="true">▲</span><span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #9C978E">build_uncommitted</span> · 325 archivos sin commit que no son la spec</span><button type="button" style="margin-left: auto; border: 0; background: transparent; color: #FF8A5C; font: 13px 'IBM Plex Sans', sans-serif">Resolver</button></div>
+<div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #9C978E">fix: guarda o aparta tu trabajo; el studio solo commitea la spec.</div>
+</div>
+</section>
+</main>
+</div>
+
+<footer style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; min-height: 26px; padding: 0 12px; background: #B93D0B; color: #FFFFFF; font-size: 12px">
+<span>⎇ main</span><span>▲ 325 sin guardar</span><span>1 requisito elegido · ~6 min</span><span style="margin-left: auto">claude-opus</span><span>ES</span>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

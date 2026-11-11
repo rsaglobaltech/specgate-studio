@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Studio IDE — trazabilidad</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0;background:#15161A}
+a{color:#FF8A5C}a:hover{color:#FFB08F}
+.ab{width:44px;height:40px;border:0;background:transparent;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#9C978E}
+.ab[aria-current="page"]{color:#ECE7DE;box-shadow:inset 2px 0 0 #FF5B1F}
+.hq{width:18px;height:18px;border-radius:999px;border:1px solid #6B665E;background:transparent;color:#C9C3B9;font:600 11px 'IBM Plex Sans',sans-serif;display:inline-flex;align-items:center;justify-content:center;padding:0}
+.chip{display:inline-flex;align-items:center;height:28px;padding:0 12px;border:1px solid #34353C;border-radius:999px;font:13px 'IBM Plex Sans',sans-serif;color:#C9C3B9;background:transparent}
+.chip[aria-pressed="true"]{border-color:#FF5B1F;color:#ECE7DE;background:#2A2622}
+.mono{font-family:'IBM Plex Mono',monospace}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{position:sticky;top:0;background:#1C1D22;text-align:left;font:600 11px 'IBM Plex Sans',sans-serif;letter-spacing:.06em;color:#9C978E;padding:8px 12px;border-bottom:1px solid #2A2B31}
+td{padding:8px 12px;border-bottom:1px solid #222329;vertical-align:top}
+.ok{color:#7FDCAA}.gap{color:#FF9C9C}.wait{color:#F0C96A}.mut{color:#9C978E}
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px}
+.sga{width:44px;height:40px;border:0;background:transparent;border-radius:4px;display:flex;align-items:center;justify-content:center;position:relative;color:#9C978E;padding:0}
+.sga[aria-current="page"]{color:#ECE7DE;background:#1C1D22;box-shadow:inset 2px 0 0 #FF5B1F}
+.sgb{position:absolute;right:4px;top:3px;min-width:16px;height:16px;border-radius:999px;background:#FF5B1F;color:#160600;font:600 10px 'IBM Plex Sans',sans-serif;display:flex;align-items:center;justify-content:center;padding:0 3px;box-sizing:border-box}
+</style>
+</helmet>
+<div style="display: flex; flex-direction: column; min-height: 900px; background: #15161A; color: #ECE7DE; font-family: 'IBM Plex Sans', system-ui, sans-serif">
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px; min-height: 42px; padding: 0 12px; background: #111215; border-bottom: 1px solid #2A2B31">
+<span style="display: flex; align-items: center; gap: 8px; font-family: Syne, sans-serif; font-weight: 800; font-size: 15px; letter-spacing: -0.02em"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF5B1F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h6"></path><path d="M16 15l2 2 4-4"></path></svg>specgate<span style="color: #FF8A5C">studio</span></span>
+<button type="button" style="flex: 1 1 360px; max-width: 560px; margin: 0 auto; display: flex; align-items: center; height: 30px; padding: 0 12px; border: 1px solid #34353C; border-radius: 4px; background: #1C1D22; color: #9C978E; font: 13px 'IBM Plex Sans', sans-serif; text-align: left">sprich — buscar requisito, archivo o comando<span style="margin-left: auto" class="mono">Ctrl ⇧ P</span></button>
+</header>
+<div style="display: flex; flex-wrap: wrap; flex: 1 1 auto">
+<nav aria-label="Vistas" style="flex: 0 0 52px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0; background: #111215; border-right: 1px solid #2A2B31">
+<button type="button" class="sga" aria-label="Inicio"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"></path></svg></button>
+<button type="button" class="sga" aria-label="Explorador de la spec"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><path d="M14 3v6h6"></path></svg></button>
+<button type="button" class="sga" aria-label="Brief"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg></button>
+<button type="button" class="sga" aria-label="Cambios, 1"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="2.5"></circle><circle cx="6" cy="18" r="2.5"></circle><circle cx="18" cy="9" r="2.5"></circle><path d="M6 8.5v7M18 11.5c0 4-6 3-11 4.5"></path></svg><span class="sgb">1</span></button>
+<button type="button" class="sga" aria-label="Preguntas, 2"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"></path></svg><span class="sgb">2</span></button>
+<button type="button" class="sga" aria-label="Construir"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4l13 8-13 8z"></path></svg></button>
+<button type="button" class="sga" aria-label="En vivo"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4"></path></svg></button>
+<button type="button" class="sga" aria-label="Trazabilidad" aria-current="page"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect><path d="M10 6.5h4a3 3 0 0 1 3 3V14"></path></svg></button>
+<button type="button" class="sga" aria-label="Informe y calidad"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"></path><path d="M8.5 12l2.5 2.5 4.5-5"></path></svg></button>
+<div style="flex-grow: 1"></div>
+<button type="button" class="sga" aria-label="Ayuda: qué hace cada vista"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5M12 17h.01"></path></svg></button>
+<button type="button" class="sga" aria-label="Ajustes"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"></path><circle cx="15" cy="6" r="2"></circle><circle cx="9" cy="12" r="2"></circle><circle cx="17" cy="18" r="2"></circle></svg></button>
+</nav>
+<main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 20px 24px; overflow: auto">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px">
+<h1 style="margin: 0; font-family: Syne, sans-serif; font-size: 24px; letter-spacing: -0.02em">Trazabilidad</h1>
+<span style="font-size: 13px; color: #9C978E">Cada requisito → su escenario → su prueba → el código que la pasa</span>
+<button type="button" class="hq" aria-label="De dónde sale esta tabla">?</button>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+<label for="flt" style="position: absolute; left: -9999px">Filtrar</label>
+<input id="flt" type="text" placeholder="Filtrar por REQ, módulo, archivo…" style="flex: 1 1 260px; max-width: 380px; height: 32px; padding: 0 10px; border: 1px solid #34353C; border-radius: 4px; background: #1C1D22; color: #ECE7DE; font: 13px 'IBM Plex Sans', sans-serif">
+<button type="button" class="chip" aria-pressed="true">Todos · 24</button>
+<button type="button" class="chip" aria-pressed="false">Huecos · 3</button>
+<button type="button" class="chip" aria-pressed="false">Sin prueba · 2</button>
+<button type="button" class="chip" aria-pressed="false">Esperan respuesta · 2</button>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 10px; font-size: 13px">
+<div style="flex: 1 1 200px; padding: 12px 14px; border: 1px solid #34353C; border-radius: 6px; background: #18191D"><div class="mut" style="font-size: 12px">Escenarios con prueba</div><div style="font-size: 22px; font-weight: 700">29 <span class="mut" style="font-size: 13px; font-weight: 400">de 31</span></div></div>
+<div style="flex: 1 1 200px; padding: 12px 14px; border: 1px solid #34353C; border-radius: 6px; background: #18191D"><div class="mut" style="font-size: 12px">Pruebas que pasan</div><div style="font-size: 22px; font-weight: 700">214 <span class="mut" style="font-size: 13px; font-weight: 400">· 9,4 s</span></div></div>
+<div style="flex: 1 1 200px; padding: 12px 14px; border: 1px solid #5C2A2A; border-radius: 6px; background: #1E1616"><div class="mut" style="font-size: 12px">Huecos</div><div style="font-size: 22px; font-weight: 700; color: #FF9C9C">3</div></div>
+</div>
+<div style="overflow-x: auto; border: 1px solid #34353C; border-radius: 6px">
+<table>
+<thead><tr><th scope="col">REQUISITO</th><th scope="col">ESCENARIO</th><th scope="col">FEATURE</th><th scope="col">PRUEBA</th><th scope="col">CÓDIGO</th><th scope="col">ESTADO</th></tr></thead>
+<tbody>
+<tr><td><span class="mono" style="color: #FF8A5C">REQ-010</span> Iniciar sesión</td><td class="mono">SCN-010a</td><td class="mono mut">auth/REQ-010.feature</td><td class="mono ok">LoginUseCase.test.ts ✓</td><td class="mono mut">LoginUseCase.ts</td><td><span class="pill" style="background: #17271F; color: #7FDCAA">Verified</span></td></tr>
+<tr><td><span class="mono" style="color: #FF8A5C">REQ-011</span> Restablecer contraseña</td><td class="mono">SCN-011a</td><td class="mono mut">auth/REQ-011.feature</td><td class="mono ok">ResetPassword.test.ts ✓</td><td class="mono mut">ResetPasswordUseCase.ts</td><td><span class="pill" style="background: #17271F; color: #7FDCAA">Implemented</span></td></tr>
+<tr><td><span class="mono" style="color: #FF8A5C">REQ-012</span> Cerrar sesión</td><td class="mono">SCN-012a</td><td class="mono mut">auth/REQ-012.feature</td><td class="mono" style="color: #FF8A5C">SignOut.test.ts ●</td><td class="mono mut">en curso</td><td><span class="pill" style="background: #2A2622; color: #FFB08F">Building</span></td></tr>
+<tr><td><span class="mono" style="color: #FF8A5C">REQ-020</span> Ver el carrito</td><td class="mono">SCN-020a, b</td><td class="mono mut">pagos/REQ-020.feature</td><td class="mono gap">— falta SCN-020b</td><td class="mono mut">Cart.ts</td><td><span class="pill" style="background: #2A1716; color: #FF9C9C">Hueco</span> <button type="button" style="border: 0; background: transparent; color: #FF8A5C; font: 12px 'IBM Plex Sans', sans-serif">Arreglar</button></td></tr>
+<tr><td><span class="mono" style="color: #FF8A5C">REQ-022</span> Pago único</td><td class="mono">SCN-022a</td><td class="mono mut">pagos/REQ-022.feature</td><td class="mono gap">— ninguna prueba lo nombra</td><td class="mono mut">—</td><td><span class="pill" style="background: #2A1716; color: #FF9C9C">Sin prueba</span></td></tr>
+<tr><td><span class="mono" style="color: #FF8A5C">REQ-031</span> Cancelar un pedido</td><td class="mono">SCN-031a</td><td class="mono mut">pedidos/REQ-031.feature</td><td class="mono mut">—</td><td class="mono mut">—</td><td><span class="pill wait" style="background: #3A3220">Needs Clarification · Q2</span></td></tr>
+</tbody>
+</table>
+</div>
+<p style="margin: 0; font-size: 12px; color: #9C978E">Se lee de <span class="mono">docs/specs/traceability.md</span> y de las pruebas que nombran cada REQ y SCN. «Arreglar» abre el escenario y te propone la prueba que falta; nada se escribe sin tu confirmación.</p>
+</main>
+</div>
+<footer style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; min-height: 26px; padding: 0 12px; background: #B93D0B; color: #FFFFFF; font-size: 12px">
+<span>⎇ main</span><span>29/31 escenarios con prueba</span><span>3 huecos</span><span style="margin-left: auto">ES</span>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

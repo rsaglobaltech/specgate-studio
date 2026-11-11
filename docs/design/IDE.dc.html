@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Studio IDE — banco de trabajo</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0;background:#15161A}
+a{color:#FF8A5C}a:hover{color:#FFB08F}
+.ab{width:44px;height:44px;border:0;background:transparent;border-radius:4px;display:flex;align-items:center;justify-content:center;position:relative;color:#9C978E;cursor:pointer}
+.ab[aria-current="page"]{color:#ECE7DE;box-shadow:inset 2px 0 0 #FF5B1F}
+.bd{position:absolute;right:4px;top:5px;min-width:16px;height:16px;border-radius:999px;background:#FF5B1F;color:#160600;font:600 10px 'IBM Plex Sans',sans-serif;display:flex;align-items:center;justify-content:center;padding:0 3px;box-sizing:border-box}
+.tr{display:flex;align-items:center;gap:6px;width:100%;min-height:26px;padding:0 10px;border:0;background:transparent;color:#C9C3B9;font:13px 'IBM Plex Sans',sans-serif;text-align:left;cursor:pointer;box-sizing:border-box}
+.tr[aria-current="true"]{background:#2A2622;color:#ECE7DE;box-shadow:inset 2px 0 0 #FF5B1F}
+.dot{width:8px;height:8px;border-radius:999px;flex:none}
+.tab{display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border:0;border-right:1px solid #2A2B31;background:#1C1D22;color:#9C978E;font:13px 'IBM Plex Sans',sans-serif;cursor:pointer;white-space:nowrap}
+.tab[aria-selected="true"]{background:#15161A;color:#ECE7DE;box-shadow:inset 0 2px 0 #FF5B1F}
+.ptab{height:32px;padding:0 10px;border:0;background:transparent;color:#9C978E;font:600 11px 'IBM Plex Sans',sans-serif;letter-spacing:.06em;cursor:pointer}
+.ptab[aria-selected="true"]{color:#ECE7DE;box-shadow:inset 0 -2px 0 #FF5B1F}
+.cl{border:0;background:transparent;padding:0;color:#9C978E;font:12px 'IBM Plex Sans',sans-serif;cursor:pointer}
+.cl:hover{color:#FF8A5C;text-decoration:underline}
+.hq{width:18px;height:18px;border-radius:999px;border:1px solid #6B665E;background:transparent;color:#C9C3B9;font:600 11px 'IBM Plex Sans',sans-serif;display:inline-flex;align-items:center;justify-content:center;padding:0;cursor:pointer}
+.ln{display:flex;gap:16px;min-height:22px;align-items:baseline}
+.ln > span:first-child{width:28px;text-align:right;color:#5E5A54;flex:none}
+.sga{width:44px;height:40px;border:0;background:transparent;border-radius:4px;display:flex;align-items:center;justify-content:center;position:relative;color:#9C978E;padding:0}
+.sga[aria-current="page"]{color:#ECE7DE;background:#1C1D22;box-shadow:inset 2px 0 0 #FF5B1F}
+.sgb{position:absolute;right:4px;top:3px;min-width:16px;height:16px;border-radius:999px;background:#FF5B1F;color:#160600;font:600 10px 'IBM Plex Sans',sans-serif;display:flex;align-items:center;justify-content:center;padding:0 3px;box-sizing:border-box}
+</style>
+</helmet>
+<div style="display: flex; flex-direction: column; min-height: 900px; background: #15161A; color: #ECE7DE; font-family: 'IBM Plex Sans', system-ui, sans-serif">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px; min-height: 42px; padding: 0 12px; background: #111215; border-bottom: 1px solid #2A2B31">
+<span style="display: flex; align-items: center; gap: 8px; font-family: Syne, sans-serif; font-weight: 800; font-size: 15px; letter-spacing: -0.02em"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF5B1F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h6"></path><path d="M16 15l2 2 4-4"></path></svg>specgate<span style="color: #FF8A5C">studio</span></span>
+<nav aria-label="Menú" style="display: flex; gap: 2px; font-size: 13px">
+<button type="button" style="height: 28px; padding: 0 8px; border: 0; background: transparent; color: #C9C3B9; font: inherit; border-radius: 4px">Archivo</button>
+<button type="button" style="height: 28px; padding: 0 8px; border: 0; background: transparent; color: #C9C3B9; font: inherit; border-radius: 4px">Spec</button>
+<button type="button" style="height: 28px; padding: 0 8px; border: 0; background: transparent; color: #C9C3B9; font: inherit; border-radius: 4px">Construir</button>
+<button type="button" style="height: 28px; padding: 0 8px; border: 0; background: transparent; color: #C9C3B9; font: inherit; border-radius: 4px">Terminal</button>
+<button type="button" style="height: 28px; padding: 0 8px; border: 0; background: transparent; color: #C9C3B9; font: inherit; border-radius: 4px">Ayuda</button>
+</nav>
+<button type="button" style="flex: 1 1 360px; max-width: 560px; margin: 0 auto; display: flex; align-items: center; gap: 10px; height: 30px; padding: 0 12px; border: 1px solid #34353C; border-radius: 4px; background: #1C1D22; color: #9C978E; font: 13px 'IBM Plex Sans', sans-serif; text-align: left"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><span>sprich — buscar requisito, archivo o comando</span><span style="margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-size: 11px; border: 1px solid #34353C; border-radius: 3px; padding: 0 5px">Ctrl ⇧ P</span></button>
+<div style="display: flex; align-items: center; gap: 8px">
+<button type="button" style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 1px solid #2E5A44; border-radius: 4px; background: #17271F; color: #7FDCAA; font: 600 12px 'IBM Plex Sans', sans-serif"><span class="dot" style="background: #4CC38A"></span>Gate verde</button>
+<button type="button" style="display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 14px; border: 0; border-radius: 4px; background: #FF5B1F; color: #160600; font: 600 13px 'IBM Plex Sans', sans-serif"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4l13 8-13 8z"></path></svg>Construir</button>
+</div>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; flex: 1 1 auto; min-height: 0">
+
+<nav aria-label="Vistas" style="flex: 0 0 52px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0; background: #111215; border-right: 1px solid #2A2B31">
+<button type="button" class="sga" aria-label="Inicio"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"></path></svg></button>
+<button type="button" class="sga" aria-label="Explorador de la spec" aria-current="page"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><path d="M14 3v6h6"></path></svg></button>
+<button type="button" class="sga" aria-label="Brief"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg></button>
+<button type="button" class="sga" aria-label="Cambios, 1"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="2.5"></circle><circle cx="6" cy="18" r="2.5"></circle><circle cx="18" cy="9" r="2.5"></circle><path d="M6 8.5v7M18 11.5c0 4-6 3-11 4.5"></path></svg><span class="sgb">1</span></button>
+<button type="button" class="sga" aria-label="Preguntas, 2"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"></path></svg><span class="sgb">2</span></button>
+<button type="button" class="sga" aria-label="Construir"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4l13 8-13 8z"></path></svg></button>
+<button type="button" class="sga" aria-label="En vivo"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4"></path></svg></button>
+<button type="button" class="sga" aria-label="Trazabilidad"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect><path d="M10 6.5h4a3 3 0 0 1 3 3V14"></path></svg></button>
+<button type="button" class="sga" aria-label="Informe y calidad"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"></path><path d="M8.5 12l2.5 2.5 4.5-5"></path></svg></button>
+<div style="flex-grow: 1"></div>
+<button type="button" class="sga" aria-label="Ayuda: qué hace cada vista"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5M12 17h.01"></path></svg></button>
+<button type="button" class="sga" aria-label="Ajustes"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"></path><circle cx="15" cy="6" r="2"></circle><circle cx="9" cy="12" r="2"></circle><circle cx="17" cy="18" r="2"></circle></svg></button>
+</nav>
+
+<aside aria-label="Explorador de la spec" style="flex: 0 1 270px; min-width: 220px; display: flex; flex-direction: column; background: #1C1D22; border-right: 1px solid #2A2B31">
+<div style="display: flex; align-items: center; justify-content: space-between; height: 36px; padding: 0 12px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: #9C978E"><span>EXPLORADOR DE LA SPEC</span><button type="button" class="hq" aria-label="Qué muestra el explorador">?</button></div>
+<div style="padding: 0 0 6px">
+<button type="button" class="tr" style="font-weight: 600; color: #ECE7DE">▾ sprich</button>
+<button type="button" class="tr" style="padding-left: 24px"><span style="color: #6CB6FF; font-family: 'IBM Plex Mono', monospace; font-size: 11px">MD</span>spec.md</button>
+<button type="button" class="tr" style="padding-left: 24px"><span style="color: #6CB6FF; font-family: 'IBM Plex Mono', monospace; font-size: 11px">MD</span>docs/brief.md<span style="margin-left: auto; color: #E3B341; font-size: 12px">M</span></button>
+<button type="button" class="tr" style="padding-left: 24px">▾ cambios abiertos</button>
+<button type="button" class="tr" style="padding-left: 38px">draft-pedidos<span style="margin-left: auto; font-size: 11px; color: #E3B341">2 preguntas</span></button>
+<button type="button" class="tr" style="padding-left: 38px">kan-13-register-vehicle-entry<span style="margin-left: auto; font-size: 11px; color: #9C978E">KAN-13</span></button>
+<button type="button" class="tr" style="padding-left: 24px">▸ capacidades (4)</button>
+<button type="button" class="tr" style="padding-left: 24px">▸ features (31)</button>
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between; height: 32px; padding: 0 12px; border-top: 1px solid #2A2B31; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: #9C978E"><span>MÓDULOS · REQUISITOS</span><span style="font-weight: 500; letter-spacing: 0">15/24</span></div>
+<div style="display: flex; flex-direction: column">
+<button type="button" class="tr">▾ pedidos<span style="margin-left: auto; font-size: 11px; color: #9C978E">0/5</span></button>
+<button type="button" class="tr" aria-current="true" style="padding-left: 24px"><span class="dot" style="background: #E3B341"></span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #9C978E">031</span>Cancelar un pedido</button>
+<button type="button" class="tr" style="padding-left: 24px"><span class="dot" style="background: #6B665E"></span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #9C978E">032</span>Ver el estado del pedido</button>
+<button type="button" class="tr" style="padding-left: 24px"><span class="dot" style="background: #E3B341"></span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #9C978E">034</span>Envío gratis desde un importe</button>
+<button type="button" class="tr">▾ auth<span style="margin-left: auto; font-size: 11px; color: #9C978E">6/6</span></button>
+<button type="button" class="tr" style="padding-left: 24px"><span class="dot" style="background: #4CC38A"></span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #9C978E">010</span>Iniciar sesión</button>
+<button type="button" class="tr" style="padding-left: 24px"><span class="dot" style="background: #4CC38A"></span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #9C978E">011</span>Restablecer la contraseña</button>
+<button type="button" class="tr">▸ pagos<span style="margin-left: auto; font-size: 11px; color: #9C978E">2/6</span></button>
+<button type="button" class="tr">▸ catálogo<span style="margin-left: auto; font-size: 11px; color: #9C978E">7/7</span></button>
+</div>
+<div style="flex-grow: 1"></div>
+<div style="display: flex; flex-wrap: wrap; gap: 10px; padding: 10px 12px; border-top: 1px solid #2A2B31; font-size: 11px; color: #9C978E"><span style="display: inline-flex; align-items: center; gap: 5px"><span class="dot" style="background: #4CC38A"></span>probado</span><span style="display: inline-flex; align-items: center; gap: 5px"><span class="dot" style="background: #FF5B1F"></span>construyendo</span><span style="display: inline-flex; align-items: center; gap: 5px"><span class="dot" style="background: #E3B341"></span>espera respuesta</span><span style="display: inline-flex; align-items: center; gap: 5px"><span class="dot" style="background: #6B665E"></span>borrador</span></div>
+</aside>
+
+<main style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; background: #15161A">
+<div role="tablist" aria-label="Archivos abiertos" style="display: flex; overflow-x: auto; background: #1C1D22; border-bottom: 1px solid #2A2B31">
+<button type="button" role="tab" class="tab" aria-selected="true"><span style="color: #FF8A5C; font-family: 'IBM Plex Mono', monospace; font-size: 11px">REQ</span>REQ-031 · Cancelar un pedido<span class="dot" style="background: #ECE7DE; width: 7px; height: 7px"></span></button>
+<button type="button" role="tab" class="tab" aria-selected="false"><span style="color: #4CC38A; font-family: 'IBM Plex Mono', monospace; font-size: 11px">FT</span>REQ-031.feature</button>
+<button type="button" role="tab" class="tab" aria-selected="false"><span style="color: #6CB6FF; font-family: 'IBM Plex Mono', monospace; font-size: 11px">TS</span>CancelOrder.test.ts</button>
+<button type="button" role="tab" class="tab" aria-selected="false"><span style="color: #6CB6FF; font-family: 'IBM Plex Mono', monospace; font-size: 11px">MD</span>brief.md</button>
+</div>
+<div style="display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 16px; font-size: 12px; color: #9C978E; border-bottom: 1px solid #222329">docs › specs › changes › draft-pedidos › pedidos › <span style="color: #ECE7DE">REQ-031</span></div>
+
+<div style="flex: 1 1 auto; min-height: 300px; padding: 14px 18px 10px 8px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.7; overflow: auto">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding-left: 44px; margin-bottom: 2px">
+<button type="button" class="cl">▶ Construir</button><span style="color: #5E5A54">·</span>
+<button type="button" class="cl">✓ Comprobar</button><span style="color: #5E5A54">·</span>
+<button type="button" class="cl">⧉ Trazar (1 escenario, 0 pruebas)</button><span style="color: #5E5A54">·</span>
+<button type="button" class="cl">✎ Pedir un cambio</button><span style="color: #5E5A54">·</span>
+<button type="button" class="hq" aria-label="Qué hace cada acción sobre este requisito">?</button>
+</div>
+<div class="ln"><span>41</span><span><span style="color: #FF8A5C; font-weight: 600">### Requirement:</span> <span style="color: #ECE7DE; font-weight: 600">REQ-031 — Cancelar un pedido</span></span></div>
+<div class="ln"><span>42</span><span></span></div>
+<div class="ln"><span>43</span><span style="color: #C9C3B9">The system <span style="color: #6CB6FF">SHALL</span> let a customer cancel an order <span style="text-decoration: underline wavy #E3B341; text-underline-offset: 4px">until it is shipped</span>.</span></div>
+<div style="margin: 6px 0 8px 44px; border: 1px solid #5C4A1F; border-left-width: 1px; border-radius: 4px; background: #1E1B14; font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; line-height: 1.5">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; border-bottom: 1px solid #3A3220"><span style="color: #E3B341; font-weight: 600">Q2 abierta · bloquea REQ-031</span><span style="color: #9C978E; font-size: 12px">questions.md · draft-pedidos</span></div>
+<div style="padding: 10px 12px; display: flex; flex-direction: column; gap: 10px">
+<span style="color: #ECE7DE">¿Hasta cuándo se puede cancelar un pedido?</span>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<button type="button" style="height: 30px; padding: 0 12px; border: 1px solid #4A4438; border-radius: 4px; background: #24211A; color: #ECE7DE; font: 13px 'IBM Plex Sans', sans-serif">Hasta el envío</button>
+<button type="button" style="height: 30px; padding: 0 12px; border: 1px solid #4A4438; border-radius: 4px; background: #24211A; color: #ECE7DE; font: 13px 'IBM Plex Sans', sans-serif">24 h antes del envío</button>
+<button type="button" style="height: 30px; padding: 0 12px; border: 1px solid #4A4438; border-radius: 4px; background: #24211A; color: #ECE7DE; font: 13px 'IBM Plex Sans', sans-serif">Otra respuesta…</button>
+<button type="button" class="hq" aria-label="Qué pasa al responder">?</button>
+</div>
+<span style="color: #9C978E; font-size: 12px">Responder escribe la respuesta en questions.md (<span style="font-family: 'IBM Plex Mono', monospace">specgate answer Q2</span>); luego confirma que la spec lo dice.</span>
+</div>
+</div>
+<div class="ln"><span>44</span><span></span></div>
+<div class="ln"><span>45</span><span><span style="color: #FF8A5C">#### Scenario:</span> <span style="color: #ECE7DE">SCN-031a — Cancelado antes del envío</span></span></div>
+<div class="ln"><span>46</span><span></span></div>
+<div class="ln"><span>47</span><span><span style="color: #B48EFF">- GIVEN</span> <span style="color: #C9C3B9">a paid order not yet shipped</span></span></div>
+<div class="ln"><span>48</span><span><span style="color: #B48EFF">- WHEN</span> <span style="color: #C9C3B9">the customer cancels it</span></span></div>
+<div class="ln"><span>49</span><span><span style="color: #B48EFF">- THEN</span> <span style="color: #C9C3B9">the order is cancelled and the payment refunded</span></span></div>
+<div class="ln"><span>50</span><span></span></div>
+<div class="ln"><span>51</span><span style="color: #6B8F71">&lt;!-- specgate:trace status=Needs Clarification actor=Customer kind=functional --&gt;</span></div>
+</div>
+
+<section aria-label="Panel" style="flex: 0 0 236px; display: flex; flex-direction: column; border-top: 1px solid #2A2B31; background: #111215">
+<div style="display: flex; align-items: center; gap: 4px; padding: 0 10px; border-bottom: 1px solid #222329">
+<div role="tablist" aria-label="Panel inferior" style="display: flex; gap: 4px">
+<button type="button" role="tab" class="ptab" aria-selected="true">TERMINAL</button>
+<button type="button" role="tab" class="ptab" aria-selected="false">GATE ✓</button>
+<button type="button" role="tab" class="ptab" aria-selected="false">PROBLEMAS 2</button>
+<button type="button" role="tab" class="ptab" aria-selected="false">SALIDA DEL AGENTE</button>
+<button type="button" role="tab" class="ptab" aria-selected="false">TRAZABILIDAD</button>
+</div>
+<span style="margin-left: auto; font-size: 12px; color: #9C978E">zsh · ~/mvp/sprich</span>
+<button type="button" class="ab" aria-label="Nueva terminal" style="width: 30px; height: 30px">+</button>
+</div>
+<div style="flex: 1 1 auto; padding: 10px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; line-height: 1.65; color: #C9C3B9; overflow: auto">
+<div><span style="color: #9C978E">studio ›</span> <span style="color: #ECE7DE">specgate check</span> <span style="color: #6B665E">— lanzado por «✓ Comprobar»</span></div>
+<div>  <span style="color: #9C978E">·</span>  Ids            comparados con origin/main</div>
+<div>  <span style="color: #4CC38A">✔</span>  Specification   validate --strict</div>
+<div>  <span style="color: #4CC38A">✔</span>  Tests           pnpm test  <span style="color: #6B665E">· 214 pruebas · 9,4 s</span></div>
+<div>  <span style="color: #E3B341">▲</span>  REQ-031         Needs Clarification — Q2 abierta</div>
+<div>  <span style="color: #4CC38A">✔</span>  <span style="color: #ECE7DE">Gate passed</span></div>
+<div style="margin-top: 6px"><span style="color: #FF8A5C">sprich</span> <span style="color: #9C978E">(feature/parking/KAN-13)</span> <span style="color: #ECE7DE">$ specgate answer Q2 --change draft-pedidos</span><span style="display: inline-block; width: 8px; height: 15px; background: #ECE7DE; vertical-align: -2px; margin-left: 2px"></span></div>
+</div>
+</section>
+</main>
+
+<aside aria-label="Agente" style="flex: 1 1 320px; max-width: 360px; display: flex; flex-direction: column; background: #1C1D22; border-left: 1px solid #2A2B31">
+<div style="display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-bottom: 1px solid #2A2B31; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: #9C978E"><span>AGENTE</span><span style="font-weight: 500; letter-spacing: 0; color: #C9C3B9">claude · modo spec</span><button type="button" class="hq" aria-label="Qué puede hacer el agente y qué no" style="margin-left: auto">?</button></div>
+<div style="flex: 1 1 auto; display: flex; flex-direction: column; gap: 12px; padding: 14px 12px; font-size: 13px; line-height: 1.5; overflow: auto">
+<div style="align-self: flex-end; max-width: 88%; padding: 8px 12px; border-radius: 6px; background: #2A2622; color: #ECE7DE">Que se pueda cancelar hasta 24 h antes del envío <span style="font-family: 'IBM Plex Mono', monospace; color: #FF8A5C">@REQ-031</span></div>
+<div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid #34353C; border-radius: 6px; background: #18191D">
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.12em; color: #FF8A5C">[ PLAN · NADA ESCRITO AÚN ]</span>
+<span style="color: #ECE7DE">Cambiaré el borrador, no el código:</span>
+<div style="display: flex; flex-direction: column; gap: 4px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #C9C3B9">
+<span><span style="color: #E3B341">M</span> changes/draft-pedidos/specs/pedidos/spec.md</span>
+<span><span style="color: #E3B341">M</span> changes/draft-pedidos/questions.md <span style="color: #9C978E">(Q2 respondida)</span></span>
+<span><span style="color: #4CC38A">+</span> features/pedidos/REQ-031.feature <span style="color: #9C978E">(SCN-031b)</span></span>
+</div>
+<span style="color: #9C978E; font-size: 12px">Después correré <span style="font-family: 'IBM Plex Mono', monospace">specgate draft --check pedidos</span>. No construye ni hace commit.</span>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<button type="button" style="height: 32px; padding: 0 14px; border: 0; border-radius: 4px; background: #FF5B1F; color: #160600; font: 600 13px 'IBM Plex Sans', sans-serif">Ver el diff y aplicar</button>
+<button type="button" style="height: 32px; padding: 0 12px; border: 1px solid #34353C; border-radius: 4px; background: transparent; color: #C9C3B9; font: 13px 'IBM Plex Sans', sans-serif">Descartar</button>
+</div>
+</div>
+<div style="display: flex; align-items: center; gap: 8px; color: #9C978E; font-size: 12px"><span class="dot" style="background: #4CC38A"></span>Leídos: brief.md § pedidos, questions.md, spec.md · 3,1 k tokens</div>
+</div>
+<div style="padding: 10px 12px; border-top: 1px solid #2A2B31">
+<label for="ask" style="display: block; font-size: 12px; color: #9C978E; margin-bottom: 6px">Pide algo sobre la spec; @ nombra un requisito o un archivo</label>
+<div style="display: flex; gap: 8px">
+<input id="ask" type="text" placeholder="¿Qué falta para aprobar pedidos?" style="flex: 1 1 auto; min-width: 0; height: 36px; padding: 0 10px; border: 1px solid #34353C; border-radius: 4px; background: #15161A; color: #ECE7DE; font: 13px 'IBM Plex Sans', sans-serif">
+<button type="button" aria-label="Enviar" style="width: 36px; height: 36px; border: 0; border-radius: 4px; background: #2A2622; color: #FF8A5C; display: flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></button>
+</div>
+</div>
+</aside>
+
+</div>
+
+<footer style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; min-height: 26px; padding: 0 12px; background: #B93D0B; color: #FFFFFF; font-size: 12px">
+<span>⎇ feature/parking/KAN-13</span>
+<span>KAN-13 · equipo parking</span>
+<span>✓ Gate verde</span>
+<span>15/24 construidos · 12 probados</span>
+<span>2 preguntas</span>
+<span style="margin-left: auto">claude-opus · 0,42 $ hoy</span>
+<span>Ln 43, Col 52</span>
+<span>ES</span>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

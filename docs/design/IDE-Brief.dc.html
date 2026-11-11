@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Studio IDE — brief</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0;background:#15161A}
+a{color:#FF8A5C}a:hover{color:#FFB08F}
+.ab{width:44px;height:40px;border:0;background:transparent;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#9C978E}
+.ab[aria-current="page"]{color:#ECE7DE;box-shadow:inset 2px 0 0 #FF5B1F}
+.dot{width:8px;height:8px;border-radius:999px;flex:none;display:inline-block}
+.hq{width:18px;height:18px;border-radius:999px;border:1px solid #6B665E;background:transparent;color:#C9C3B9;font:600 11px 'IBM Plex Sans',sans-serif;display:inline-flex;align-items:center;justify-content:center;padding:0}
+.btn{height:32px;padding:0 14px;border:1px solid #34353C;border-radius:4px;background:transparent;color:#ECE7DE;font:13px 'IBM Plex Sans',sans-serif}
+.pri{border:0;background:#FF5B1F;color:#160600;font-weight:600}
+.mono{font-family:'IBM Plex Mono',monospace}
+.sh{display:flex;align-items:center;justify-content:space-between;height:34px;padding:0 12px;font:600 11px 'IBM Plex Sans',sans-serif;letter-spacing:.08em;color:#9C978E}
+.lbl{display:block;font-size:12px;color:#9C978E;margin:10px 0 4px}
+.inp{width:100%;box-sizing:border-box;min-height:32px;padding:6px 10px;border:1px solid #34353C;border-radius:4px;background:#15161A;color:#ECE7DE;font:13px 'IBM Plex Sans',sans-serif}
+.chip{display:inline-flex;align-items:center;height:26px;padding:0 10px;border:1px solid #34353C;border-radius:999px;font-size:12px;color:#C9C3B9;background:transparent}
+.chip[aria-pressed="true"]{border-color:#FF5B1F;color:#ECE7DE;background:#2A2622}
+.ln{display:flex;gap:14px;min-height:21px}
+.ln > span:first-child{width:24px;text-align:right;color:#5E5A54;flex:none}
+.ptab{height:32px;padding:0 10px;border:0;background:transparent;color:#9C978E;font:600 11px 'IBM Plex Sans',sans-serif;letter-spacing:.06em}
+.ptab[aria-selected="true"]{color:#ECE7DE;box-shadow:inset 0 -2px 0 #FF5B1F}
+.sga{width:44px;height:40px;border:0;background:transparent;border-radius:4px;display:flex;align-items:center;justify-content:center;position:relative;color:#9C978E;padding:0}
+.sga[aria-current="page"]{color:#ECE7DE;background:#1C1D22;box-shadow:inset 2px 0 0 #FF5B1F}
+.sgb{position:absolute;right:4px;top:3px;min-width:16px;height:16px;border-radius:999px;background:#FF5B1F;color:#160600;font:600 10px 'IBM Plex Sans',sans-serif;display:flex;align-items:center;justify-content:center;padding:0 3px;box-sizing:border-box}
+</style>
+</helmet>
+<div style="display: flex; flex-direction: column; min-height: 900px; background: #15161A; color: #ECE7DE; font-family: 'IBM Plex Sans', system-ui, sans-serif">
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px; min-height: 42px; padding: 0 12px; background: #111215; border-bottom: 1px solid #2A2B31">
+<span style="display: flex; align-items: center; gap: 8px; font-family: Syne, sans-serif; font-weight: 800; font-size: 15px; letter-spacing: -0.02em"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF5B1F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h6"></path><path d="M16 15l2 2 4-4"></path></svg>specgate<span style="color: #FF8A5C">studio</span></span>
+<button type="button" style="flex: 1 1 360px; max-width: 560px; margin: 0 auto; display: flex; align-items: center; height: 30px; padding: 0 12px; border: 1px solid #34353C; border-radius: 4px; background: #1C1D22; color: #9C978E; font: 13px 'IBM Plex Sans', sans-serif; text-align: left">sprich — buscar requisito, archivo o comando<span style="margin-left: auto" class="mono">Ctrl ⇧ P</span></button>
+<span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #7FDCAA"><span class="dot" style="background: #4CC38A"></span>Guardado en docs/brief.md · hace 2 s</span>
+</header>
+<div style="display: flex; flex-wrap: wrap; flex: 1 1 auto">
+<nav aria-label="Vistas" style="flex: 0 0 52px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0; background: #111215; border-right: 1px solid #2A2B31">
+<button type="button" class="sga" aria-label="Inicio"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"></path></svg></button>
+<button type="button" class="sga" aria-label="Explorador de la spec"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><path d="M14 3v6h6"></path></svg></button>
+<button type="button" class="sga" aria-label="Brief" aria-current="page"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg></button>
+<button type="button" class="sga" aria-label="Cambios, 1"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="2.5"></circle><circle cx="6" cy="18" r="2.5"></circle><circle cx="18" cy="9" r="2.5"></circle><path d="M6 8.5v7M18 11.5c0 4-6 3-11 4.5"></path></svg><span class="sgb">1</span></button>
+<button type="button" class="sga" aria-label="Preguntas, 2"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"></path></svg><span class="sgb">2</span></button>
+<button type="button" class="sga" aria-label="Construir"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4l13 8-13 8z"></path></svg></button>
+<button type="button" class="sga" aria-label="En vivo"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4"></path></svg></button>
+<button type="button" class="sga" aria-label="Trazabilidad"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect><path d="M10 6.5h4a3 3 0 0 1 3 3V14"></path></svg></button>
+<button type="button" class="sga" aria-label="Informe y calidad"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"></path><path d="M8.5 12l2.5 2.5 4.5-5"></path></svg></button>
+<div style="flex-grow: 1"></div>
+<button type="button" class="sga" aria-label="Ayuda: qué hace cada vista"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5M12 17h.01"></path></svg></button>
+<button type="button" class="sga" aria-label="Ajustes"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"></path><circle cx="15" cy="6" r="2"></circle><circle cx="9" cy="12" r="2"></circle><circle cx="17" cy="18" r="2"></circle></svg></button>
+</nav>
+
+<aside aria-label="Formulario del brief" style="flex: 0 1 330px; min-width: 260px; background: #1C1D22; border-right: 1px solid #2A2B31; padding: 0 0 14px; overflow: auto">
+<div class="sh"><span>BRIEF · FORMULARIO</span><button type="button" class="hq" aria-label="Qué es el brief y qué se hace con él">?</button></div>
+<div style="padding: 0 12px">
+<label class="lbl" for="prod">El producto en una frase</label>
+<input id="prod" class="inp" type="text" value="Tienda online de alemán para academias">
+<span class="lbl">Quién lo usa y dónde</span>
+<div style="display: flex; flex-wrap: wrap; gap: 6px"><button type="button" class="chip" aria-pressed="true">Alumno · web</button><button type="button" class="chip" aria-pressed="true">Profesor · web</button><button type="button" class="chip" aria-pressed="false">Admin · web</button><button type="button" class="chip" aria-pressed="false">+ actor</button></div>
+<span class="lbl">Módulos</span>
+<div style="display: flex; flex-wrap: wrap; gap: 6px"><button type="button" class="chip" aria-pressed="false">auth</button><button type="button" class="chip" aria-pressed="false">catálogo</button><button type="button" class="chip" aria-pressed="false">pagos</button><button type="button" class="chip" aria-pressed="true">pedidos</button><button type="button" class="chip" aria-pressed="false">+ módulo</button></div>
+<label class="lbl" for="rules">Reglas de «pedidos»</label>
+<textarea id="rules" class="inp" rows="4" style="resize: vertical">Un pedido se puede cancelar mientras no se haya enviado.
+El envío es gratis desde un importe.</textarea>
+<label class="lbl" for="ex">Ejemplos</label>
+<textarea id="ex" class="inp" rows="2" style="resize: vertical">Pedido de 55 € → envío gratis.</textarea>
+<label class="lbl" for="oq">Preguntas abiertas</label>
+<textarea id="oq" class="inp" rows="2" style="resize: vertical">¿Desde qué importe es gratis el envío?</textarea>
+</div>
+<div style="margin: 14px 12px 0; padding: 12px; border: 1px dashed #34353C; border-radius: 4px; display: flex; flex-direction: column; gap: 8px">
+<span style="font-weight: 600; font-size: 13px">¿Tienes el texto del cliente?</span>
+<span style="font-size: 12px; color: #9C978E">Pégalo y el agente rellena el formulario. Tú revisas antes de guardar.</span>
+<button type="button" class="btn">Pegar el texto del cliente</button>
+</div>
+</aside>
+
+<main style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column">
+<div style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 14px; background: #1C1D22; border-bottom: 1px solid #2A2B31; font-size: 13px"><span style="box-shadow: inset 0 -2px 0 #FF5B1F; height: 36px; display: inline-flex; align-items: center">docs/brief.md</span><span style="color: #9C978E">· se escribe al teclear, cada línea que no es del formulario se conserva</span></div>
+<div style="flex: 1 1 auto; padding: 14px 18px 14px 8px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.6; color: #C9C3B9; overflow: auto">
+<div class="ln"><span>1</span><span style="color: #6B8F71">---</span></div>
+<div class="ln"><span>2</span><span><span style="color: #6CB6FF">actors</span>: Alumno [web], Profesor [web]</span></div>
+<div class="ln"><span>3</span><span style="color: #6B8F71">---</span></div>
+<div class="ln"><span>4</span><span><span style="color: #FF8A5C; font-weight: 600"># Tienda online de alemán para academias</span></span></div>
+<div class="ln"><span>5</span><span></span></div>
+<div class="ln"><span>18</span><span><span style="color: #FF8A5C; font-weight: 600">## Module: pedidos</span></span></div>
+<div class="ln"><span>19</span><span></span></div>
+<div class="ln"><span>20</span><span><span style="color: #B48EFF">### Rules</span></span></div>
+<div class="ln"><span>21</span><span>- Un pedido se puede cancelar mientras no se haya enviado.</span></div>
+<div class="ln"><span>22</span><span>- El envío es gratis <span style="text-decoration: underline wavy #E3B341; text-underline-offset: 4px">desde un importe</span>.</span></div>
+<div class="ln"><span>23</span><span></span></div>
+<div class="ln"><span>24</span><span><span style="color: #B48EFF">### Examples</span></span></div>
+<div class="ln"><span>25</span><span>- Pedido de 55 € → envío gratis.</span></div>
+<div class="ln"><span>26</span><span></span></div>
+<div class="ln"><span>27</span><span><span style="color: #B48EFF">### Open questions</span></span></div>
+<div class="ln"><span>28</span><span>- ¿Desde qué importe es gratis el envío?</span></div>
+</div>
+<section aria-label="Panel" style="flex: 0 0 190px; display: flex; flex-direction: column; border-top: 1px solid #2A2B31; background: #111215">
+<div role="tablist" aria-label="Panel inferior" style="display: flex; gap: 4px; padding: 0 10px; border-bottom: 1px solid #222329"><button type="button" role="tab" class="ptab" aria-selected="true">PROBLEMAS 1</button><button type="button" role="tab" class="ptab" aria-selected="false">TERMINAL</button></div>
+<div style="padding: 10px 16px; display: flex; flex-direction: column; gap: 8px; font-size: 13px">
+<div style="display: flex; gap: 10px; align-items: baseline"><span style="color: #E3B341" aria-hidden="true">▲</span><span><span class="mono" style="font-size: 12px; color: #9C978E">brief_vague_value</span> · línea 22: «desde un importe» no dice cuánto. Se convertirá en una pregunta del borrador.</span></div>
+<div style="display: flex; gap: 10px; align-items: baseline"><span style="color: #4CC38A" aria-hidden="true">✓</span><span>4 módulos, cada uno con reglas y ejemplos · actores con su superficie</span></div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 6px">
+<button type="button" class="btn pri">Redactar los módulos</button>
+<span style="font-size: 12px; color: #9C978E">Corre <span class="mono">specgate propose --from-brief &lt;módulo&gt;</span> con el agente, un módulo a la vez. Escribe borradores en <span class="mono">docs/specs/changes/</span>; no toca código.</span>
+<button type="button" class="hq" aria-label="Qué hace redactar los módulos">?</button>
+</div>
+</div>
+</section>
+</main>
+</div>
+<footer style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; min-height: 26px; padding: 0 12px; background: #B93D0B; color: #FFFFFF; font-size: 12px">
+<span>⎇ main</span><span>brief · 4 módulos · 1 aviso</span><span style="margin-left: auto">Markdown</span><span>Ln 22, Col 31</span><span>ES</span>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

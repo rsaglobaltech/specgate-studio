@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Studio IDE — informe y calidad</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0;background:#15161A}
+a{color:#FF8A5C}a:hover{color:#FFB08F}
+.ab{width:44px;height:40px;border:0;background:transparent;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#9C978E}
+.ab[aria-current="page"]{color:#ECE7DE;box-shadow:inset 2px 0 0 #FF5B1F}
+.hq{width:18px;height:18px;border-radius:999px;border:1px solid #6B665E;background:transparent;color:#C9C3B9;font:600 11px 'IBM Plex Sans',sans-serif;display:inline-flex;align-items:center;justify-content:center;padding:0}
+.btn{height:32px;padding:0 14px;border:1px solid #34353C;border-radius:4px;background:transparent;color:#ECE7DE;font:13px 'IBM Plex Sans',sans-serif}
+.pri{border:0;background:#FF5B1F;color:#160600;font-weight:600}
+.card{border:1px solid #34353C;border-radius:6px;background:#18191D}
+.mono{font-family:'IBM Plex Mono',monospace}
+.mut{color:#9C978E}
+.gi{display:grid;grid-template-columns:18px 160px minmax(0,1fr);gap:4px 10px;align-items:baseline;padding:8px 0;border-top:1px solid #2A2B31;font-size:13px}
+.bar{height:8px;border-radius:999px;background:#2A2B31}
+.sga{width:44px;height:40px;border:0;background:transparent;border-radius:4px;display:flex;align-items:center;justify-content:center;position:relative;color:#9C978E;padding:0}
+.sga[aria-current="page"]{color:#ECE7DE;background:#1C1D22;box-shadow:inset 2px 0 0 #FF5B1F}
+.sgb{position:absolute;right:4px;top:3px;min-width:16px;height:16px;border-radius:999px;background:#FF5B1F;color:#160600;font:600 10px 'IBM Plex Sans',sans-serif;display:flex;align-items:center;justify-content:center;padding:0 3px;box-sizing:border-box}
+</style>
+</helmet>
+<div style="display: flex; flex-direction: column; min-height: 900px; background: #15161A; color: #ECE7DE; font-family: 'IBM Plex Sans', system-ui, sans-serif">
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px; min-height: 42px; padding: 0 12px; background: #111215; border-bottom: 1px solid #2A2B31">
+<span style="display: flex; align-items: center; gap: 8px; font-family: Syne, sans-serif; font-weight: 800; font-size: 15px; letter-spacing: -0.02em"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF5B1F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h6"></path><path d="M16 15l2 2 4-4"></path></svg>specgate<span style="color: #FF8A5C">studio</span></span>
+<button type="button" style="flex: 1 1 360px; max-width: 560px; margin: 0 auto; display: flex; align-items: center; height: 30px; padding: 0 12px; border: 1px solid #34353C; border-radius: 4px; background: #1C1D22; color: #9C978E; font: 13px 'IBM Plex Sans', sans-serif; text-align: left">sprich — buscar requisito, archivo o comando<span style="margin-left: auto" class="mono">Ctrl ⇧ P</span></button>
+</header>
+<div style="display: flex; flex-wrap: wrap; flex: 1 1 auto">
+<nav aria-label="Vistas" style="flex: 0 0 52px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0; background: #111215; border-right: 1px solid #2A2B31">
+<button type="button" class="sga" aria-label="Inicio"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"></path></svg></button>
+<button type="button" class="sga" aria-label="Explorador de la spec"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><path d="M14 3v6h6"></path></svg></button>
+<button type="button" class="sga" aria-label="Brief"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg></button>
+<button type="button" class="sga" aria-label="Cambios, 1"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="2.5"></circle><circle cx="6" cy="18" r="2.5"></circle><circle cx="18" cy="9" r="2.5"></circle><path d="M6 8.5v7M18 11.5c0 4-6 3-11 4.5"></path></svg><span class="sgb">1</span></button>
+<button type="button" class="sga" aria-label="Preguntas, 2"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"></path></svg><span class="sgb">2</span></button>
+<button type="button" class="sga" aria-label="Construir"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4l13 8-13 8z"></path></svg></button>
+<button type="button" class="sga" aria-label="En vivo"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4"></path></svg></button>
+<button type="button" class="sga" aria-label="Trazabilidad"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect><path d="M10 6.5h4a3 3 0 0 1 3 3V14"></path></svg></button>
+<button type="button" class="sga" aria-label="Informe y calidad" aria-current="page"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"></path><path d="M8.5 12l2.5 2.5 4.5-5"></path></svg></button>
+<div style="flex-grow: 1"></div>
+<button type="button" class="sga" aria-label="Ayuda: qué hace cada vista"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5M12 17h.01"></path></svg></button>
+<button type="button" class="sga" aria-label="Ajustes"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"></path><circle cx="15" cy="6" r="2"></circle><circle cx="9" cy="12" r="2"></circle><circle cx="17" cy="18" r="2"></circle></svg></button>
+</nav>
+<main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 16px; padding: 22px 26px; overflow: auto">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+<h1 style="margin: 0; font-family: Syne, sans-serif; font-size: 24px; letter-spacing: -0.02em">Informe</h1>
+<span class="mut" style="font-size: 13px">sprich · 9 nov 2026 · lo que se construyó, cómo se probó y qué falta</span>
+<div style="margin-left: auto; display: flex; gap: 8px"><button type="button" class="btn">Imprimir / PDF</button><button type="button" class="btn pri">Descargar el informe</button><button type="button" class="hq" aria-label="Qué lleva el informe y de dónde sale">?</button></div>
+</div>
+<section aria-label="Cifras" style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px">
+<div class="card" style="padding: 12px 14px"><div class="mut" style="font-size: 12px">Construido</div><div style="font-size: 22px; font-weight: 700">15 <span class="mut" style="font-size: 13px; font-weight: 400">de 24</span></div></div>
+<div class="card" style="padding: 12px 14px"><div class="mut" style="font-size: 12px">Ejemplos probados</div><div style="font-size: 22px; font-weight: 700">29 <span class="mut" style="font-size: 13px; font-weight: 400">de 31</span></div></div>
+<div class="card" style="padding: 12px 14px"><div class="mut" style="font-size: 12px">Cobertura</div><div style="font-size: 22px; font-weight: 700">87 %</div></div>
+<div class="card" style="padding: 12px 14px"><div class="mut" style="font-size: 12px">Mutación</div><div style="font-size: 22px; font-weight: 700">71 %</div></div>
+<div class="card" style="padding: 12px 14px"><div class="mut" style="font-size: 12px">Agente</div><div style="font-size: 22px; font-weight: 700">4,80 $</div><div class="mut" style="font-size: 12px">2 h 10 min</div></div>
+</section>
+<div style="display: flex; flex-wrap: wrap; gap: 16px">
+<section aria-labelledby="gate-h" class="card" style="flex: 1 1 380px; padding: 16px 18px">
+<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px"><h2 id="gate-h" style="margin: 0; font-size: 15px">El gate</h2><span style="color: #7FDCAA; font-weight: 600; font-size: 13px">pasa</span><button type="button" class="btn" style="margin-left: auto; height: 28px">Comprobar ahora</button></div>
+<div class="gi"><span style="color: #9C978E">·</span><b>Ids</b><span class="mut">comparados con origin/main</span></div>
+<div class="gi"><span style="color: #7FDCAA">✓</span><b>Especificación</b><span class="mono mut" style="font-size: 12px">validate --strict</span></div>
+<div class="gi"><span style="color: #7FDCAA">✓</span><b>Pruebas</b><span class="mono mut" style="font-size: 12px">pnpm test · 214</span></div>
+<div class="gi"><span style="color: #E3B341">!</span><b>Arquitectura</b><span class="mut">sin configurar · <a href="#">Configurar</a></span></div>
+<div class="gi"><span style="color: #7FDCAA">✓</span><b>Calidad</b><span class="mono mut" style="font-size: 12px">coverage ≥ 80 · mutation ≥ 65</span></div>
+</section>
+<section aria-labelledby="mod-h" class="card" style="flex: 1 1 380px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px">
+<h2 id="mod-h" style="margin: 0; font-size: 15px">Por módulo</h2>
+<div><div style="display: flex; justify-content: space-between; font-size: 13px"><span>auth</span><span class="mut">6/6 · cob. 92 %</span></div><div class="bar" style="margin-top: 6px"><div style="width: 100%; height: 8px; border-radius: 999px; background: #4CC38A"></div></div></div>
+<div><div style="display: flex; justify-content: space-between; font-size: 13px"><span>catálogo</span><span class="mut">7/7 · cob. 89 %</span></div><div class="bar" style="margin-top: 6px"><div style="width: 100%; height: 8px; border-radius: 999px; background: #4CC38A"></div></div></div>
+<div><div style="display: flex; justify-content: space-between; font-size: 13px"><span>pagos</span><span class="mut">2/6 · cob. 74 %</span></div><div class="bar" style="margin-top: 6px"><div style="width: 33%; height: 8px; border-radius: 999px; background: #FF5B1F"></div></div></div>
+<div><div style="display: flex; justify-content: space-between; font-size: 13px"><span>pedidos</span><span style="color: #F0C96A">0/5 · espera 2 respuestas</span></div><div class="bar" style="margin-top: 6px"><div style="width: 3%; height: 8px; border-radius: 999px; background: #E3B341"></div></div></div>
+</section>
+</div>
+<section aria-labelledby="miss-h" class="card" style="padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; font-size: 13px">
+<h2 id="miss-h" style="margin: 0 0 4px; font-size: 15px">Lo que falta, y por qué</h2>
+<div style="display: flex; flex-wrap: wrap; gap: 6px 12px"><span class="mono" style="color: #FF8A5C">REQ-031</span><span style="flex: 1 1 300px">Cancelar un pedido</span><span style="color: #F0C96A">espera Q2: ¿hasta cuándo se puede cancelar?</span></div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px 12px"><span class="mono" style="color: #FF8A5C">REQ-022</span><span style="flex: 1 1 300px">Pago único</span><span style="color: #FF9C9C">sin construir · ninguna prueba lo nombra</span></div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px 12px"><span class="mono" style="color: #FF8A5C">REQ-021</span><span style="flex: 1 1 300px">Pagar con tarjeta</span><span class="mut">en cola · ~14 min</span></div>
+</section>
+<p class="mut" style="margin: 0; font-size: 12px">El informe sale de <span class="mono">specgate report</span>; la cobertura y la mutación, de los chequeos de calidad en Docker. «Descargar» guarda una sola página HTML que se abre en cualquier sitio.</p>
+</main>
+</div>
+<footer style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; min-height: 26px; padding: 0 12px; background: #B93D0B; color: #FFFFFF; font-size: 12px">
+<span>⎇ main</span><span>✓ Gate verde</span><span>cob. 87 % · mut. 71 %</span><span style="margin-left: auto">ES</span>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

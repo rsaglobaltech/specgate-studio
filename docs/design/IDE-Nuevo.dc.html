@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Studio IDE — carpeta nueva</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0;background:#15161A}
+a{color:#FF8A5C}a:hover{color:#FFB08F}
+.hq{width:18px;height:18px;border-radius:999px;border:1px solid #6B665E;background:transparent;color:#C9C3B9;font:600 11px 'IBM Plex Sans',sans-serif;display:inline-flex;align-items:center;justify-content:center;padding:0}
+.btn{height:34px;padding:0 14px;border:1px solid #34353C;border-radius:4px;background:transparent;color:#ECE7DE;font:13px 'IBM Plex Sans',sans-serif}
+.pri{border:0;background:#FF5B1F;color:#160600;font-weight:600}
+.mono{font-family:'IBM Plex Mono',monospace}
+.mut{color:#9C978E}
+.card{border:1px solid #34353C;border-radius:6px;background:#18191D}
+.lbl{display:block;font-size:12px;color:#9C978E;margin:12px 0 6px}
+.opt{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border:1px solid #34353C;border-radius:4px;background:transparent;color:#ECE7DE;font:13px 'IBM Plex Sans',sans-serif;text-align:left}
+.opt[aria-pressed="true"]{border-color:#FF5B1F;background:#2A2622}
+.sga{width:44px;height:40px;border:0;background:transparent;border-radius:4px;display:flex;align-items:center;justify-content:center;position:relative;color:#9C978E;padding:0}
+.sga[aria-current="page"]{color:#ECE7DE;background:#1C1D22;box-shadow:inset 2px 0 0 #FF5B1F}
+.sgb{position:absolute;right:4px;top:3px;min-width:16px;height:16px;border-radius:999px;background:#FF5B1F;color:#160600;font:600 10px 'IBM Plex Sans',sans-serif;display:flex;align-items:center;justify-content:center;padding:0 3px;box-sizing:border-box}
+</style>
+</helmet>
+<div style="display: flex; flex-direction: column; min-height: 900px; background: #15161A; color: #ECE7DE; font-family: 'IBM Plex Sans', system-ui, sans-serif">
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px; min-height: 42px; padding: 0 12px; background: #111215; border-bottom: 1px solid #2A2B31">
+<span style="display: flex; align-items: center; gap: 8px; font-family: Syne, sans-serif; font-weight: 800; font-size: 15px; letter-spacing: -0.02em"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF5B1F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h6"></path><path d="M16 15l2 2 4-4"></path></svg>specgate<span style="color: #FF8A5C">studio</span></span>
+<button type="button" style="flex: 1 1 360px; max-width: 560px; margin: 0 auto; display: flex; align-items: center; height: 30px; padding: 0 12px; border: 1px solid #34353C; border-radius: 4px; background: #1C1D22; color: #9C978E; font: 13px 'IBM Plex Sans', sans-serif; text-align: left">~/proyectos/academia — buscar o ejecutar un comando<span style="margin-left: auto" class="mono">Ctrl ⇧ P</span></button>
+</header>
+<div style="display: flex; flex-wrap: wrap; flex: 1 1 auto">
+<nav aria-label="Vistas" style="flex: 0 0 52px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0; background: #111215; border-right: 1px solid #2A2B31">
+<button type="button" class="sga" aria-label="Inicio" aria-current="page"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"></path></svg></button>
+<button type="button" class="sga" aria-label="Explorador de la spec"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><path d="M14 3v6h6"></path></svg></button>
+<button type="button" class="sga" aria-label="Brief"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg></button>
+<button type="button" class="sga" aria-label="Cambios"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="2.5"></circle><circle cx="6" cy="18" r="2.5"></circle><circle cx="18" cy="9" r="2.5"></circle><path d="M6 8.5v7M18 11.5c0 4-6 3-11 4.5"></path></svg></button>
+<button type="button" class="sga" aria-label="Preguntas"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"></path></svg></button>
+<button type="button" class="sga" aria-label="Construir"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4l13 8-13 8z"></path></svg></button>
+<button type="button" class="sga" aria-label="En vivo"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4"></path></svg></button>
+<button type="button" class="sga" aria-label="Trazabilidad"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect><path d="M10 6.5h4a3 3 0 0 1 3 3V14"></path></svg></button>
+<button type="button" class="sga" aria-label="Informe y calidad"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"></path><path d="M8.5 12l2.5 2.5 4.5-5"></path></svg></button>
+<div style="flex-grow: 1"></div>
+<button type="button" class="sga" aria-label="Ayuda: qué hace cada vista"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5M12 17h.01"></path></svg></button>
+<button type="button" class="sga" aria-label="Ajustes"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"></path><circle cx="15" cy="6" r="2"></circle><circle cx="9" cy="12" r="2"></circle><circle cx="17" cy="18" r="2"></circle></svg></button>
+</nav>
+<main style="flex: 999 1 560px; min-width: 0; display: flex; flex-wrap: wrap; gap: 20px; align-content: flex-start; padding: 28px 32px; overflow: auto">
+<div style="flex: 1 1 100%"><span class="mono" style="font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: #FF8A5C">[ CARPETA VACÍA ]</span><h1 style="margin: 6px 0 0; font-family: Syne, sans-serif; font-size: 28px; letter-spacing: -0.03em">Empieza un proyecto con specgate</h1><p class="mut" style="margin: 6px 0 0; font-size: 14px">Cinco preguntas. Después escribes el brief y el studio te guía hasta el informe.</p></div>
+
+<section aria-labelledby="new-h" class="card" style="flex: 2 1 520px; padding: 18px 20px">
+<h2 id="new-h" style="margin: 0; font-size: 16px">Crear el proyecto aquí</h2>
+<label class="lbl" for="pname">Nombre</label>
+<input id="pname" type="text" value="academia" style="width: 100%; max-width: 360px; box-sizing: border-box; height: 34px; padding: 0 10px; border: 1px solid #34353C; border-radius: 4px; background: #15161A; color: #ECE7DE; font: 13px 'IBM Plex Sans', sans-serif">
+<span class="lbl">Qué construyes</span>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px"><button type="button" class="opt" aria-pressed="true"><b>Una web</b><span class="mut" style="font-size: 12px">páginas y API</span></button><button type="button" class="opt" aria-pressed="false"><b>Un servicio</b><span class="mut" style="font-size: 12px">solo API</span></button><button type="button" class="opt" aria-pressed="false"><b>App móvil</b><span class="mut" style="font-size: 12px">y su API</span></button></div>
+<span class="lbl">Tecnología</span>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px"><button type="button" class="opt" aria-pressed="true"><b>Node.js + React</b></button><button type="button" class="opt" aria-pressed="false"><b>Java + Spring Boot</b></button><button type="button" class="opt" aria-pressed="false"><b>Python + FastAPI</b></button><button type="button" class="opt" aria-pressed="false"><b>La mía…</b></button></div>
+<span class="lbl">Quién programa</span>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px"><button type="button" class="opt" aria-pressed="true"><b>Claude Code</b><span style="font-size: 12px; color: #7FDCAA">detectado</span></button><button type="button" class="opt" aria-pressed="false"><b>Codex</b><span class="mut" style="font-size: 12px">no instalado</span></button><button type="button" class="opt" aria-pressed="false"><b>Otro comando</b></button></div>
+<span class="lbl">Nivel de calidad</span>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px"><button type="button" class="opt" aria-pressed="false"><b>Básico</b><span class="mut" style="font-size: 12px">pruebas</span></button><button type="button" class="opt" aria-pressed="true"><b>Estándar</b><span class="mut" style="font-size: 12px">+ cobertura</span></button><button type="button" class="opt" aria-pressed="false"><b>Estricto</b><span class="mut" style="font-size: 12px">+ mutación, seguridad</span></button></div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 18px"><button type="button" class="btn pri">Crear el proyecto</button><span class="mut" style="font-size: 12px">Corre <span class="mono">specgate init</span> aquí: escribe spec.md, docs/brief.md, la configuración y un esqueleto; hace el primer commit.</span><button type="button" class="hq" aria-label="Qué crea exactamente">?</button></div>
+</section>
+
+<div style="flex: 1 1 320px; display: flex; flex-direction: column; gap: 16px">
+<section aria-labelledby="adopt-h" class="card" style="padding: 18px 20px; display: flex; flex-direction: column; gap: 10px">
+<h2 id="adopt-h" style="margin: 0; font-size: 16px">¿Ya tienes código?</h2>
+<p class="mut" style="margin: 0; font-size: 13px">Abre su carpeta y adóptala: specgate añade su spec al lado, sin tocar tu código ni sobrescribir nada.</p>
+<div style="display: flex; flex-wrap: wrap; gap: 8px"><button type="button" class="btn">Abrir carpeta…</button><button type="button" class="hq" aria-label="Qué hace adoptar">?</button></div>
+</section>
+<section aria-labelledby="recent-h" class="card" style="padding: 18px 20px; display: flex; flex-direction: column; gap: 8px; font-size: 13px">
+<h2 id="recent-h" style="margin: 0 0 4px; font-size: 16px">Recientes</h2>
+<button type="button" style="display: flex; justify-content: space-between; min-height: 32px; border: 0; background: transparent; color: #ECE7DE; font: 13px 'IBM Plex Sans', sans-serif; padding: 0"><span>sprich</span><span class="mono mut" style="font-size: 12px">~/mvp/sprich-platform</span></button>
+<button type="button" style="display: flex; justify-content: space-between; min-height: 32px; border: 0; background: transparent; color: #ECE7DE; font: 13px 'IBM Plex Sans', sans-serif; padding: 0"><span>agentkit</span><span class="mono mut" style="font-size: 12px">~/mvp/agentkit</span></button>
+<button type="button" style="display: flex; justify-content: space-between; min-height: 32px; border: 0; background: transparent; color: #ECE7DE; font: 13px 'IBM Plex Sans', sans-serif; padding: 0"><span>forja-shop</span><span class="mono mut" style="font-size: 12px">~/mvp/forja-shop</span></button>
+</section>
+</div>
+</main>
+</div>
+<footer style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; min-height: 26px; padding: 0 12px; background: #B93D0B; color: #FFFFFF; font-size: 12px">
+<span>sin proyecto</span><span>claude detectado · git listo</span><span style="margin-left: auto">ES</span>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>
