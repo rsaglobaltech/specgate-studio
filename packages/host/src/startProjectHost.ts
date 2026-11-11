@@ -1,4 +1,11 @@
-import { RecentProjects, Workspace, type Finding, type SectionReader } from "@specgate-studio/core";
+import {
+  RecentProjects,
+  SPECGATE_MARKER,
+  Workspace,
+  toPosix,
+  type Finding,
+  type SectionReader,
+} from "@specgate-studio/core";
 import {
   NodeFileSystem,
   NodeGit,
@@ -7,7 +14,7 @@ import {
   caseInsensitivePaths,
   systemClock,
 } from "@specgate-studio/adapter-node";
-import { SpecgateCli, specgateBin } from "@specgate-studio/adapter-specgate-cli";
+import { SpecgateCli, SpecgateSetup, specgateBin } from "@specgate-studio/adapter-specgate-cli";
 import { HostRegistry } from "./HostRegistry.js";
 import { NodeProcessRunner } from "./NodeProcessRunner.js";
 import { startHost, type Host, type ProjectFiles } from "./startHost.js";
@@ -30,6 +37,8 @@ export interface ProjectHostOptions {
   findings?: (projectDir: string) => () => Promise<Finding[]>;
   /** The Developer's terminals (draft-terminal). */
   terminals?: TerminalWiring;
+  /** Whether a program is on the PATH: the agent an adoption saves (draft-project-setup A8). */
+  onPath?: (program: string) => boolean;
 }
 
 /** A folder that is not a specgate project reads nothing, and no specgate runs for it (REQ-021). */
@@ -62,12 +71,21 @@ export async function startProjectHost(
     );
 
   const kind = (await (await Workspace.open(projectDir, fs, git)).state()).kind;
-  const reader =
-    kind !== "specgate"
-      ? NOT_A_PROJECT
-      : options.reader
-        ? await options.reader(projectDir)
-        : new SpecgateCli({ program: process.execPath, prefix: [specgateBin()], projectDir });
+  const cli = new SpecgateCli({ program: process.execPath, prefix: [specgateBin()], projectDir });
+  const make = async () => (options.reader ? await options.reader(projectDir) : cli);
+  let project: Promise<SectionReader> | null = kind === "specgate" ? make() : null;
+  // A folder created or adopted in the studio is read from then on (draft-project-setup).
+  const reader: SectionReader = {
+    read: async (section) => {
+      if (!project) {
+        if (!(await fs.exists(`${toPosix(projectDir)}/${SPECGATE_MARKER}`)))
+          return NOT_A_PROJECT.read(section);
+        project = make();
+      }
+      return (await project).read(section);
+    },
+  };
+  if (project) await project;
 
   const host = await startHost({
     projectDir,
@@ -83,6 +101,7 @@ export async function startProjectHost(
     ...(options.files ? { files: options.files(projectDir) } : {}),
     ...(options.findings ? { findings: options.findings(projectDir) } : {}),
     ...(options.terminals ? { terminals: options.terminals } : {}),
+    setup: { port: new SpecgateSetup(cli), fs, onPath: options.onPath ?? (() => false) },
   });
   await recent.opened(projectDir);
   registry.add(projectDir, host);

@@ -19,6 +19,10 @@ import type {
   SpecgateCommand,
   UncommittedGroup,
   WorkspaceState,
+  AdoptPreview,
+  Area,
+  InitAnswers,
+  ReadyItem,
 } from "@specgate-studio/core";
 
 export type { CommandEvent, RunResult, Section, SectionData, SpecgateCommand };
@@ -28,6 +32,8 @@ export type { Annotations };
 export type { FolderKind, GitState, RecentProject, UncommittedGroup, WorkspaceState };
 /** What every action says about itself (draft-help). */
 export type { ActionId, Explanation, HelpVars, Lang, Notice };
+/** Setting up a folder that is no project yet (draft-project-setup). */
+export type { AdoptPreview, Area, InitAnswers, ReadyItem };
 
 /** What the UI may ask, and what it gets back. */
 export interface Requests {
@@ -64,6 +70,33 @@ export interface Requests {
   "terminal.scrollback": { params: { id: string }; result: { data: string } };
   /** A file of the project, as text. */
   "file.read": { params: { path: string }; result: { path: string; text: string } };
+  /** What the five questions offer, and the folder's name (draft-project-setup REQ-111). */
+  "setup.options": {
+    params: Record<string, never>;
+    result: {
+      kinds: string[];
+      stacks: Array<{ id: string; label: string }>;
+      agents: Array<{ id: string; label: string }>;
+      architectures: string[];
+      name: string;
+    };
+  };
+  /** The config and commands the answers make; runs nothing (SCN-332). */
+  "setup.plan": {
+    params: InitAnswers;
+    result: { problem: string | null; config: string; commands: string[] };
+  };
+  /** Create the project in the open folder with `specgate init` (REQ-111). */
+  "setup.create": { params: InitAnswers; result: RunResult };
+  /** What adopting the folder writes and saves (REQ-112, REQ-113). */
+  "setup.preview": { params: Record<string, never>; result: AdoptPreview };
+  /** Tests, Agent, Architecture, CI gate: set or not (REQ-114). */
+  "setup.readiness": { params: Record<string, never>; result: ReadyItem[] };
+  /** The areas adoption wrote to `docs/specs/adoption.md` (REQ-115). */
+  "setup.areas": {
+    params: Record<string, never>;
+    result: { adopted: boolean; byKind: boolean; areas: Area[] };
+  };
 }
 
 /** What the host tells every connected UI, unasked. */

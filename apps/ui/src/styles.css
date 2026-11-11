@@ -677,3 +677,50 @@ textarea.ask {
 .xterm-host {
   height: 100%;
 }
+/* Setting up a folder (draft-project-setup). */
+.setup {
+  max-width: 720px;
+}
+.setup-q {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.setup-q .filter {
+  margin: 0;
+}
+.setup-h {
+  margin: 18px 0 8px;
+  font-size: 14px;
+}
+.setup-cmd {
+  margin-bottom: 4px;
+}
+.setup-config {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--bg-input);
+  white-space: pre-wrap;
+}
+.setup-list {
+  margin: 0;
+  padding-left: 18px;
+}
+.setup-list li {
+  margin-bottom: 6px;
+}
+.setup-fix {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.setup-fix .filter {
+  margin: 0;
+}
+.setup-problem {
+  color: var(--danger, #e5534b);
+}

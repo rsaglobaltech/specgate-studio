@@ -51,3 +51,75 @@ export function shop(): string {
   git("commit", "-qm", "the shop");
   return dir;
 }
+
+/**
+ * A folder with code and no specgate files (draft-project-setup A4): a Node.js
+ * project whose `src/` holds one source file per folder, a `test` script when
+ * `tests` is true, committed. Inside a parent of its own: remove the parent.
+ */
+export function codeFolder(
+  name: string,
+  folders: readonly string[],
+  opts: { tests?: boolean } = {},
+): string {
+  const parent = fs.mkdtempSync(path.join(os.tmpdir(), "sg-setup-"));
+  const dir = path.join(parent, name);
+  fs.mkdirSync(dir);
+  fs.writeFileSync(
+    path.join(dir, "package.json"),
+    JSON.stringify({ name, scripts: opts.tests ? { test: "node --test" } : {} }, null, 2) + "\n",
+  );
+  for (const f of folders) {
+    fs.mkdirSync(path.join(dir, "src", f), { recursive: true });
+    fs.writeFileSync(path.join(dir, "src", f, "index.js"), `export const ${f} = 1;\n`);
+  }
+  const git = (...a: string[]) =>
+    spawnSync("git", ["-c", "user.name=T", "-c", "user.email=t@example.com", ...a], { cwd: dir });
+  git("init", "-q");
+  git("add", "-A");
+  git("commit", "-qm", name);
+  return dir;
+}
+
+/** Every file of a folder, relative with `/`, with its bytes; `.git` left out. */
+export function snapshot(dir: string): Map<string, Buffer> {
+  const out = new Map<string, Buffer>();
+  const walk = (abs: string, rel: string) => {
+    for (const e of fs.readdirSync(abs, { withFileTypes: true })) {
+      if (e.name === ".git") continue;
+      const r = rel ? `${rel}/${e.name}` : e.name;
+      if (e.isDirectory()) walk(path.join(abs, e.name), r);
+      else out.set(r, fs.readFileSync(path.join(abs, e.name)));
+    }
+  };
+  walk(dir, "");
+  return out;
+}
+
+/**
+ * The PATH of this process with Claude Code on it, or with no `claude` at all:
+ * a folder holding a `claude` that does nothing, for the agent adoption
+ * detects (A8). Returns the PATH to restore and the folder to remove.
+ */
+export function withClaude(found: boolean): { restore: () => void } {
+  const key = Object.keys(process.env).find((k) => k.toUpperCase() === "PATH") ?? "PATH";
+  const before = process.env[key] ?? "";
+  const names = ["claude", "claude.cmd", "claude.exe"];
+  const kept = before
+    .split(path.delimiter)
+    .filter((d) => d && !names.some((n) => fs.existsSync(path.join(d, n))));
+  let bin: string | null = null;
+  if (found) {
+    bin = fs.mkdtempSync(path.join(os.tmpdir(), "sg-claude-"));
+    fs.writeFileSync(path.join(bin, "claude"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+    fs.writeFileSync(path.join(bin, "claude.cmd"), "@exit /b 0\r\n");
+    kept.unshift(bin);
+  }
+  process.env[key] = kept.join(path.delimiter);
+  return {
+    restore: () => {
+      process.env[key] = before;
+      if (bin) fs.rmSync(bin, { recursive: true, force: true });
+    },
+  };
+}
