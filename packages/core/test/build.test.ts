@@ -13,46 +13,7 @@ import {
   estimateOf,
   type SpecgateAnswer,
 } from "../src/index.js";
-
-/** sprich's draft-pedidos (A1): REQ-030 ready, REQ-031 blocked by Q2, REQ-032 ready after it. */
-export const SPRICH_STATUS = {
-  requirements: [
-    { id: "REQ-028", title: "Health", category: "DONE", needs: null },
-    {
-      id: "REQ-030",
-      title: "Cancel an order",
-      category: "NEEDS_EVERYTHING",
-      needs: "a test and code",
-      change: "draft-pedidos",
-    },
-    {
-      id: "REQ-031",
-      title: "Cancel until dispatch",
-      category: "WAITING_FOR_ANSWER",
-      needs: "an answer",
-      change: "draft-pedidos",
-      question: "Q2",
-    },
-    {
-      id: "REQ-032",
-      title: "Refund a cancelled order",
-      category: "NEEDS_TEST",
-      needs: "its test",
-      change: "draft-pedidos",
-    },
-    {
-      id: "REQ-033",
-      title: "Status implemented",
-      category: "NEEDS_STATUS_UPDATE",
-      needs: "its test is in place",
-    },
-  ],
-};
-
-/** `harness report --json` after past runs: 12 minutes a delivered requirement. */
-export const REPORT = {
-  report: { runs: 3, passed: 4, msPerDelivered: 720_000, estimatedCost: { total: 1.6 } },
-};
+import { REPORT, SPRICH_STATUS } from "./sprich-build.js";
 
 test("REQ-101 SCN-301: REQ-030 ready with its estimate and `claude`; REQ-031 apart, waiting for Q2", () => {
   const list = buildList(SPRICH_STATUS, new Set(), REPORT, { agent: "claude -p < {prompt_file}" });
@@ -93,8 +54,8 @@ test("REQ-101: a draft no person approved, and a requirement without its scenari
   const status = {
     requirements: [
       ...SPRICH_STATUS.requirements,
-      { id: "REQ-040", title: "Coupons", category: "NEEDS_EVERYTHING", change: "draft-cupones" },
-      { id: "REQ-041", title: "No scenario", category: "NEEDS_FEATURE", needs: "its scenario" },
+      { id: "REQ-940", title: "Coupons", category: "NEEDS_EVERYTHING", change: "draft-cupones" },
+      { id: "REQ-941", title: "No scenario", category: "NEEDS_FEATURE", needs: "its scenario" },
     ],
   };
   const list = buildList(status, new Set(["draft-cupones"]), null, {});
@@ -102,8 +63,8 @@ test("REQ-101: a draft no person approved, and a requirement without its scenari
     list.waiting.map((w) => [w.id, w.why]),
     [
       ["REQ-031", "question"],
-      ["REQ-040", "review"],
-      ["REQ-041", "scenario"],
+      ["REQ-940", "review"],
+      ["REQ-941", "scenario"],
     ],
   );
   assert.equal(list.estimate, null, "no report, no estimate");

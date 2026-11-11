@@ -24,7 +24,7 @@ The system SHALL list in Build every requirement ready to build — approved, wi
 
 ### Requirement: REQ-102 — Build waits on uncommitted work and offers commit, stash or ignore
 
-<!-- specgate:trace actor=Developer kind=business-rule -->
+<!-- specgate:trace status=Implemented actor=Developer kind=business-rule -->
 
 The system SHALL, when the project has uncommitted files that are not the specification, refuse to start a build, say why — the agent works on its own branch from the last commit and would leave that work out — and offer to commit, stash or ignore it, each run only after the Developer confirms it, and showing the files it touches grouped by folder.
 

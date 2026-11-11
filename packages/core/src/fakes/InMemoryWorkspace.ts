@@ -1,7 +1,7 @@
 import { toPosix } from "../domain/workspace.js";
 import type { ClockPort } from "../ports/ClockPort.js";
 import type { FileSystemPort } from "../ports/FileSystemPort.js";
-import type { GitPort } from "../ports/GitPort.js";
+import type { GitPort, GitWriter } from "../ports/GitPort.js";
 import type { StorePort } from "../ports/StorePort.js";
 import type { Watch, WatcherPort } from "../ports/WatcherPort.js";
 
@@ -47,9 +47,13 @@ export class InMemoryFileSystem implements FileSystemPort {
   }
 }
 
-/** Git state in memory, by root. */
-export class InMemoryGit implements GitPort {
+/** Git state in memory, by root; what Build writes is recorded (draft-build-live). */
+export class InMemoryGit implements GitPort, GitWriter {
   private readonly repos: Record<string, { branch: string | null; uncommitted: string[] }> = {};
+  /** Every commit, in order. */
+  readonly commits: Array<{ message: string; files: string[] }> = [];
+  /** How many stashes were made. */
+  stashes = 0;
 
   /** Repositories by their root, in either separator: kept with `/`, as they are looked up. */
   constructor(repos: Record<string, { branch: string | null; uncommitted: string[] }> = {}) {
@@ -67,6 +71,30 @@ export class InMemoryGit implements GitPort {
   async uncommitted(root: string): Promise<string[] | null> {
     const repo = this.repos[toPosix(root)];
     return repo ? [...repo.uncommitted] : null;
+  }
+
+  async commit(
+    root: string,
+    files: readonly string[],
+    message: string,
+    onOutput: (chunk: string) => void,
+  ): Promise<number> {
+    const repo = this.repos[toPosix(root)];
+    if (!repo) return 128;
+    const these = new Set(files);
+    repo.uncommitted = repo.uncommitted.filter((f) => !these.has(f));
+    this.commits.push({ message, files: [...files] });
+    onOutput(`[${repo.branch ?? "HEAD"}] ${message}\n ${files.length} files changed\n`);
+    return 0;
+  }
+
+  async stash(root: string, _message: string, onOutput: (chunk: string) => void): Promise<number> {
+    const repo = this.repos[toPosix(root)];
+    if (!repo) return 128;
+    repo.uncommitted = [];
+    this.stashes++;
+    onOutput("Saved working directory and index state\n");
+    return 0;
   }
 }
 

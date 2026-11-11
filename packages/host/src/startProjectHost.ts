@@ -18,6 +18,7 @@ import {
 import { SpecgateCli, SpecgateSetup, specgateBin } from "@specgate-studio/adapter-specgate-cli";
 import { HostRegistry } from "./HostRegistry.js";
 import { NodeProcessRunner } from "./NodeProcessRunner.js";
+import { NodeBuildRunner } from "./NodeBuildRunner.js";
 import { startHost, type Host, type ProjectFiles } from "./startHost.js";
 import type { TerminalWiring } from "./terminals.js";
 
@@ -105,7 +106,15 @@ export async function startProjectHost(
     // The Changes view reads specgate's `--json` through the same port (draft-changes).
     ...(hasCall(reader) ? { changes: { specgate: reader } } : {}),
     // Build and Live read specgate's `--json` through the same port (draft-build-live).
-    builds: { specgate: cli },
+    builds: {
+      specgate: cli,
+      git,
+      harness: new NodeBuildRunner({
+        program: process.execPath,
+        prefix: [specgateBin()],
+        projectDir,
+      }),
+    },
     setup: { port: new SpecgateSetup(cli), fs, onPath: options.onPath ?? (() => false) },
   });
   await recent.opened(projectDir);

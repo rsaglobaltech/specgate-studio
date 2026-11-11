@@ -12,6 +12,7 @@ import {
   FILE_SYSTEM_CONTRACT,
   FOLDER_KIND_LABEL,
   GIT_CONTRACT,
+  GIT_WRITER_CONTRACT,
   RecentProjects,
   STORE_CONTRACT,
   SteppingClock,
@@ -26,7 +27,7 @@ import {
   caseInsensitivePaths,
   studioHome,
 } from "../src/index.js";
-import { repo, rm, tmp, until, write } from "./helpers.js";
+import { gitIn, repo, rm, tmp, until, write } from "./helpers.js";
 
 const nodeWorkspace = (root: string) => Workspace.open(root, new NodeFileSystem(), new NodeGit());
 
@@ -59,6 +60,26 @@ for (const check of GIT_CONTRACT) {
     } finally {
       await rm(root);
       await rm(plain);
+    }
+  });
+}
+
+for (const check of GIT_WRITER_CONTRACT) {
+  test(`REQ-102: the Node git — ${check.name}`, async () => {
+    const root = tmp("sg-build-git-");
+    try {
+      await check.run(async ({ committed, uncommitted, deleted }) => {
+        repo(root, "main", committed);
+        // The person's identity, as their git config gives it.
+        gitIn(root, "config", "user.name", "Dev");
+        gitIn(root, "config", "user.email", "dev@example.com");
+        gitIn(root, "config", "commit.gpgsign", "false");
+        for (const f of uncommitted) write(root, f, `changed ${f}\n`);
+        for (const f of deleted) fs.rmSync(path.join(root, f));
+        return { port: new NodeGit(), root };
+      });
+    } finally {
+      await rm(root);
     }
   });
 }

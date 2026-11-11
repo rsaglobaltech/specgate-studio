@@ -1,7 +1,11 @@
+import type { Finding } from "./finding.js";
+import { SPECIFICATION_GROUP, groupOf, toPosix } from "./workspace.js";
+
 /**
  * Build and Live (draft-build-live): what is ready to build, its estimate and
- * who codes (REQ-101) — every value read from specgate's `--json` answers
- * (`status`, `change show`, `harness report`, `config list`), never its prose.
+ * who codes (REQ-101), and what makes it wait (REQ-102) — every value read
+ * from specgate's `--json` answers (`status`, `change show`, `harness report`,
+ * `config list`, `harness run --format json`) and git's file list, never prose.
  */
 
 /** A requirement id, as `--req` takes it. */
@@ -113,4 +117,116 @@ export function buildList(
     agentCommand,
     setAgent: SET_AGENT,
   };
+}
+
+/** Uncommitted files of a folder, as Build shows them before it commits or stashes them. */
+export interface FileGroup {
+  group: string;
+  files: string[];
+}
+
+/** The uncommitted work that makes Build wait (REQ-102), grouped by folder, the largest first. */
+export interface Uncommitted {
+  total: number;
+  groups: FileGroup[];
+}
+
+/**
+ * The uncommitted files split (A6): the specification — spec.md, docs/specs/
+ * and features/ — which Build commits itself before it starts, and the rest,
+ * which makes it wait, grouped by its first two folders.
+ */
+export function uncommittedWork(files: readonly string[]): {
+  specification: string[];
+  other: Uncommitted;
+} {
+  const specification: string[] = [];
+  const groups = new Map<string, string[]>();
+  for (const f of new Set(files.map(toPosix).filter(Boolean))) {
+    const group = groupOf(f);
+    if (group === SPECIFICATION_GROUP) specification.push(f);
+    else groups.set(group, [...(groups.get(group) ?? []), f]);
+  }
+  const sorted = [...groups]
+    .map(([group, list]) => ({ group, files: list }))
+    .sort((a, b) => b.files.length - a.files.length || a.group.localeCompare(b.group));
+  return {
+    specification,
+    other: { total: sorted.reduce((n, g) => n + g.files.length, 0), groups: sorted },
+  };
+}
+
+/** A build (A5): `harness run` on one requirement, its report as JSON; null for anything else. */
+export function harnessArgs(req: string): string[] | null {
+  return REQ_ID.test(req) ? ["harness", "run", "--req", req, "--format", "json"] : null;
+}
+
+/** The commit Build makes of the specification before it starts (A6). */
+export const saveSpecification = (req: string) =>
+  `chore(spec): save the specification before building ${req}`;
+
+/** What pressing Build, or confirming a commit or a stash before it, answers. */
+export type BuildStart =
+  | { ok: true; req: string; queued: boolean }
+  | {
+      ok: false;
+      code: "build_waits";
+      req: string;
+      /** Why: the agent works on its own branch from the last commit and would leave this out. */
+      message: string;
+      waits: Uncommitted;
+    }
+  | {
+      ok: false;
+      code:
+        | "build_not_ready"
+        | "build_no_agent"
+        | "build_no_git"
+        | "build_no_message"
+        | "build_ignore_unsupported"
+        | "build_git_failed"
+        | "write_busy";
+      req: string;
+      message: string;
+    };
+
+/** What to do with the uncommitted work, once the Developer confirmed it (A7). */
+export type Resolution =
+  { choice: "commit"; message: string } | { choice: "stash" } | { choice: "ignore" };
+
+/** One requirement's result in `harness run --format json`. */
+export interface HarnessResult {
+  requirement: string;
+  /** pass, fail, question, blocked, skipped — as specgate names it. */
+  result: string;
+  branch: string | null;
+  /** specgate's own words on why it did not pass. */
+  error: string | null;
+  /** The question the agent asked, for `question`. */
+  question: string | null;
+}
+
+/** How a build ended, from its JSON report: its results, or the findings that refused it. */
+export function harnessReport(stdout: string): {
+  results: HarnessResult[];
+  findings: Finding[];
+} | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(stdout);
+  } catch {
+    return null;
+  }
+  const doc = (parsed ?? {}) as { results?: unknown; status?: unknown };
+  const results = (Array.isArray(doc.results) ? doc.results : []).map(
+    (r: Record<string, unknown>) => ({
+      requirement: str(r.requirement) ?? "",
+      result: str(r.result) ?? "fail",
+      branch: str(r.branch),
+      error: str(r.error),
+      question: str(r.question),
+    }),
+  );
+  const findings = Array.isArray(doc.status) ? (doc.status as Finding[]) : [];
+  return { results, findings };
 }

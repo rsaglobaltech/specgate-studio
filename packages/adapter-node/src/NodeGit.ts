@@ -1,8 +1,15 @@
 import { spawn } from "node:child_process";
-import type { GitPort } from "@specgate-studio/core";
+import type { GitPort, GitWriter } from "@specgate-studio/core";
 
-/** `git` with its arguments as an array, never a shell (REQ-007), in `cwd`. */
-function git(cwd: string, args: readonly string[]): Promise<{ code: number; out: string }> {
+/**
+ * `git` with its arguments as an array, never a shell (REQ-007), in `cwd`;
+ * `input` written to its standard input, `onOutput` given what it says.
+ */
+function git(
+  cwd: string,
+  args: readonly string[],
+  opts: { input?: string; onOutput?: (chunk: string) => void } = {},
+): Promise<{ code: number; out: string }> {
   return new Promise((resolve) => {
     const child = spawn("git", ["-c", "core.quotepath=off", ...args], {
       cwd,
@@ -11,20 +18,37 @@ function git(cwd: string, args: readonly string[]): Promise<{ code: number; out:
       env: { ...process.env, GIT_OPTIONAL_LOCKS: "0", LC_ALL: "C" },
     });
     let out = "";
-    child.stdout.setEncoding("utf8").on("data", (c: string) => (out += c));
-    child.stderr.resume();
-    child.on("error", () => resolve({ code: 127, out: "" }));
+    child.stdout.setEncoding("utf8").on("data", (c: string) => {
+      out += c;
+      opts.onOutput?.(c);
+    });
+    child.stderr.setEncoding("utf8").on("data", (c: string) => opts.onOutput?.(c));
+    child.stdin.on("error", () => undefined);
+    child.stdin.end(opts.input ?? "");
+    child.on("error", (e) => {
+      opts.onOutput?.(`${e.message}\n`);
+      resolve({ code: 127, out: "" });
+    });
     child.on("close", (code) => resolve({ code: code ?? 1, out }));
   });
 }
+
+/** Paths for `--pathspec-from-file=- --pathspec-file-nul`: no length limit, no shell, any name. */
+const pathspec = (files: readonly string[]) => files.map((f) => `${f}\0`).join("");
+const LITERAL = ["--pathspec-from-file=-", "--pathspec-file-nul"];
 
 /**
  * GitPort over the `git` command (REQ-024, REQ-025). The uncommitted files are
  * read from `status --porcelain=v1 -z`, every untracked file listed: one entry
  * per file, a rename counted once under its new name. `GIT_OPTIONAL_LOCKS=0`
  * keeps the read from taking the index lock a commit may need.
+ *
+ * GitWriter (draft-build-live REQ-102): a commit of exactly the files shown —
+ * their paths handed over on standard input, so 325 of them, or one named
+ * like a flag, are neither too long for the command line nor read as options —
+ * and a stash with the untracked files.
  */
-export class NodeGit implements GitPort {
+export class NodeGit implements GitPort, GitWriter {
   async branch(root: string): Promise<string | null> {
     const r = await git(root, ["symbolic-ref", "--short", "-q", "HEAD"]);
     return r.code === 0 && r.out.trim() ? r.out.trim() : null;
@@ -43,5 +67,27 @@ export class NodeGit implements GitPort {
       if (e[0] === "R" || e[0] === "C") i++;
     }
     return files;
+  }
+
+  async commit(
+    root: string,
+    files: readonly string[],
+    message: string,
+    onOutput: (chunk: string) => void,
+  ): Promise<number> {
+    const input = pathspec(files);
+    // `-A` stages a deleted file's removal as well as a new or changed one.
+    const add = await git(root, ["add", "-A", ...LITERAL], { input, onOutput });
+    if (add.code !== 0) return add.code;
+    // Only these paths: whatever else was staged stays staged, uncommitted.
+    const commit = await git(root, ["commit", "-m", message, ...LITERAL], { input, onOutput });
+    return commit.code;
+  }
+
+  async stash(root: string, message: string, onOutput: (chunk: string) => void): Promise<number> {
+    const r = await git(root, ["stash", "push", "--include-untracked", "-m", message], {
+      onOutput,
+    });
+    return r.code;
   }
 }

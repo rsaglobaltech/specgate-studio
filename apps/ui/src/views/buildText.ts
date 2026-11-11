@@ -24,6 +24,27 @@ const en = {
   "build.noEstimate": "no estimate yet: no build has run here",
   "build.req": "Build {req}",
   "build.feature": "Build a requirement",
+  "build.button": "Build",
+  "build.started": "{req} is building on its own branch.",
+  "build.openLive": "Open Live",
+  "build.waits.title": "Build waits: {n} uncommitted files that are not the specification",
+  "build.waits.why":
+    "The agent works on its own branch from the last commit, so it would leave these files out. Commit them, stash them, or ignore them; each runs only after you confirm it.",
+  "build.waits.group": "{group} — {n} files",
+  "build.commit": "Commit",
+  "build.stash": "Stash",
+  "build.ignore": "Ignore",
+  "build.ignore.unsupported":
+    "Not possible yet: specgate 0.33.2's harness refuses to start while any file is uncommitted.",
+  "build.confirm.commit": "Commit these {n} files?",
+  "build.confirm.stash": "Stash these {n} files?",
+  "build.confirm.commitBody":
+    "One commit on your current branch with exactly these files, then the build of {req} starts.",
+  "build.confirm.stashBody":
+    "They leave your working copy for git's stash (`git stash pop` brings them back), then the build of {req} starts.",
+  "build.message": "Commit message",
+  "build.confirm": "Confirm",
+  "build.cancel": "Cancel",
 };
 
 const es: Record<keyof typeof en, string> = {
@@ -47,6 +68,27 @@ const es: Record<keyof typeof en, string> = {
   "build.noEstimate": "aún sin estimación: no se ha construido nada aquí",
   "build.req": "Construir {req}",
   "build.feature": "Construir un requisito",
+  "build.button": "Construir",
+  "build.started": "{req} se está construyendo en su propia rama.",
+  "build.openLive": "Abrir En vivo",
+  "build.waits.title": "Construir espera: {n} archivos sin commit que no son la especificación",
+  "build.waits.why":
+    "El agente trabaja en su propia rama desde el último commit, así que dejaría fuera estos archivos. Haz commit, guárdalos en el stash o ignóralos; cada opción se ejecuta solo después de que la confirmes.",
+  "build.waits.group": "{group} — {n} archivos",
+  "build.commit": "Commit",
+  "build.stash": "Stash",
+  "build.ignore": "Ignorar",
+  "build.ignore.unsupported":
+    "Aún no es posible: el harness de specgate 0.33.2 se niega a empezar mientras haya archivos sin commit.",
+  "build.confirm.commit": "¿Hacer commit de estos {n} archivos?",
+  "build.confirm.stash": "¿Guardar estos {n} archivos en el stash?",
+  "build.confirm.commitBody":
+    "Un commit en tu rama actual con exactamente estos archivos; después empieza la construcción de {req}.",
+  "build.confirm.stashBody":
+    "Salen de tu copia de trabajo al stash de git (`git stash pop` los devuelve); después empieza la construcción de {req}.",
+  "build.message": "Mensaje del commit",
+  "build.confirm": "Confirmar",
+  "build.cancel": "Cancelar",
 };
 
 export type BuildTextKey = keyof typeof en;

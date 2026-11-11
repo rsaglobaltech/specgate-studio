@@ -171,7 +171,11 @@ export async function startHost(options: HostOptions): Promise<Host> {
       )
     : null;
 
-  const builds = options.builds ? attachBuilds(options.builds, state) : null;
+  const builds = options.builds
+    ? attachBuilds(options.projectDir, options.builds, state, commands, (m) =>
+        rpcError(RPC_ERRORS.params, m),
+      )
+    : null;
 
   const handlers: Record<string, (params: unknown) => Promise<unknown>> = {
     "project.open": async () => {
@@ -313,6 +317,7 @@ export async function startHost(options: HostOptions): Promise<Host> {
     url: `ws://127.0.0.1:${port}/`,
     state,
     close: async () => {
+      await builds?.close();
       await terminals?.close();
       await workspace?.close();
       await new Promise<void>((ok) => {

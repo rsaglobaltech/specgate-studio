@@ -5,61 +5,8 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { close, open, studio, type Page, type StudioOptions } from "./support.js";
-
-/** sprich's draft-pedidos (A1): REQ-030 ready, REQ-031 blocked by Q2, REQ-032 ready after it. */
-export const SPRICH = [
-  { id: "REQ-028", title: "Health", category: "DONE", needs: null },
-  {
-    id: "REQ-030",
-    title: "Cancel an order",
-    category: "NEEDS_EVERYTHING",
-    needs: "a test and code",
-    change: "draft-pedidos",
-  },
-  {
-    id: "REQ-031",
-    title: "Cancel until dispatch",
-    category: "WAITING_FOR_ANSWER",
-    needs: "an answer",
-    change: "draft-pedidos",
-    question: "Q2",
-  },
-  {
-    id: "REQ-032",
-    title: "Refund a cancelled order",
-    category: "NEEDS_TEST",
-    needs: "its test",
-    change: "draft-pedidos",
-  },
-];
-
-/** specgate's `--json` answers Build reads; `agent` is harness.config.yaml's. */
-export function buildAnswers(agent: string | null): NonNullable<StudioOptions["specgate"]> {
-  return {
-    "harness report": {
-      data: { report: { runs: 3, passed: 4, msPerDelivered: 720_000, estimatedCost: null } },
-      findings: [],
-      exitCode: 0,
-    },
-    "config list": {
-      data: { config: { test_cmd: "npm test", ...(agent ? { agent } : {}) } },
-      findings: [],
-      exitCode: 0,
-    },
-    "change show draft-pedidos": {
-      data: {
-        change: {
-          id: "draft-pedidos",
-          config: { brief: "docs/brief.md", approved: "2026-11-10" },
-          deltas: [],
-        },
-      },
-      findings: [],
-      exitCode: 0,
-    },
-  };
-}
+import { close, open, studio, type Page } from "./support.js";
+import { SPRICH, buildAnswers, files325 } from "./build-support.js";
 
 const row = (req: string) => `.breq[data-req="${req}"]`;
 const text = async (page: Page, sel: string) => (await page.textContent(sel)) ?? "";
@@ -125,6 +72,96 @@ test("REQ-101 SCN-302: Build in the browser with no agent set — REQ-030 with i
     await page.waitForSelector('.help [data-action="agents-init"]');
     assert.match(await text(page, ".help"), /specgate agents init --tool/);
     assert.deepEqual(s.runs, []);
+  } finally {
+    await close(s, page);
+  }
+});
+
+test('REQ-102 SCN-303: sprich\'s 325 files on the desktop — grouped by folder before confirming, one commit with "Work in progress before building REQ-030", then REQ-030 builds', async () => {
+  const s = await studio({
+    homeRequirements: SPRICH as never,
+    specgate: buildAnswers("claude -p < {prompt_file}"),
+    uncommitted: files325(),
+  });
+  const page = await open(s);
+  try {
+    await build(page);
+    await page.click(`${row("REQ-030")} [data-act="build"]`);
+    await page.waitForSelector('[data-testid="build-waits"][data-req="REQ-030"]');
+    const waits = await text(page, '[data-testid="build-waits"]');
+    assert.match(waits, /Build waits: 325 uncommitted files that are not the specification/);
+    assert.match(waits, /its own branch from the last commit/);
+    assert.deepEqual(s.harness.started, [], "nothing builds while it waits");
+
+    await page.click('[data-testid="build-waits"] [data-act="commit"]');
+    await page.waitForSelector('[data-confirm="commit"]');
+    // The 325 files by folder, before anything runs.
+    assert.deepEqual(
+      await page.$$eval('[data-confirm="commit"] .bgroups > li', (els) =>
+        els.map((e) => [e.getAttribute("data-group"), e.getAttribute("data-files")]),
+      ),
+      [
+        ["src/orders", "200"],
+        ["src/web", "100"],
+        ["test", "25"],
+      ],
+    );
+    assert.equal(
+      await page.isDisabled('[data-confirm="commit"] [data-act="confirm"]'),
+      true,
+      "no commit without a message",
+    );
+    assert.equal(s.git.commits.length, 0);
+    await page.fill('[data-confirm="commit"] textarea', "Work in progress before building REQ-030");
+    await page.click('[data-confirm="commit"] [data-act="confirm"]');
+
+    await page.waitForSelector('.bstarted[data-req="REQ-030"]');
+    assert.equal(s.git.commits.length, 1);
+    assert.equal(s.git.commits[0]!.message, "Work in progress before building REQ-030");
+    assert.equal(s.git.commits[0]!.files.length, 325);
+    assert.deepEqual(s.harness.started, [
+      ["harness", "run", "--req", "REQ-030", "--format", "json"],
+    ]);
+    assert.equal(await page.$('[data-testid="build-waits"]'), null);
+    // The commit's notice says what it did and what it wrote.
+    await page.waitForSelector(".notice[data-tone]");
+    assert.match(await text(page, ".notice[data-tone]"), /committed the 325 files shown/);
+  } finally {
+    await close(s, page);
+  }
+});
+
+test("REQ-102 SCN-304: stash cancelled in the browser — nothing is stashed, the files stay, and Build still says why it waits", async () => {
+  const files = ["src/orders/cancel.ts", "README.md"];
+  const s = await studio({
+    homeRequirements: SPRICH as never,
+    specgate: buildAnswers("claude -p < {prompt_file}"),
+    uncommitted: files,
+  });
+  const page = await open(s, { lang: "es" });
+  try {
+    await build(page);
+    await page.click(`${row("REQ-030")} [data-act="build"]`);
+    await page.waitForSelector('[data-testid="build-waits"]');
+    await page.click('[data-testid="build-waits"] [data-act="stash"]');
+    await page.waitForSelector('[data-confirm="stash"]');
+    assert.match(
+      await text(page, '[data-confirm="stash"]'),
+      /¿Guardar estos 2 archivos en el stash\?/,
+    );
+    await page.click('[data-confirm="stash"] [data-act="cancel"]');
+    await page.waitForSelector('[data-confirm="stash"]', { state: "detached" });
+
+    assert.equal(s.git.stashes, 0, "nothing is stashed");
+    assert.deepEqual(await s.git.uncommitted(s.projectDir), files, "the files stay as they were");
+    assert.match(
+      await text(page, '[data-testid="build-waits"]'),
+      /Construir espera: 2 archivos sin commit/,
+    );
+    assert.deepEqual(s.harness.started, []);
+    // Ignore is offered, and says why it cannot run with specgate 0.33.2.
+    assert.equal(await page.isDisabled('[data-testid="build-waits"] [data-act="ignore"]'), true);
+    assert.match(await text(page, '[data-testid="ignore-unsupported"]'), /specgate 0\.33\.2/);
   } finally {
     await close(s, page);
   }

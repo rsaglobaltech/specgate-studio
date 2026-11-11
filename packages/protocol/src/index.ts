@@ -31,6 +31,9 @@ import type {
   ReadyItem,
   BuildItem,
   BuildList,
+  BuildStart,
+  FileGroup,
+  Uncommitted,
   Estimate,
   WaitReason,
   WaitingItem,
@@ -48,7 +51,16 @@ export type { ArchivePreview, ChangeCard, ChangeGroup, ChangesView, Finding, Tic
 /** Setting up a folder that is no project yet (draft-project-setup). */
 export type { AdoptPreview, Area, InitAnswers, ReadyItem };
 /** Build and Live (draft-build-live). */
-export type { BuildItem, BuildList, Estimate, WaitReason, WaitingItem };
+export type {
+  BuildItem,
+  BuildList,
+  BuildStart,
+  Estimate,
+  FileGroup,
+  Uncommitted,
+  WaitReason,
+  WaitingItem,
+};
 
 /** What the UI may ask, and what it gets back. */
 export interface Requests {
@@ -118,6 +130,15 @@ export interface Requests {
   };
   /** What is ready to build, its estimate and who codes; runs nothing (draft-build-live REQ-101). */
   "build.get": { params: Record<string, never>; result: BuildList };
+  /** Build one requirement, or say why it waits; runs nothing while it waits (REQ-102). */
+  "build.start": { params: { req: string }; result: BuildStart };
+  /** What the Developer confirmed about the work Build waits on, then the build (REQ-102, A7). */
+  "build.resolve": {
+    params:
+      | { req: string; choice: "commit"; message: string }
+      | { req: string; choice: "stash" | "ignore" };
+    result: BuildStart;
+  };
 }
 
 /** What the host tells every connected UI, unasked. */
