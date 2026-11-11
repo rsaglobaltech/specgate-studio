@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-111 — An empty folder: five questions, then `specgate init`
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL, for a folder with no files, ask the Developer five questions — the project's name, what it is, its stack, the agent that builds it and its architecture — show the `specgate init` command the answers make, and, once the Developer confirms, create the project with `specgate init` in that folder itself, not in a folder inside it.
 
@@ -24,7 +24,7 @@ The system SHALL, for a folder with no files, ask the Developer five questions �
 
 ### Requirement: REQ-112 — A folder with code: adopted in place after a preview
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL, for a folder with code that is not a specgate project, first run `specgate adopt --dry-run` and show every file adoption would write, and only when the Developer confirms run `specgate adopt` in that folder — writing no file that already exists and changing no line of the code.
 
@@ -44,7 +44,7 @@ The system SHALL, for a folder with code that is not a specgate project, first r
 
 ### Requirement: REQ-113 — The preview names the settings adoption saves
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL show, in the preview of an adoption, beside the files, the settings it saves in `harness.config.yaml` — the test command it detected and the agent whose CLI it found — so nothing is saved that the Developer did not see before confirming.
 
@@ -64,7 +64,7 @@ The system SHALL show, in the preview of an adoption, beside the files, the sett
 
 ### Requirement: REQ-114 — After setup, what is ready and what is not
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL show, once a project is created or adopted, a readiness list — Tests, Agent, Architecture, CI gate — each either set, with its value, or with a button that sets it by running the specgate command, so the Developer finishes the setup in the studio without a terminal or an agent doing it for them.
 
@@ -84,7 +84,7 @@ The system SHALL show, once a project is created or adopted, a readiness list �
 
 ### Requirement: REQ-115 — The areas adoption found are a map, not requirements
 
-<!-- specgate:trace actor=Developer kind=business-rule -->
+<!-- specgate:trace status=Implemented actor=Developer kind=business-rule -->
 
 The system SHALL show the areas adoption wrote to `docs/specs/adoption.md`, each with its folder and its tests, add none of them to the requirements, and name the next step "Specify a behaviour you rely on"; for code organised by kind of code — components, hooks, utils — it SHALL show no area and say why.
 
@@ -104,7 +104,7 @@ The system SHALL show the areas adoption wrote to `docs/specs/adoption.md`, each
 
 ### Requirement: REQ-116 — Home leads to the setup the folder needs
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL, on Home of a folder that is not a specgate project, name the next step "Create the project" when the folder is empty and "Adopt this folder" when it holds code, each opening its setup, and SHALL offer neither for a folder that is already a specgate project.
 
