@@ -44,7 +44,7 @@ The system SHALL run the brief's checks each time `docs/brief.md` is saved, from
 
 ### Requirement: REQ-073 — "Draft the modules" drafts one module at a time with the agent
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL, when the Developer presses "Draft the modules", run `specgate propose --from-brief <module>` with the project's agent for each module of the brief not drafted yet, one module at a time — the next starting only when the previous one has ended — and SHALL refuse it before running anything when no agent is set, naming the command that sets one.
 
