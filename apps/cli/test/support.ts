@@ -9,6 +9,8 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { chromium, type Browser, type Page } from "playwright";
 import {
+  FakeHarness,
+  InMemoryHarnessEvents,
   InMemoryFileSystem,
   InMemoryGit,
   type Finding,
@@ -77,6 +79,8 @@ export interface StudioOptions {
   questions?: { open: unknown[]; answered?: unknown[] };
   /** Home's requirements; `requirements(rows)` by default. */
   homeRequirements?: Array<{ id: string; title: string; category: string; needs: string | null }>;
+  /** The project's uncommitted files (draft-build-live); none by default. */
+  uncommitted?: string[];
 }
 
 export async function studio(opts: StudioOptions = {}) {
@@ -158,7 +162,12 @@ export async function studio(opts: StudioOptions = {}) {
   fs.mkdirSync(projectDir, { recursive: true });
   const findings = async () => opts.findings ?? [];
   // The open folder in memory: a specgate project on its branch, nothing uncommitted.
-  const git = new InMemoryGit({ [projectDir]: { branch: opts.branch ?? null, uncommitted: [] } });
+  const git = new InMemoryGit({
+    [projectDir]: { branch: opts.branch ?? null, uncommitted: [...(opts.uncommitted ?? [])] },
+  });
+  // Build's harness: a build ends when the test says (draft-build-live).
+  const harness = new FakeHarness();
+  const events = new InMemoryHarnessEvents();
   const workspace = {
     fs: new InMemoryFileSystem({
       [path.join(projectDir, "docs/specs/traceability.md")]: "# Matrix\n",
@@ -184,6 +193,7 @@ export async function studio(opts: StudioOptions = {}) {
     findings,
     workspace,
     ...(specgate ? { specgate } : {}),
+    builds: { git, harness, events, pollMs: 50 },
   });
   return {
     host,
@@ -193,6 +203,8 @@ export async function studio(opts: StudioOptions = {}) {
     writes,
     disk,
     git,
+    harness,
+    events,
     projectDir,
     url: host.url.replace(/^ws/, "http"),
   };

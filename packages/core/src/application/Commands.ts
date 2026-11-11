@@ -127,6 +127,17 @@ type Known = ReturnType<typeof noticed>;
 
 export type EventListener = (event: CommandEvent) => void;
 
+/** How something the studio ran ended, and what its notice says (draft-build-live). */
+export interface Tracked {
+  exitCode: number;
+  action: ActionId;
+  vars: HelpVars;
+  /** What it wrote, as the notice names it; none when not given. */
+  written?: string[];
+  findings?: Finding[];
+  ended?: Outcome["ended"];
+}
+
 /**
  * Runs specgate commands for the UI.
  *
@@ -273,6 +284,60 @@ export class Commands {
       findings,
       ...(preview ? { preview } : {}),
     };
+  }
+
+  /**
+   * Something the studio runs that is not one specgate command line — a
+   * build, a commit before it (draft-build-live) — told as any run: started
+   * with the command as the person would type it, its output, and ended with
+   * its notice in both languages. A write waits for no other: one running
+   * refuses it with `write_busy`, as for specgate's own (REQ-006).
+   */
+  async track(
+    text: string,
+    write: boolean,
+    work: (output: (chunk: string) => void) => Promise<Tracked>,
+  ): Promise<RunResult> {
+    if (write && this.writing) {
+      return {
+        ok: false,
+        code: "write_busy",
+        message: `${this.writing} is running: wait for it to end.`,
+      };
+    }
+    const run = this.next++;
+    if (write) this.writing = text;
+    try {
+      this.emit({ type: "started", run, command: text });
+      const output = (chunk: string) => this.emit({ type: "output", run, chunk });
+      let done: Tracked;
+      try {
+        done = await work(output);
+      } catch (e) {
+        output(`${e instanceof Error ? e.message : String(e)}\n`);
+        this.emit({ type: "ended", run, exitCode: 1 });
+        return { ok: true, run, exitCode: 1, written: [] };
+      }
+      const vars = { ...(this.options.helpVars?.() ?? {}), ...done.vars };
+      const outcome: Outcome = {
+        exitCode: done.exitCode,
+        findings: done.findings ?? [],
+        written: done.written ?? [],
+        ...(done.ended ? { ended: done.ended } : {}),
+      };
+      this.emit({
+        type: "ended",
+        run,
+        exitCode: done.exitCode,
+        notice: {
+          en: notice(done.action, "en", vars, outcome),
+          es: notice(done.action, "es", vars, outcome),
+        },
+      });
+      return { ok: true, run, exitCode: done.exitCode, written: outcome.written };
+    } finally {
+      if (write) this.writing = null;
+    }
   }
 
   onEvent(listener: EventListener): () => void {

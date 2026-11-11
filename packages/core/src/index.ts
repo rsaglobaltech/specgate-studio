@@ -28,7 +28,12 @@ export {
 } from "./domain/changes.js";
 export { Changes, type SectionSource } from "./application/Changes.js";
 export type { ProcessRunner } from "./ports/ProcessRunner.js";
-export { Commands, type CommandsOptions, type EventListener } from "./application/Commands.js";
+export {
+  Commands,
+  type CommandsOptions,
+  type EventListener,
+  type Tracked,
+} from "./application/Commands.js";
 export type { Finding } from "./domain/finding.js";
 export type { SpecgatePort, SpecgateAnswer } from "./ports/SpecgatePort.js";
 export { isOlder, updateCommand } from "./domain/version.js";
@@ -84,7 +89,7 @@ export {
   type WorkspaceState,
 } from "./domain/workspace.js";
 export type { FileSystemPort } from "./ports/FileSystemPort.js";
-export type { GitPort } from "./ports/GitPort.js";
+export type { GitPort, GitWriter } from "./ports/GitPort.js";
 export { ANY_FILE, type Watch, type WatcherPort } from "./ports/WatcherPort.js";
 export type { StorePort } from "./ports/StorePort.js";
 export type { ClockPort } from "./ports/ClockPort.js";
@@ -144,6 +149,52 @@ export {
 } from "./domain/setup.js";
 export type { Onboarding, SetupPort } from "./ports/SetupPort.js";
 export { Setup, type SetupOptions } from "./application/Setup.js";
+export {
+  REQ_ID,
+  agentProgram,
+  buildList,
+  estimateOf,
+  harnessArgs,
+  harnessReport,
+  saveSpecification,
+  uncommittedWork,
+  type BuildItem,
+  type BuildList,
+  type BuildStart,
+  type Estimate,
+  type FileGroup,
+  type HarnessResult,
+  type Resolution,
+  type StopResult,
+  type Uncommitted,
+  type WaitReason,
+  type WaitingItem,
+} from "./domain/build.js";
+export type { BuildPort, BuildProcess } from "./ports/BuildPort.js";
+export { FakeHarness } from "./fakes/FakeHarness.js";
+export { Builds, type BuildsOptions } from "./application/Builds.js";
+export { GIT_WRITER_CONTRACT, type MakeGitWriter } from "./contracts/buildContracts.js";
+export {
+  OUTPUT_LIMIT,
+  foldLive,
+  foldRequirement,
+  foldUsage,
+  liveQuestions,
+  parseEvents,
+  queueStarted,
+  type HarnessEvent,
+  type LiveLine,
+  type LiveQuestion,
+  type LiveRequirement,
+  type LiveState,
+  type LiveStep,
+  type LiveStudio,
+  type LiveView,
+  type StepResult,
+  type Usage,
+} from "./domain/live.js";
+export type { HarnessEventsPort, HarnessEventsSnapshot } from "./ports/HarnessEventsPort.js";
+export { InMemoryHarnessEvents } from "./fakes/InMemoryHarnessEvents.js";
 export {
   BRIEF_FILE,
   SET_AGENT,

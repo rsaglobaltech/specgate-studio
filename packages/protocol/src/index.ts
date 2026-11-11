@@ -29,6 +29,23 @@ import type {
   Area,
   InitAnswers,
   ReadyItem,
+  BuildItem,
+  BuildList,
+  BuildStart,
+  StopResult,
+  FileGroup,
+  Uncommitted,
+  Estimate,
+  WaitReason,
+  WaitingItem,
+  LiveLine,
+  LiveQuestion,
+  LiveRequirement,
+  LiveState,
+  LiveStep,
+  LiveView,
+  StepResult,
+  Usage,
   BriefModule,
   BriefView,
   DraftResult,
@@ -45,6 +62,26 @@ export type { ActionId, Explanation, HelpVars, Lang, Notice };
 export type { ArchivePreview, ChangeCard, ChangeGroup, ChangesView, Finding, TicketReview };
 /** Setting up a folder that is no project yet (draft-project-setup). */
 export type { AdoptPreview, Area, InitAnswers, ReadyItem };
+/** Build and Live (draft-build-live). */
+export type {
+  BuildItem,
+  BuildList,
+  BuildStart,
+  StopResult,
+  Estimate,
+  FileGroup,
+  Uncommitted,
+  WaitReason,
+  WaitingItem,
+  LiveLine,
+  LiveQuestion,
+  LiveRequirement,
+  LiveState,
+  LiveStep,
+  LiveView,
+  StepResult,
+  Usage,
+};
 /** The Brief view (draft-brief). */
 export type { BriefModule, BriefView, DraftResult };
 
@@ -114,6 +151,21 @@ export interface Requests {
     params: Record<string, never>;
     result: { adopted: boolean; byKind: boolean; areas: Area[] };
   };
+  /** What is ready to build, its estimate and who codes; runs nothing (draft-build-live REQ-101). */
+  "build.get": { params: Record<string, never>; result: BuildList };
+  /** Build one requirement, or say why it waits; runs nothing while it waits (REQ-102). */
+  "build.start": { params: { req: string }; result: BuildStart };
+  /** What the Developer confirmed about the work Build waits on, then the build (REQ-102, A7). */
+  "build.resolve": {
+    params:
+      | { req: string; choice: "commit"; message: string }
+      | { req: string; choice: "stash" | "ignore" };
+    result: BuildStart;
+  };
+  /** What Live shows: the steps, the agent's output, the queue, cost and tokens (REQ-103). */
+  "live.get": { params: Record<string, never>; result: LiveView };
+  /** Stop after this requirement, or now — sent once confirmed (REQ-105). */
+  "build.stop": { params: { now: boolean }; result: StopResult };
   /** What the brief's last check found, for Problems (draft-brief REQ-072). */
   "problems.get": { params: Record<string, never>; result: Finding[] };
   /** The brief's modules, where each stands, and the project's agent; runs nothing (REQ-073). */
@@ -131,6 +183,8 @@ export interface Notifications {
   "terminal.exit": { id: string; code: number };
   /** The folder changed: its new state (REQ-023). */
   "workspace.changed": { state: WorkspaceState };
+  /** What Live shows changed: every open UI sees the same (draft-build-live REQ-103). */
+  "live.changed": LiveView;
   /** The brief was saved and checked: what Problems lists now (draft-brief REQ-072). */
   "problems.changed": { findings: Finding[] };
 }

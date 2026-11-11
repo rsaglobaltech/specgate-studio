@@ -10,6 +10,7 @@ import {
 import {
   NodeFileSystem,
   NodeGit,
+  NodeHarnessEvents,
   NodeStore,
   NodeWatcher,
   caseInsensitivePaths,
@@ -18,6 +19,7 @@ import {
 import { SpecgateCli, SpecgateSetup, specgateBin } from "@specgate-studio/adapter-specgate-cli";
 import { HostRegistry } from "./HostRegistry.js";
 import { NodeProcessRunner } from "./NodeProcessRunner.js";
+import { NodeBuildRunner } from "./NodeBuildRunner.js";
 import { startHost, type Host, type ProjectFiles } from "./startHost.js";
 import type { TerminalWiring } from "./terminals.js";
 
@@ -111,6 +113,17 @@ export async function startProjectHost(
           return hasCall(r) ? r.call(args) : cli.call(args);
         },
       },
+    },
+    // Build and Live read specgate's `--json` through the CLI (draft-build-live).
+    builds: {
+      specgate: cli,
+      git,
+      harness: new NodeBuildRunner({
+        program: process.execPath,
+        prefix: [specgateBin()],
+        projectDir,
+      }),
+      events: new NodeHarnessEvents(),
     },
     setup: { port: new SpecgateSetup(cli), fs, onPath: options.onPath ?? (() => false) },
     // The brief's checks and drafts, with --json through the CLI (draft-brief).

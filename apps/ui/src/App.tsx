@@ -26,6 +26,8 @@ import { Logo, ViewIcon } from "./icons.js";
 import { VirtualList } from "./VirtualList.js";
 import { HelpButton, HelpDialog, NoticeToast, type HelpRequest } from "./Help.js";
 import { Changes } from "./views/Changes.js";
+import { Build } from "./views/Build.js";
+import { Live } from "./views/Live.js";
 import { loadSettings, saveSettings, type Theme } from "./settings.js";
 import Questions from "./views/Questions.js";
 import { AdoptedAreas, SetupNext, SetupPane, type SetupStep } from "./Setup.js";
@@ -639,7 +641,30 @@ export function App({ rpc }: { rpc: Rpc }) {
                 onHelp={(r: HelpRequest) =>
                   setHelp({ title: tr("help.title", { feature: r.feature }), requests: [r] })
                 }
-                buildReq={buildReq}
+                buildView={
+                  <Build
+                    rpc={rpc}
+                    lang={lang}
+                    stamp={[sections.home, sections.changes, sections.questions]}
+                    focus={buildReq}
+                    onHelp={(feature, requests) =>
+                      setHelp({ title: tr("help.title", { feature }), requests })
+                    }
+                    announce={announce}
+                    onLive={() => show("live")}
+                  />
+                }
+                liveView={
+                  <Live
+                    rpc={rpc}
+                    lang={lang}
+                    run={runCommand}
+                    onHelp={(feature, requests) =>
+                      setHelp({ title: tr("help.title", { feature }), requests })
+                    }
+                    announce={announce}
+                  />
+                }
                 traceFilter={traceFilter}
               />
             )}
@@ -911,7 +936,9 @@ interface ViewProps {
   reportTotal: number | undefined;
   onCheck: () => void;
   onHelp: (r: HelpRequest) => void;
-  buildReq: string | null;
+  /** Build and Live (draft-build-live). */
+  buildView: JSX.Element;
+  liveView: JSX.Element;
   traceFilter: string;
 }
 
@@ -1047,16 +1074,14 @@ function View(p: ViewProps) {
       return (
         <>
           {title}
-          {p.buildReq && (
-            <section class="card" data-req={p.buildReq}>
-              <h2 style="margin:0 0 6px;font-size:16px">
-                {p.tr("build.req", { req: p.buildReq })}
-              </h2>
-              <p class="muted" style="margin:0">
-                {p.tr("build.soon", { req: p.buildReq })}
-              </p>
-            </section>
-          )}
+          {p.buildView}
+        </>
+      );
+    case "live":
+      return (
+        <>
+          {title}
+          {p.liveView}
         </>
       );
     case "traceability": {

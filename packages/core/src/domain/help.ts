@@ -28,6 +28,11 @@ export const ACTIONS = [
   "adopt",
   "agents-init",
   "ci-init",
+  "build-commit",
+  "build-stash",
+  "build-ignore",
+  "build-stop-after",
+  "build-stop-now",
   "brief-check",
   "draft-modules",
 ] as const;
@@ -101,20 +106,30 @@ export const HELP: Catalog = {
       does: "Has the agent build {req} on its own branch: plan, context, code, the gate, until its test passes.",
       command: "specgate harness run --req {req}",
       files:
-        "The code and tests the agent may change for {req}, on a new branch; the run's log under `.harness/`.",
+        "The code and tests the agent may change for {req}, on a new branch; the run's log under `.harness/`. Uncommitted specification (spec.md, docs/specs/, features/) is committed first: the agent starts from the last commit.",
       doesNot:
         "It does not push, merge or open a pull request, and it never changes the specification.",
       next: "Then the gate on the branch it opens, and `specgate apply {req}` when it passes.",
-      notice: { ranOk: "`{command}` built {req} on its branch.", next: "specgate check" },
+      notice: {
+        ranOk: "`{command}` built {req} on its branch.",
+        next: "specgate check",
+        after:
+          "Its code and tests are on the branch `harness/{req}`; this working copy is unchanged.",
+      },
     },
     es: {
       does: "Hace que el agente construya {req} en su propia rama: plan, contexto, código y gate, hasta que su test pasa.",
       command: "specgate harness run --req {req}",
       files:
-        "El código y los tests que el agente puede cambiar para {req}, en una rama nueva; el registro de la ejecución en `.harness/`.",
+        "El código y los tests que el agente puede cambiar para {req}, en una rama nueva; el registro de la ejecución en `.harness/`. La especificación sin commit (spec.md, docs/specs/, features/) se guarda antes en un commit: el agente parte del último commit.",
       doesNot: "No hace push, ni merge, ni abre un pull request, y nunca cambia la especificación.",
       next: "Después, el gate en la rama que abre, y `specgate apply {req}` cuando pase.",
-      notice: { ranOk: "`{command}` construyó {req} en su rama.", next: "specgate check" },
+      notice: {
+        ranOk: "`{command}` construyó {req} en su rama.",
+        next: "specgate check",
+        after:
+          "Su código y sus tests están en la rama `harness/{req}`; esta copia de trabajo no cambia.",
+      },
     },
   },
   apply: {
@@ -464,6 +479,145 @@ export const HELP: Catalog = {
       notice: { ranOk: "`{command}` escribió el gate.", next: "specgate ci status" },
     },
   },
+  "build-commit": {
+    en: {
+      does: "Commits the uncommitted files Build showed, with your message, so the agent's branch — cut from the last commit — includes them; then the build of {req} starts.",
+      command: 'git commit -m "<your message>" -- <the files shown>',
+      files: "One commit on your current branch with exactly the files shown, grouped by folder.",
+      doesNot:
+        "It runs nothing before you confirm; it does not push, and it does not commit a file it did not show.",
+      next: "Then the build of {req}: `specgate harness run --req {req}`.",
+      notice: {
+        ranOk: "`{command}` committed the {count} files shown.",
+        next: "specgate harness run --req {req}",
+      },
+    },
+    es: {
+      does: "Hace commit de los archivos sin commit que mostró Construir, con tu mensaje, para que la rama del agente — cortada desde el último commit — los incluya; después empieza la construcción de {req}.",
+      command: 'git commit -m "<tu mensaje>" -- <los archivos mostrados>',
+      files:
+        "Un commit en tu rama actual con exactamente los archivos mostrados, agrupados por carpeta.",
+      doesNot:
+        "No ejecuta nada antes de que confirmes; no hace push, y no incluye ningún archivo que no haya mostrado.",
+      next: "Después, la construcción de {req}: `specgate harness run --req {req}`.",
+      notice: {
+        ranOk: "`{command}` hizo commit de los {count} archivos mostrados.",
+        next: "specgate harness run --req {req}",
+      },
+    },
+  },
+  "build-stash": {
+    en: {
+      does: "Puts the uncommitted files Build showed aside in git's stash, untracked ones included, so the build of {req} starts from a clean working copy.",
+      command: "git stash push --include-untracked",
+      files:
+        "Your working copy: the files shown leave it and wait in the stash; `git stash pop` brings them back.",
+      doesNot: "It runs nothing before you confirm; it does not commit, push or delete your work.",
+      next: "Then the build of {req}; bring your work back with `git stash pop` when you want it.",
+      notice: {
+        ranOk: "`{command}` put the {count} files shown in the stash.",
+        next: "git stash pop",
+      },
+    },
+    es: {
+      does: "Aparta en el stash de git los archivos sin commit que mostró Construir, incluidos los no versionados, para que la construcción de {req} empiece desde una copia de trabajo limpia.",
+      command: "git stash push --include-untracked",
+      files:
+        "Tu copia de trabajo: los archivos mostrados salen de ella y esperan en el stash; `git stash pop` los devuelve.",
+      doesNot:
+        "No ejecuta nada antes de que confirmes; no hace commit ni push ni borra tu trabajo.",
+      next: "Después, la construcción de {req}; recupera tu trabajo con `git stash pop` cuando lo quieras.",
+      notice: {
+        ranOk: "`{command}` guardó en el stash los {count} archivos mostrados.",
+        next: "git stash pop",
+      },
+    },
+  },
+  "build-ignore": {
+    en: {
+      does: "Would build {req} anyway, from the last commit: the agent's branch would leave the uncommitted files out, and they would stay as they are.",
+      command: "specgate harness run --req {req}",
+      files: "None of the files shown; the build's own, on its branch.",
+      doesNot:
+        "specgate 0.33.2's harness refuses to start while any file is uncommitted, so the studio cannot ignore them yet: commit or stash them.",
+      next: "Commit or stash the files shown, then build {req}.",
+      notice: {
+        ranOk: "`{command}` built {req} without the uncommitted files.",
+        next: "specgate check",
+      },
+    },
+    es: {
+      does: "Construiría {req} igualmente, desde el último commit: la rama del agente dejaría fuera los archivos sin commit, que quedarían como están.",
+      command: "specgate harness run --req {req}",
+      files: "Ninguno de los archivos mostrados; los de la construcción, en su rama.",
+      doesNot:
+        "El harness de specgate 0.33.2 se niega a empezar mientras haya archivos sin commit, así que el studio aún no puede ignorarlos: haz commit de ellos o apártalos en el stash.",
+      next: "Haz commit o stash de los archivos mostrados y después construye {req}.",
+      notice: {
+        ranOk: "`{command}` construyó {req} sin los archivos sin commit.",
+        next: "specgate check",
+      },
+    },
+  },
+  "build-stop-after": {
+    en: {
+      does: "Lets {req} finish — its agent, its gate and its branch — and then starts nothing else: the requirements queued after it are left unbuilt.",
+      command:
+        "None of specgate's: the studio does not start `specgate harness run` for what is queued.",
+      files: "None besides what {req}'s build writes on its branch.",
+      doesNot:
+        "It does not interrupt {req}, and it asks no confirmation: nothing running is ended.",
+      next: "Build the queued requirements again from Build when you want them.",
+      notice: {
+        ranOk: "{req} finished; what was queued after it ({queued}) was not started.",
+        next: "specgate check",
+      },
+    },
+    es: {
+      does: "Deja que {req} termine — su agente, su gate y su rama — y después no empieza nada más: los requisitos en cola tras él quedan sin construir.",
+      command:
+        "Ninguno de specgate: el studio no inicia `specgate harness run` para lo que está en cola.",
+      files: "Ninguno aparte de lo que la construcción de {req} escribe en su rama.",
+      doesNot: "No interrumpe {req} y no pide confirmación: no termina nada en marcha.",
+      next: "Vuelve a construir los requisitos en cola desde Construir cuando los quieras.",
+      notice: {
+        ranOk: "{req} terminó; lo que estaba en cola tras él ({queued}) no empezó.",
+        next: "specgate check",
+      },
+    },
+  },
+  "build-stop-now": {
+    en: {
+      does: "Ends the build of {req} at once, after you confirm: the harness and every process it started — the agent, its tests, the servers they started — and starts nothing queued.",
+      command:
+        "None of specgate's: the studio ends `specgate harness run`'s process tree (`taskkill /T` on Windows, its process group elsewhere).",
+      files:
+        "None: what the agent had not committed stays in its worktree under `.harness/`, its branch as it was.",
+      doesNot:
+        "It does not run before you confirm; it does not delete the agent's branch or undo what it committed.",
+      next: "Look at the branch `harness/{req}`, then build {req} again when you want it.",
+      notice: {
+        ranOk:
+          "The studio ended the build of {req} and every process it started; what was queued ({queued}) was not started.",
+        next: "git branch --list harness/{req}",
+      },
+    },
+    es: {
+      does: "Termina en el acto la construcción de {req}, después de que confirmes: el harness y todos los procesos que inició — el agente, sus tests, los servidores que arrancaron — y no empieza nada de la cola.",
+      command:
+        "Ninguno de specgate: el studio termina el árbol de procesos de `specgate harness run` (`taskkill /T` en Windows, su grupo de procesos en el resto).",
+      files:
+        "Ninguno: lo que el agente no hizo commit queda en su worktree bajo `.harness/`, su rama como estaba.",
+      doesNot:
+        "No se ejecuta antes de que confirmes; no borra la rama del agente ni deshace lo que hizo commit.",
+      next: "Mira la rama `harness/{req}` y vuelve a construir {req} cuando lo quieras.",
+      notice: {
+        ranOk:
+          "El studio terminó la construcción de {req} y todos los procesos que inició; lo que estaba en cola ({queued}) no empezó.",
+        next: "git branch --list harness/{req}",
+      },
+    },
+  },
   // draft-brief: the brief's checks, on every save (REQ-072).
   "brief-check": {
     en: {
@@ -529,11 +683,15 @@ const UNSET: Record<string, string> = {
   module: "<module>",
   key: "<KEY>",
   q: "<Q>",
+  count: "<n>",
+  queued: "<the queued requirements>",
   agent: "<agent>",
   command: "<command>",
 };
 
-export type HelpVars = Partial<Record<"req" | "change" | "module" | "key" | "q" | "agent", string>>;
+export type HelpVars = Partial<
+  Record<"req" | "change" | "module" | "key" | "q" | "count" | "queued" | "agent", string>
+>;
 
 function fill(text: string, vars: Record<string, string | undefined>): string {
   return text.replace(/\{(\w+)\}/g, (_, name: string) => {
@@ -580,6 +738,8 @@ export interface Outcome {
   findings: Finding[];
   /** The files the action wrote, relative to the project. */
   written: string[];
+  /** It ran and ended without doing what it does: how, in specgate's words (draft-build-live). */
+  ended?: { code: string; message: string; fix?: string };
 }
 
 export interface Notice {
@@ -596,11 +756,12 @@ export interface Notice {
 
 const SAY: Record<
   Lang,
-  { refused: string; failed: string; wrote: string; none: string; nothing: string }
+  { refused: string; failed: string; ended: string; wrote: string; none: string; nothing: string }
 > = {
   en: {
     refused: "`{command}` was refused with {code}: {message}",
     failed: "`{command}` ended with code {code}.",
+    ended: "`{command}` ended {code}: {message}",
     wrote: "It wrote {files}.",
     none: "No file was written.",
     nothing: "Nothing was written.",
@@ -608,6 +769,7 @@ const SAY: Record<
   es: {
     refused: "`{command}` se rechazó con {code}: {message}",
     failed: "`{command}` terminó con código {code}.",
+    ended: "`{command}` terminó {code}: {message}",
     wrote: "Escribió {files}.",
     none: "No se escribió ningún archivo.",
     nothing: "No se escribió nada.",
@@ -637,6 +799,15 @@ export function notice(action: ActionId, lang: Lang, vars: HelpVars, outcome: Ou
   const wrote = outcome.written.length
     ? fill(say.wrote, { files: outcome.written.map((f) => `\`${f}\``).join(", ") })
     : say.none;
+  if (outcome.ended) {
+    return {
+      tone: "failed",
+      ran: fill(say.ended, { ...all, code: outcome.ended.code, message: outcome.ended.message }),
+      wrote,
+      next: command,
+      ...(outcome.ended.fix ? { fix: outcome.ended.fix } : {}),
+    };
+  }
   if (outcome.exitCode !== 0) {
     return {
       tone: "failed",

@@ -28,6 +28,8 @@ export type SpecgateCommand =
   | { name: "adopt" }
   | { name: "agents-init"; tool: string }
   | { name: "ci-init" }
+  // draft-build-live: Build's estimate and who codes, read with --json (REQ-101).
+  | { name: "harness-report" }
   // draft-brief: the brief's checks on every save (REQ-072), read with --json.
   | { name: "brief-check" }
   // The brief's modules and where each stands, and the project's settings (REQ-073).
@@ -127,6 +129,8 @@ export function commandLine(c: SpecgateCommand): CommandLine | null {
         : null;
     case "ci-init":
       return { args: ["ci", "init"], write: true };
+    case "harness-report":
+      return { args: ["harness", "report"], write: false, json: true };
     case "brief-check":
       return {
         args: ["propose", "--from-brief", "--check", "--brief", BRIEF_FILE],

@@ -30,6 +30,7 @@ import { RPC_ERRORS, type Notifications, type ProjectOpened } from "@specgate-st
 import { attachWorkspace, type WorkspaceWiring } from "./workspace.js";
 import { attachChanges, type ChangesWiring } from "./changes.js";
 import { attachSetup, type SetupWiring } from "./setup.js";
+import { attachBuilds, type BuildsWiring } from "./builds.js";
 import { attachBrief, type BriefWiring } from "./brief.js";
 
 export interface HostOptions {
@@ -56,6 +57,8 @@ export interface HostOptions {
   changes?: ChangesWiring;
   /** Creating or adopting a folder that is no project yet (draft-project-setup). */
   setup?: SetupWiring;
+  /** Build and Live: what is ready, the build, its events (draft-build-live). */
+  builds?: BuildsWiring;
   /** specgate's `--json` answers for the Brief view: its checks and drafts (draft-brief). */
   brief?: BriefWiring;
 }
@@ -150,9 +153,12 @@ export async function startHost(options: HostOptions): Promise<Host> {
   // An outdated specgate reads nothing, not even for the notices (REQ-013).
   // A first read that fails (a folder that is no project) leaves Next unread.
   if (checked.ok) void opening.then(readNext, () => undefined);
+  // Live shows the agent's questions: an answer read again is told there too (REQ-104).
+  let liveRefresh: (() => void) | null = null;
   state.onChange((sections) => {
     if (checked.ok && sections.includes("home")) void readNext();
     broadcast("state.changed", { sections });
+    if (sections.includes("questions")) liveRefresh?.();
   });
   const workspace = options.workspace
     ? await attachWorkspace(options.projectDir, options.workspace, state, broadcast)
@@ -174,6 +180,18 @@ export async function startHost(options: HostOptions): Promise<Host> {
         (m) => rpcError(RPC_ERRORS.params, m),
       )
     : null;
+
+  const builds = options.builds
+    ? attachBuilds(
+        options.projectDir,
+        options.builds,
+        state,
+        commands,
+        (m) => rpcError(RPC_ERRORS.params, m),
+        (view) => broadcast("live.changed", view),
+      )
+    : null;
+  liveRefresh = builds ? () => builds.refresh() : null;
 
   const handlers: Record<string, (params: unknown) => Promise<unknown>> = {
     "project.open": async () => {
@@ -288,6 +306,7 @@ export async function startHost(options: HostOptions): Promise<Host> {
     ...terminals?.handlers,
     ...changes?.handlers,
     ...setup?.handlers,
+    ...builds?.handlers,
     ...brief?.handlers,
   };
 
@@ -328,6 +347,7 @@ export async function startHost(options: HostOptions): Promise<Host> {
     url: `ws://127.0.0.1:${port}/`,
     state,
     close: async () => {
+      await builds?.close();
       await terminals?.close();
       await workspace?.close();
       await new Promise<void>((ok) => {

@@ -754,6 +754,101 @@ textarea.ask {
 .setup-problem {
   color: var(--danger, #e5534b);
 }
+/* Build and Live (draft-build-live). */
+.breqs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.breq {
+  margin-bottom: 8px;
+}
+.breq[data-focus] {
+  border-color: var(--accent);
+}
+.bline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.bline + .bline {
+  margin-top: 6px;
+}
+.bwaits {
+  margin-bottom: 12px;
+  border-color: var(--warn);
+}
+.bgroups {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.bgroups > li {
+  margin: 2px 0;
+}
+.bgroups ul {
+  max-height: 160px;
+  overflow: auto;
+  margin: 4px 0 4px 16px;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+}
+.bstarted {
+  margin-bottom: 12px;
+  border-color: var(--accent);
+}
+.lreq {
+  margin-bottom: 10px;
+}
+.lqueue {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+.lsteps {
+  width: 100%;
+  margin-top: 8px;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.lsteps td {
+  padding: 2px 8px 2px 0;
+  border-top: 1px solid var(--line-strong);
+}
+.ltime {
+  text-align: right;
+  white-space: nowrap;
+}
+.ltag.running {
+  color: var(--accent-soft);
+}
+.ltag.fail,
+.ltag.error {
+  color: var(--danger, #e5534b);
+}
+.ltag.question,
+.ltag.stopped {
+  color: var(--warn);
+}
+.lout {
+  max-height: 320px;
+  overflow: auto;
+  margin: 0;
+  padding: 10px 12px 10px 36px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--bg-input);
+  font-size: 12px;
+}
+.lstopping {
+  margin: 0 0 12px;
+  border-color: var(--warn);
+}
+.btn.danger {
+  border-color: var(--danger, #e5534b);
+  color: var(--danger, #e5534b);
+}
 
 /* Problems: the brief's findings on every save (draft-brief REQ-072). */
 .problems-head {
