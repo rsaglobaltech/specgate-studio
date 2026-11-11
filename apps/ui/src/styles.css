@@ -849,3 +849,56 @@ textarea.ask {
   border-color: var(--danger, #e5534b);
   color: var(--danger, #e5534b);
 }
+
+/* Problems: the brief's findings on every save (draft-brief REQ-072). */
+.problems-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.problems ul {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+}
+.problems li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 0;
+  color: var(--text);
+}
+.problems .sev {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.problems .sev.error {
+  color: var(--bad);
+}
+.problems .sev.warning {
+  color: var(--warn);
+}
+.problems .loc {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: var(--accent-soft);
+  cursor: pointer;
+  padding: 0;
+}
+
+/* The Brief view's modules (draft-brief REQ-073). */
+.brief .modules {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+}
+.brief .modules li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: baseline;
+  padding: 4px 0;
+}

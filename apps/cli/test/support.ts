@@ -64,10 +64,17 @@ export interface StudioOptions {
   sections?: Partial<Record<Section, unknown>>;
   /**
    * specgate's `--json` answers, by the arguments joined with spaces; a
-   * function may change the sections, as the command would. Every call is
-   * recorded in `calls` (draft-changes).
+   * function may change the sections, as the command would, read the files
+   * on disk, or answer later. Every call is recorded in `calls` (draft-changes).
    */
-  specgate?: Record<string, SpecgateAnswer | ((data: Record<Section, unknown>) => SpecgateAnswer)>;
+  specgate?: Record<
+    string,
+    | SpecgateAnswer
+    | ((
+        data: Record<Section, unknown>,
+        disk: Record<string, string>,
+      ) => SpecgateAnswer | Promise<SpecgateAnswer>)
+  >;
   /** What `specgate questions --json` answers; Q2 of draft-pedidos by default. */
   questions?: { open: unknown[]; answered?: unknown[] };
   /** Home's requirements; `requirements(rows)` by default. */
@@ -174,7 +181,7 @@ export async function studio(opts: StudioOptions = {}) {
       calls.push([...args]);
       const a = answers[args.join(" ")];
       if (!a) throw new Error(`no answer recorded for specgate ${args.join(" ")}`);
-      return structuredClone(typeof a === "function" ? a(data) : a);
+      return structuredClone(typeof a === "function" ? await a(data, disk) : a);
     },
   };
   const host = await serve({

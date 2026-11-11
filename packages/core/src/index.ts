@@ -4,6 +4,7 @@ export type { SectionReader } from "./ports/SectionReader.js";
 export { ProjectState, type ChangeListener } from "./application/ProjectState.js";
 export {
   commandLine,
+  fromWire,
   shown,
   type SpecgateCommand,
   type ArchivePreview,
@@ -150,7 +151,6 @@ export type { Onboarding, SetupPort } from "./ports/SetupPort.js";
 export { Setup, type SetupOptions } from "./application/Setup.js";
 export {
   REQ_ID,
-  SET_AGENT,
   agentProgram,
   buildList,
   estimateOf,
@@ -195,3 +195,15 @@ export {
 } from "./domain/live.js";
 export type { HarnessEventsPort, HarnessEventsSnapshot } from "./ports/HarnessEventsPort.js";
 export { InMemoryHarnessEvents } from "./fakes/InMemoryHarnessEvents.js";
+export {
+  BRIEF_FILE,
+  SET_AGENT,
+  agentOf,
+  briefCheckOutcome,
+  briefModulesOf,
+  posixFindings,
+  type BriefModule,
+  type BriefView,
+} from "./domain/brief.js";
+export { quoted } from "./domain/args.js";
+export { Brief, type CommandRunner, type DraftResult } from "./application/Brief.js";

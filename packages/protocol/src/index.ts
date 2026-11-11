@@ -46,6 +46,9 @@ import type {
   LiveView,
   StepResult,
   Usage,
+  BriefModule,
+  BriefView,
+  DraftResult,
 } from "@specgate-studio/core";
 
 export type { CommandEvent, RunResult, Section, SectionData, SpecgateCommand };
@@ -79,6 +82,8 @@ export type {
   StepResult,
   Usage,
 };
+/** The Brief view (draft-brief). */
+export type { BriefModule, BriefView, DraftResult };
 
 /** What the UI may ask, and what it gets back. */
 export interface Requests {
@@ -161,6 +166,12 @@ export interface Requests {
   "live.get": { params: Record<string, never>; result: LiveView };
   /** Stop after this requirement, or now — sent once confirmed (REQ-105). */
   "build.stop": { params: { now: boolean }; result: StopResult };
+  /** What the brief's last check found, for Problems (draft-brief REQ-072). */
+  "problems.get": { params: Record<string, never>; result: Finding[] };
+  /** The brief's modules, where each stands, and the project's agent; runs nothing (REQ-073). */
+  "brief.get": { params: Record<string, never>; result: BriefView };
+  /** "Draft the modules": each module not drafted yet with the agent, one at a time (REQ-073). */
+  "brief.draft": { params: Record<string, never>; result: DraftResult };
 }
 
 /** What the host tells every connected UI, unasked. */
@@ -174,6 +185,8 @@ export interface Notifications {
   "workspace.changed": { state: WorkspaceState };
   /** What Live shows changed: every open UI sees the same (draft-build-live REQ-103). */
   "live.changed": LiveView;
+  /** The brief was saved and checked: what Problems lists now (draft-brief REQ-072). */
+  "problems.changed": { findings: Finding[] };
 }
 
 export interface ProjectOpened {
