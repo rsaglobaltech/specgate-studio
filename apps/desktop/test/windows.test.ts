@@ -9,7 +9,7 @@ import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { alive, endAsTheShell, scratch, sidecar, WIN } from "./support.js";
+import { alive, endAsTheShell, posix, scratch, sidecar, WIN } from "./support.js";
 
 const made: string[] = [];
 const dir = (p: string) => {
@@ -35,8 +35,8 @@ test("REQ-152 SCN-453: a second project opens over its own core host, and the fi
     assert.equal((await fetch(sprich.ready.url)).status, 200);
     // The recent list the shell's menu shows: both, the latest first.
     assert.deepEqual(
-      studio.ready.recent.map((r) => r.path),
-      [studio.ready.projectDir, sprich.ready.projectDir],
+      studio.ready.recent.map((r) => posix(r.path)),
+      [studio.ready.projectDir, sprich.ready.projectDir].map(posix),
     );
   } finally {
     await endAsTheShell(studio);

@@ -17,6 +17,7 @@ import {
   alive,
   descendants,
   endAsTheShell,
+  posix,
   scratch,
   sidecar,
   until,
@@ -91,7 +92,7 @@ test("REQ-151 SCN-451: the sidecar serves the studio's UI on 127.0.0.1 only, fro
     if (lan) assert.equal(await refused(lan.address, port), true, `not served on ${lan.address}`);
     // It opened the project: sprich is the most recent one now.
     const recent = JSON.parse(fs.readFileSync(path.join(home, "recent-projects.json"), "utf8"));
-    assert.equal(recent[0].path, sprich);
+    assert.equal(posix(recent[0].path), posix(sprich));
   } finally {
     await endAsTheShell(s);
   }

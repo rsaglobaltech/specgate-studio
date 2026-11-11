@@ -12,7 +12,8 @@ import * as fs from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const at = (rel: string) => fileURLToPath(new URL(`../../../../${rel}`, import.meta.url));
-const read = (rel: string) => fs.readFileSync(at(rel), "utf8");
+// Read with `\n` line ends: a Windows checkout may write `\r\n`.
+const read = (rel: string) => fs.readFileSync(at(rel), "utf8").replace(/\r\n/g, "\n");
 
 const conf = JSON.parse(read("apps/desktop/src-tauri/tauri.conf.json"));
 const workflow = read(".github/workflows/desktop-release.yml");

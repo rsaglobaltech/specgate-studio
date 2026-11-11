@@ -14,6 +14,9 @@ import type { Choose, Ready } from "../src/sidecar.js";
 export const BIN = fileURLToPath(new URL("../src/bin.js", import.meta.url));
 export const WIN = process.platform === "win32";
 
+/** A folder as the studio lists it in its recent projects: `/`-separated. */
+export const posix = (p: string) => p.replace(/\\/g, "/");
+
 export function scratch(prefix: string): string {
   return fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), prefix)));
 }
