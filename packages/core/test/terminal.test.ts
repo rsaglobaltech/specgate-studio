@@ -128,3 +128,33 @@ test("REQ-055: a shell that exits leaves the list, and its listeners are told it
   assert.deepEqual(exits, [[a.id, 0]]);
   assert.deepEqual(t.list(), []);
 });
+
+test("REQ-055: closing every terminal waits for each shell to exit — on Windows a shell still running holds the project's folder", async () => {
+  const { port, t } = terminals();
+  t.open(80, 24);
+  t.open(80, 24);
+  let closed = false;
+  const all = t.closeAll().then(() => (closed = true));
+  assert.deepEqual(
+    port.spawned.map((s) => s.pty.killed),
+    [true, true],
+  );
+  port.spawned[0]!.pty.exit(0);
+  await new Promise((r) => setTimeout(r, 10));
+  assert.equal(closed, false, "the second shell has not exited yet");
+  port.spawned[1]!.pty.exit(0);
+  await all;
+  assert.equal(closed, true);
+});
+
+test("REQ-055: a shell that never exits does not keep the studio from closing", async () => {
+  const port = new InMemoryPty();
+  const t = new Terminals(
+    port,
+    { cwd: "/home/dev/sprich", shell: { file: "/bin/zsh", args: ["-l"], name: "zsh" } },
+    { exitWaitMs: 20 },
+  );
+  t.open(80, 24);
+  await t.closeAll();
+  assert.equal(port.spawned[0]!.pty.killed, true);
+});

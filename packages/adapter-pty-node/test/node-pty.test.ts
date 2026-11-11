@@ -38,7 +38,7 @@ test(`REQ-051 ${WIN ? "SCN-151" : "SCN-151 SCN-152"}, REQ-052${WIN ? " SCN-153" 
     const out = await until(t, id, new RegExp(path.basename(dir)));
     assert.ok(out.includes(path.basename(dir)), out);
   } finally {
-    t.closeAll();
+    await t.closeAll();
     await new Promise((ok) => setTimeout(ok, 200));
     await fs.promises.rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   }
@@ -63,7 +63,7 @@ test("REQ-055 REQ-056: two real shells at once — each answers its own command,
     t.input(a.id, "echo still-here\r");
     await until(t, a.id, /still-here\s/);
   } finally {
-    t.closeAll();
+    await t.closeAll();
     await new Promise((ok) => setTimeout(ok, 200));
     await fs.promises.rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   }

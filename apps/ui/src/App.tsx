@@ -7,6 +7,8 @@ import type {
   CommandEvent,
   Lang as NoticeLang,
   Notice,
+  Question,
+  QuestionsSection,
   Requests,
   RunResult,
   SectionData,
@@ -23,6 +25,7 @@ import { Logo, ViewIcon } from "./icons.js";
 import { VirtualList } from "./VirtualList.js";
 import { HelpButton, HelpDialog, NoticeToast, type HelpRequest } from "./Help.js";
 import { loadSettings, saveSettings, type Theme } from "./settings.js";
+import Questions from "./views/Questions.js";
 import { AdoptedAreas, SetupNext, SetupPane, type SetupStep } from "./Setup.js";
 
 type Sections = Partial<
@@ -34,6 +37,8 @@ interface Requirement {
   id: string;
   title: string | null;
   needs: string | null;
+  /** `WAITING_FOR_ANSWER` while a question blocks it (specgate status). */
+  category?: string;
 }
 
 const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
@@ -362,16 +367,8 @@ export function App({ rpc }: { rpc: Rpc }) {
   const requirements = home?.requirements ?? [];
   const changes =
     (sections.changes as { changes?: Array<{ id: string }> } | undefined)?.changes ?? [];
-  const questions =
-    (
-      sections.questions as
-        | {
-            questions?: {
-              open?: Array<{ id: string; text: string; blocks: string[]; change: string }>;
-            };
-          }
-        | undefined
-    )?.questions?.open ?? [];
+  const questionsSection = sections.questions as QuestionsSection | undefined;
+  const questions = questionsSection?.questions?.open ?? [];
   const badge: Partial<Record<ViewId, number>> = {
     changes: changes.length,
     questions: questions.length,
@@ -541,7 +538,22 @@ export function App({ rpc }: { rpc: Rpc }) {
                 announce={announce}
                 requirements={requirements}
                 changes={changes}
-                questions={questions}
+                questionsSection={questionsSection}
+                onAnswer={(q, answer) =>
+                  void runCommand(tr("question.answer"), {
+                    name: "answer",
+                    q: q.id,
+                    answer,
+                    change: q.change,
+                  })
+                }
+                onReviewed={(q) =>
+                  void runCommand(tr("questions.specSaysIt"), {
+                    name: "answer-reviewed",
+                    q: q.id,
+                    change: q.change,
+                  })
+                }
                 files={files}
                 openFile={openFile}
                 filterRef={filterRef}
@@ -801,7 +813,9 @@ interface ViewProps {
   next: string | null;
   requirements: Requirement[];
   changes: Array<{ id: string }>;
-  questions: Array<{ id: string; text: string; blocks: string[]; change: string }>;
+  questionsSection: QuestionsSection | undefined;
+  onAnswer: (q: Question, answer: string) => void;
+  onReviewed: (q: Question) => void;
   files: string[];
   openFile: (p: string) => void;
   filterRef: { current: HTMLInputElement | null };
@@ -939,16 +953,18 @@ function View(p: ViewProps) {
       );
     case "questions":
       return (
-        <>
-          {title}
-          {p.questions.map((q) => (
-            <div class="card" key={`${q.change}/${q.id}`} style="margin-bottom:8px">
-              <b>{q.id}</b> <span class="muted">{q.change}</span>
-              <div>{q.text}</div>
-              <div class="muted mono">{q.blocks.join(", ")}</div>
-            </div>
-          ))}
-        </>
+        <Questions
+          section={p.questionsSection}
+          waiting={
+            new Set(
+              p.requirements.filter((r) => r.category === "WAITING_FOR_ANSWER").map((r) => r.id),
+            )
+          }
+          tr={p.tr}
+          onAnswer={p.onAnswer}
+          onReviewed={p.onReviewed}
+          onHelp={p.onHelp}
+        />
       );
     case "build":
       return (

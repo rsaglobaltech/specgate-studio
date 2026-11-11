@@ -185,6 +185,14 @@ export async function startHost(options: HostOptions): Promise<Host> {
       // What it wrote feeds sections: read them again now, not when the watcher says.
       if (result.ok)
         for (const f of result.written) await state.fileChanged(f).catch(() => undefined);
+      // "The spec says it" lifts Needs Clarification where each requirement is
+      // defined, a file the studio does not know: every section is read again.
+      if (
+        result.ok &&
+        result.exitCode === 0 &&
+        (params as SpecgateCommand).name === "answer-reviewed"
+      )
+        await state.fileChanged("*").catch(() => undefined);
       return result;
     },
     // The "?": data shipped with the studio; nothing runs, specgate is not asked (A2).
@@ -289,7 +297,7 @@ export async function startHost(options: HostOptions): Promise<Host> {
     url: `ws://127.0.0.1:${port}/`,
     state,
     close: async () => {
-      terminals?.close();
+      await terminals?.close();
       await workspace?.close();
       await new Promise<void>((ok) => {
         for (const ws of server.clients) ws.terminate();

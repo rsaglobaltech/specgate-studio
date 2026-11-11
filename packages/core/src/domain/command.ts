@@ -14,6 +14,7 @@ export type SpecgateCommand =
   | { name: "archive"; change: string }
   | { name: "config-set"; key: string; value: string }
   | { name: "answer"; q: string; answer: string; change: string }
+  | { name: "answer-reviewed"; q: string; change: string }
   | { name: "change-note"; change: string; text: string; req?: string }
   | { name: "adopt-preview" }
   | { name: "adopt" }
@@ -45,6 +46,9 @@ export function commandLine(c: SpecgateCommand): CommandLine | null {
       return { args: ["config", "set", c.key, c.value], write: true };
     case "answer":
       return { args: ["answer", c.q, c.answer, "--change", c.change], write: true };
+    // "The spec says it" (draft-questions REQ-093).
+    case "answer-reviewed":
+      return { args: ["answer", c.q, "--reviewed", "--change", c.change], write: true };
     case "change-note":
       return {
         args: ["change", "note", c.change, c.text, ...(c.req ? ["--req", c.req] : [])],
