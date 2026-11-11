@@ -3,11 +3,13 @@ import { fileURLToPath } from "node:url";
 import {
   shellFor,
   type Finding,
+  type HostLock,
   type ProcessRunner,
   type SectionReader,
   type SpecgatePort,
 } from "@specgate-studio/core";
 import {
+  HostLocks,
   NodeProcessRunner,
   startHost,
   startProjectHost,
@@ -94,4 +96,51 @@ export async function serve(options: ServeOptions): Promise<Host> {
     // The specification's findings with file and line, for the editor (REQ-043): read-only.
     findings: (dir) => async () => (await cliFor(dir).call(["validate", "--strict"])).findings,
   });
+}
+
+/** A host this process started for the project, its lock written. */
+export interface Served {
+  joined: false;
+  /** `http://127.0.0.1:<port>/`: the UI and its JSON-RPC. */
+  url: string;
+  key: string;
+  /** Closing it removes its lock. */
+  host: Host;
+}
+
+/** The host another process runs for the project: a desktop window's, or another `serve`. */
+export interface Joined {
+  joined: true;
+  url: string;
+  key: string;
+  lock: HostLock;
+}
+
+/**
+ * The project's one core host (draft-desktop REQ-158, A11): the one already
+ * running for it — found by its lock in the studio's settings folder — or a
+ * new one, whose lock this writes so the next window or `serve` finds it. A
+ * desktop window and a browser tab on one project share one host.
+ */
+export async function serveOrJoin(
+  options: ServeOptions & { locks?: HostLocks },
+): Promise<Served | Joined> {
+  const locks = options.locks ?? new HostLocks(options.home);
+  const running = await locks.find(options.projectDir);
+  if (running) return { joined: true, url: running.url, key: running.key, lock: running };
+  const host = await serve(options);
+  const url = host.url.replace(/^ws/, "http");
+  const claimed = await locks.claim(options.projectDir, url);
+  return {
+    joined: false,
+    url,
+    key: claimed.lock.key,
+    host: {
+      ...host,
+      close: async () => {
+        await claimed.release();
+        await host.close();
+      },
+    },
+  };
 }

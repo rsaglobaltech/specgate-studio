@@ -1,0 +1,4 @@
+/target/
+/gen/
+# The Node runtime the bundle script downloads: never committed.
+/binaries/studio-node-*

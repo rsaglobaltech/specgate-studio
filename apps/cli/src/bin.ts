@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { serve } from "./serve.js";
+import { serveOrJoin } from "./serve.js";
 
 const USAGE = "Usage: specgate-studio serve [--project-dir <path>] [--port <n>]\n";
 
@@ -19,10 +19,16 @@ async function main(argv: string[]): Promise<void> {
       process.exit(2);
     }
   }
-  const host = await serve({ projectDir, port });
-  const url = host.url.replace(/^ws/, "http");
-  process.stdout.write(`specgate studio serving ${projectDir}\n  ${url}\n`);
-  const stop = () => void host.close().then(() => process.exit(0));
+  const served = await serveOrJoin({ projectDir, port });
+  if (served.joined) {
+    // The desktop app (or another serve) runs this project's host: one host, shared (REQ-158).
+    process.stdout.write(
+      `specgate studio: ${projectDir} is already open in the studio (process ${served.lock.pid}); open its address:\n  ${served.url}\n`,
+    );
+    return;
+  }
+  process.stdout.write(`specgate studio serving ${projectDir}\n  ${served.url}\n`);
+  const stop = () => void served.host.close().then(() => process.exit(0));
   process.on("SIGINT", stop);
   process.on("SIGTERM", stop);
 }

@@ -19,8 +19,8 @@ import {
   type SectionReader,
   type SpecgateAnswer,
 } from "@specgate-studio/core";
-import type { Host, ProjectFiles } from "@specgate-studio/host";
-import { serve, UI_DIST } from "../src/index.js";
+import type { Host, HostLocks, ProjectFiles } from "@specgate-studio/host";
+import { serve, serveOrJoin, UI_DIST } from "../src/index.js";
 
 export type { Page };
 export const MAC = process.platform === "darwin";
@@ -81,6 +81,8 @@ export interface StudioOptions {
   homeRequirements?: Array<{ id: string; title: string; category: string; needs: string | null }>;
   /** The project's uncommitted files (draft-build-live); none by default. */
   uncommitted?: string[];
+  /** Started as the desktop app's sidecar starts it: its lock written there (draft-desktop REQ-158). */
+  locks?: HostLocks;
 }
 
 export async function studio(opts: StudioOptions = {}) {
@@ -184,7 +186,7 @@ export async function studio(opts: StudioOptions = {}) {
       return structuredClone(typeof a === "function" ? await a(data, disk) : a);
     },
   };
-  const host = await serve({
+  const options = {
     projectDir,
     port: 0,
     reader,
@@ -194,7 +196,13 @@ export async function studio(opts: StudioOptions = {}) {
     workspace,
     ...(specgate ? { specgate } : {}),
     builds: { git, harness, events, pollMs: 50 },
-  });
+  };
+  let host: Host;
+  if (opts.locks) {
+    const served = await serveOrJoin({ ...options, locks: opts.locks });
+    if (served.joined) throw new Error(`a host already serves ${projectDir}`);
+    host = served.host;
+  } else host = await serve(options);
   return {
     host,
     reads,
