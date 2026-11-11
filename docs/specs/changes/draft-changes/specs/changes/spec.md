@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-081 — Changes grouped by what they wait for
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL list every open change of the project in the Changes view in three groups — to review, in progress, ready to archive — each change in the group its state puts it in, with how many it holds.
 
@@ -64,7 +64,7 @@ The system SHALL offer, on a draft with open requests for change, the action "Dr
 
 ### Requirement: REQ-084 — A change from a ticket is reviewed first, opened on its branch, its commit and push said and confirmed
 
-<!-- specgate:trace actor=Developer kind=business-rule -->
+<!-- specgate:trace status=Implemented actor=Developer kind=business-rule -->
 
 The system SHALL, when the Developer opens a change from a ticket, first show the ticket's review — what the change will contain — then say the branch it opens on and whether it will commit and push, and run `specgate propose --from-ticket <KEY>` only once the Developer confirms; on the ticket's branch already, it opens there with `--no-branch`, and with "Don't push yet" chosen it adds `--no-push`.
 
@@ -84,7 +84,7 @@ The system SHALL, when the Developer opens a change from a ticket, first show th
 
 ### Requirement: REQ-085 — Archive runs only after its preview
 
-<!-- specgate:trace actor=Developer kind=business-rule -->
+<!-- specgate:trace status=Implemented actor=Developer kind=business-rule -->
 
 The system SHALL archive a change only after showing its preview — `specgate archive <change> --dry-run`: the specs, matrix rows and feature files it would write — and only when the Developer confirms that preview; a change with a requirement not yet applied is not offered for archive.
 
@@ -104,7 +104,7 @@ The system SHALL archive a change only after showing its preview — `specgate a
 
 ### Requirement: REQ-086 — Apply runs the gate for one requirement and says why it refuses
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL offer Apply on each requirement still to apply, run `specgate apply <REQ>` for it through the host, and end with the notice the help module defines: the requirement marked Implemented when the gate passes, or, when it refuses, the finding's code, what it means and its fix — never only "failed".
 
