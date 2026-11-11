@@ -30,6 +30,8 @@ export const ACTIONS = [
   "build-commit",
   "build-stash",
   "build-ignore",
+  "build-stop-after",
+  "build-stop-now",
 ] as const;
 export type ActionId = (typeof ACTIONS)[number];
 
@@ -554,6 +556,65 @@ export const HELP: Catalog = {
       },
     },
   },
+  "build-stop-after": {
+    en: {
+      does: "Lets {req} finish — its agent, its gate and its branch — and then starts nothing else: the requirements queued after it are left unbuilt.",
+      command:
+        "None of specgate's: the studio does not start `specgate harness run` for what is queued.",
+      files: "None besides what {req}'s build writes on its branch.",
+      doesNot:
+        "It does not interrupt {req}, and it asks no confirmation: nothing running is ended.",
+      next: "Build the queued requirements again from Build when you want them.",
+      notice: {
+        ranOk: "{req} finished; what was queued after it ({queued}) was not started.",
+        next: "specgate check",
+      },
+    },
+    es: {
+      does: "Deja que {req} termine — su agente, su gate y su rama — y después no empieza nada más: los requisitos en cola tras él quedan sin construir.",
+      command:
+        "Ninguno de specgate: el studio no inicia `specgate harness run` para lo que está en cola.",
+      files: "Ninguno aparte de lo que la construcción de {req} escribe en su rama.",
+      doesNot: "No interrumpe {req} y no pide confirmación: no termina nada en marcha.",
+      next: "Vuelve a construir los requisitos en cola desde Construir cuando los quieras.",
+      notice: {
+        ranOk: "{req} terminó; lo que estaba en cola tras él ({queued}) no empezó.",
+        next: "specgate check",
+      },
+    },
+  },
+  "build-stop-now": {
+    en: {
+      does: "Ends the build of {req} at once, after you confirm: the harness and every process it started — the agent, its tests, the servers they started — and starts nothing queued.",
+      command:
+        "None of specgate's: the studio ends `specgate harness run`'s process tree (`taskkill /T` on Windows, its process group elsewhere).",
+      files:
+        "None: what the agent had not committed stays in its worktree under `.harness/`, its branch as it was.",
+      doesNot:
+        "It does not run before you confirm; it does not delete the agent's branch or undo what it committed.",
+      next: "Look at the branch `harness/{req}`, then build {req} again when you want it.",
+      notice: {
+        ranOk:
+          "The studio ended the build of {req} and every process it started; what was queued ({queued}) was not started.",
+        next: "git branch --list harness/{req}",
+      },
+    },
+    es: {
+      does: "Termina en el acto la construcción de {req}, después de que confirmes: el harness y todos los procesos que inició — el agente, sus tests, los servidores que arrancaron — y no empieza nada de la cola.",
+      command:
+        "Ninguno de specgate: el studio termina el árbol de procesos de `specgate harness run` (`taskkill /T` en Windows, su grupo de procesos en el resto).",
+      files:
+        "Ninguno: lo que el agente no hizo commit queda en su worktree bajo `.harness/`, su rama como estaba.",
+      doesNot:
+        "No se ejecuta antes de que confirmes; no borra la rama del agente ni deshace lo que hizo commit.",
+      next: "Mira la rama `harness/{req}` y vuelve a construir {req} cuando lo quieras.",
+      notice: {
+        ranOk:
+          "El studio terminó la construcción de {req} y todos los procesos que inició; lo que estaba en cola ({queued}) no empezó.",
+        next: "git branch --list harness/{req}",
+      },
+    },
+  },
 };
 
 /** What a placeholder reads as when the action has no value for it yet. */
@@ -564,10 +625,13 @@ const UNSET: Record<string, string> = {
   key: "<KEY>",
   q: "<Q>",
   count: "<n>",
+  queued: "<the queued requirements>",
   command: "<command>",
 };
 
-export type HelpVars = Partial<Record<"req" | "change" | "module" | "key" | "q" | "count", string>>;
+export type HelpVars = Partial<
+  Record<"req" | "change" | "module" | "key" | "q" | "count" | "queued", string>
+>;
 
 function fill(text: string, vars: Record<string, string | undefined>): string {
   return text.replace(/\{(\w+)\}/g, (_, name: string) => vars[name] ?? UNSET[name] ?? `{${name}}`);

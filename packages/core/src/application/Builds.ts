@@ -10,6 +10,7 @@ import {
   type BuildStart,
   type FileGroup,
   type Resolution,
+  type StopResult,
 } from "../domain/build.js";
 import { groupChanges, changeIds } from "../domain/changes.js";
 import { foldLive, liveQuestions, queueStarted, type LiveView } from "../domain/live.js";
@@ -176,6 +177,46 @@ export class Builds {
     return view;
   }
 
+  /**
+   * Stop (REQ-105): after this requirement — it finishes, nothing queued
+   * starts, no confirmation asked — or now, once the Developer confirmed it:
+   * the harness and every process it started are ended. Each is told as a
+   * run, its notice naming what was not started.
+   */
+  async stop(now: boolean): Promise<StopResult> {
+    const current = this.current;
+    if (!current) return { ok: false, code: "build_not_running", message: "No build is running." };
+    const { commands } = this.wired();
+    const req = current.req;
+    const queued = [...this.queue];
+    const vars = { req, queued: queued.join(", ") || "—", count: String(queued.length) };
+    this.stopping = true;
+    void this.tell();
+    if (!now) {
+      // Told as a run until the requirement ends: then, what was not started.
+      void commands.track(`stop after ${req}`, false, async (output) => {
+        output(`${req} goes on; ${vars.queued} will not start.\n`);
+        await this.afterCurrent();
+        return { exitCode: 0, action: "build-stop-after", vars };
+      });
+      return { ok: true, req, now, queued };
+    }
+    this.stopped.add(req);
+    await commands.track(`stop ${req} now`, false, async (output) => {
+      output(`Ending ${req}'s build and every process it started.\n`);
+      await current.process?.stop();
+      await this.afterCurrent();
+      return { exitCode: 0, action: "build-stop-now", vars };
+    });
+    return { ok: true, req, now, queued };
+  }
+
+  /** Resolves once the build running now has ended, and the queue was dealt with. */
+  private async afterCurrent(): Promise<void> {
+    const current = this.current;
+    if (current) await current.done;
+  }
+
   /** What Live shows may have changed — a question answered: it is told, if so (REQ-104). */
   refresh(): Promise<void> {
     return this.tell();
@@ -247,6 +288,7 @@ export class Builds {
   async close(): Promise<void> {
     this.queue = [];
     this.stopping = true;
+    if (this.current) this.stopped.add(this.current.req);
     await this.current?.process?.stop();
     await this.idle();
     if (this.poll) clearInterval(this.poll);
@@ -396,6 +438,11 @@ export class Builds {
     exitCode: number,
     stdout: string,
   ): Pick<Tracked, "exitCode" | "findings" | "ended"> {
+    if (this.stopped.has(req))
+      return {
+        exitCode: exitCode || 1,
+        ended: { code: "stopped", message: "the Developer stopped it; its processes were ended." },
+      };
     const report = harnessReport(stdout);
     if (!report) return { exitCode: exitCode === 0 ? 1 : exitCode };
     const mine = report.results.find((r) => r.requirement === req) ?? report.results[0];

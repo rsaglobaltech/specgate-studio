@@ -165,6 +165,7 @@ export {
   type FileGroup,
   type HarnessResult,
   type Resolution,
+  type StopResult,
   type Uncommitted,
   type WaitReason,
   type WaitingItem,

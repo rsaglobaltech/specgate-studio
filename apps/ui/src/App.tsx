@@ -604,6 +604,7 @@ export function App({ rpc }: { rpc: Rpc }) {
                     onHelp={(feature, requests) =>
                       setHelp({ title: tr("help.title", { feature }), requests })
                     }
+                    announce={announce}
                   />
                 }
                 traceFilter={traceFilter}

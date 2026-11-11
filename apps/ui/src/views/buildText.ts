@@ -76,6 +76,13 @@ const en = {
   "live.question.answered": "Answer recorded:",
   "live.question.review":
     'it waits for "The spec says it" in Questions once the requirement says it.',
+  "live.stopAfter": "Stop after this requirement",
+  "live.stopNow": "Stop now",
+  "live.stopping": "Stops once {req} ends: {queued} will not start.",
+  "live.stopNow.title": "Stop the build of {req} now?",
+  "live.stopNow.body":
+    "The harness and every process it started — the agent, its tests, the servers they started — are ended at once. What the agent did not commit stays in its worktree; nothing queued starts.",
+  "live.stopNow.confirm": "Stop now",
 };
 
 const es: Record<keyof typeof en, string> = {
@@ -150,6 +157,13 @@ const es: Record<keyof typeof en, string> = {
   "live.question.options": "Opciones:",
   "live.question.answered": "Respuesta guardada:",
   "live.question.review": "espera a «La spec lo dice» en Preguntas cuando el requisito la diga.",
+  "live.stopAfter": "Detener tras este requisito",
+  "live.stopNow": "Detener ya",
+  "live.stopping": "Se detiene cuando termine {req}: {queued} no empezará.",
+  "live.stopNow.title": "¿Detener ya la construcción de {req}?",
+  "live.stopNow.body":
+    "El harness y todos los procesos que inició — el agente, sus tests, los servidores que arrancaron — se terminan en el acto. Lo que el agente no hizo commit queda en su worktree; no empieza nada de la cola.",
+  "live.stopNow.confirm": "Detener ya",
 };
 
 export type BuildTextKey = keyof typeof en;

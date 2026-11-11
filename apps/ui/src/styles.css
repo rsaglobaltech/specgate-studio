@@ -841,3 +841,11 @@ textarea.ask {
   background: var(--bg-input);
   font-size: 12px;
 }
+.lstopping {
+  margin: 0 0 12px;
+  border-color: var(--warn);
+}
+.btn.danger {
+  border-color: var(--danger, #e5534b);
+  color: var(--danger, #e5534b);
+}

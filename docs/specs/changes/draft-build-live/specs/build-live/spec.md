@@ -84,7 +84,7 @@ The system SHALL show inside Live a question the agent asks while it builds, wit
 
 ### Requirement: REQ-105 — Stop after this requirement, or now after a confirmation
 
-<!-- specgate:trace actor=Developer kind=business-rule -->
+<!-- specgate:trace status=Implemented actor=Developer kind=business-rule -->
 
 The system SHALL offer to stop a build after the requirement in progress, or at once after the Developer confirms, and SHALL end every process the agent started when it stops.
 

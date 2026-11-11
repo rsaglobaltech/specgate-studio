@@ -19,6 +19,8 @@ export interface LiveProps {
   run: (label: string, command: SpecgateCommand) => Promise<RunResult>;
   /** Opens the "?" of a feature: what it does, running nothing. */
   onHelp: (feature: string, requests: HelpRequest[]) => void;
+  /** Names the button whose command runs next, in the terminal's echo (REQ-053). */
+  announce: (label: string) => void;
 }
 
 type T = (key: BuildTextKey, vars?: Record<string, string | number>) => string;
@@ -29,12 +31,14 @@ type T = (key: BuildTextKey, vars?: Record<string, string | number>) => string;
  * and the cost and tokens so far. The host folds the harness's events and
  * tells every open UI the same view; this renders it, counting the running
  * step's time on the clock. The agent's question is answered here, through
- * `specgate answer` (REQ-104).
+ * `specgate answer` (REQ-104). Stop after this requirement, or now once
+ * confirmed (REQ-105).
  */
 export function Live(p: LiveProps) {
   const t: T = (key, vars) => bt(p.lang, key, vars);
   const [view, setView] = useState<LiveView | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [confirmStop, setConfirmStop] = useState(false);
   const out = useRef<HTMLOListElement>(null);
 
   useEffect(() => {
@@ -112,6 +116,96 @@ export function Live(p: LiveProps) {
           </div>
         </div>
       </div>
+
+      {view.building && (
+        <div class="actions lstop">
+          <button
+            type="button"
+            class="btn"
+            data-act="stop-after"
+            disabled={view.stopping}
+            onClick={() => {
+              p.announce(t("live.stopAfter"));
+              void p.rpc.ask("build.stop", { now: false });
+            }}
+          >
+            {t("live.stopAfter")}
+          </button>
+          <HelpButton
+            label={`? ${t("live.stopAfter")}`}
+            onOpen={() =>
+              p.onHelp(t("live.stopAfter"), [
+                {
+                  action: "build-stop-after",
+                  feature: t("live.stopAfter"),
+                  vars: { req: view.building!, queued: view.queue.join(", ") || "—" },
+                },
+              ])
+            }
+          />
+          <button
+            type="button"
+            class="btn danger"
+            data-act="stop-now"
+            onClick={() => setConfirmStop(true)}
+          >
+            {t("live.stopNow")}
+          </button>
+          <HelpButton
+            label={`? ${t("live.stopNow")}`}
+            onOpen={() =>
+              p.onHelp(t("live.stopNow"), [
+                {
+                  action: "build-stop-now",
+                  feature: t("live.stopNow"),
+                  vars: { req: view.building!, queued: view.queue.join(", ") || "—" },
+                },
+              ])
+            }
+          />
+        </div>
+      )}
+      {view.building && view.stopping && (
+        <p class="card lstopping" role="status" data-testid="live-stopping">
+          {t("live.stopping", { req: view.building, queued: view.queue.join(", ") || "—" })}
+        </p>
+      )}
+      {confirmStop && view.building && (
+        <div class="scrim" onClick={() => setConfirmStop(false)}>
+          <div
+            class="help"
+            role="dialog"
+            data-confirm="stop-now"
+            aria-label={t("live.stopNow.title", { req: view.building })}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2>{t("live.stopNow.title", { req: view.building })}</h2>
+            <p class="muted">{t("live.stopNow.body")}</p>
+            <div class="actions">
+              <button
+                type="button"
+                class="btn pri"
+                data-act="confirm"
+                onClick={() => {
+                  setConfirmStop(false);
+                  p.announce(t("live.stopNow"));
+                  void p.rpc.ask("build.stop", { now: true });
+                }}
+              >
+                {t("live.stopNow.confirm")}
+              </button>
+              <button
+                type="button"
+                class="btn"
+                data-act="cancel"
+                onClick={() => setConfirmStop(false)}
+              >
+                {t("build.cancel")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {view.questions.map((q) => (
         <Question

@@ -230,3 +230,8 @@ export function harnessReport(stdout: string): {
   const findings = Array.isArray(doc.status) ? (doc.status as Finding[]) : [];
   return { results, findings };
 }
+
+/** What pressing a Stop answers (REQ-105): the requirement it stops, and what will not start. */
+export type StopResult =
+  | { ok: true; req: string; now: boolean; queued: string[] }
+  | { ok: false; code: "build_not_running"; message: string };

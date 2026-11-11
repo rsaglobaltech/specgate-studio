@@ -84,5 +84,5 @@ export function sprichBuilds(
     commands,
     ...more,
   });
-  return { builds, git, harness, commands, events };
+  return { builds, git, harness, commands, events, commandEvents: events };
 }

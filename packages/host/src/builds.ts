@@ -71,6 +71,8 @@ export function attachBuilds(
     handlers: {
       "build.get": () => builds.list(),
       "live.get": () => builds.live(),
+      // Stop now arrives only once the Developer confirmed it in the UI (REQ-105).
+      "build.stop": (params) => builds.stop((params as { now?: unknown } | null)?.now === true),
       "build.start": (params) => builds.start(reqOf(params)),
       "build.resolve": (params) => {
         const p = (params ?? {}) as { choice?: unknown; message?: unknown };

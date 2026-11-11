@@ -49,10 +49,18 @@ export class NodeBuildRunner implements BuildPort {
         end(127);
       });
       child.on("close", (code, signal) => end(code ?? (signal ? 128 : 1)));
-      // A process it left behind may hold its output open: the exit is the end, a moment later.
-      child.on("exit", (code, signal) =>
-        setTimeout(() => end(code ?? (signal ? 128 : 1)), 2_000).unref(),
-      );
+      child.on("exit", (code, signal) => {
+        // What the agent left running in its process group ends with it.
+        if (process.platform !== "win32" && child.pid !== undefined) {
+          try {
+            process.kill(-child.pid, "SIGTERM");
+          } catch {
+            /* none left */
+          }
+        }
+        // A process it left behind may hold its output open: the exit is the end, a moment later.
+        setTimeout(() => end(code ?? (signal ? 128 : 1)), 2_000).unref();
+      });
     });
     return {
       done,

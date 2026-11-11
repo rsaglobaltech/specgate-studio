@@ -32,6 +32,7 @@ import type {
   BuildItem,
   BuildList,
   BuildStart,
+  StopResult,
   FileGroup,
   Uncommitted,
   Estimate,
@@ -63,6 +64,7 @@ export type {
   BuildItem,
   BuildList,
   BuildStart,
+  StopResult,
   Estimate,
   FileGroup,
   Uncommitted,
@@ -157,6 +159,8 @@ export interface Requests {
   };
   /** What Live shows: the steps, the agent's output, the queue, cost and tokens (REQ-103). */
   "live.get": { params: Record<string, never>; result: LiveView };
+  /** Stop after this requirement, or now — sent once confirmed (REQ-105). */
+  "build.stop": { params: { now: boolean }; result: StopResult };
 }
 
 /** What the host tells every connected UI, unasked. */

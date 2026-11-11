@@ -132,3 +132,46 @@ test("REQ-104 SCN-307 against specgate: the agent asks with `specgate ask`; spec
     await remove(p.parent);
   }
 });
+
+/** Whether a process is still running. */
+function alive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return (e as NodeJS.ErrnoException).code === "EPERM";
+  }
+}
+
+test("REQ-105 SCN-309 against specgate: Stop now ends `harness run`, its agent and the test server the agent started", async () => {
+  const p = harnessProject();
+  p.mode("slow");
+  const { host, ui } = await realHost(p.dir);
+  try {
+    assert.equal((await ui.ask<any>("build.start", { req: "REQ-000" })).result.ok, true);
+    // The agent runs its tests: itself and a child that would run for a minute.
+    for (const end = Date.now() + 60_000; p.pids().length < 2;) {
+      if (Date.now() > end) throw new Error("the agent did not start its tests");
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    const pids = p.pids();
+    assert.ok(pids.every(alive), "the agent and its child run");
+    const stop = (await ui.ask<any>("build.stop", { now: true })).result;
+    assert.deepEqual(stop, { ok: true, req: "REQ-000", now: true, queued: [] });
+    const ended = await endedOf(ui, "specgate harness run --req REQ-000");
+    assert.match(ended.notice.en.ran, /ended stopped/);
+    for (const end = Date.now() + 10_000; pids.some(alive);) {
+      if (Date.now() > end) break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    assert.deepEqual(pids.filter(alive), [], "no process the agent started is still running");
+    const live = (await ui.ask<any>("live.get")).result;
+    assert.equal(live.building, null);
+    assert.equal(live.requirements[0].state, "stopped");
+  } finally {
+    ui.close();
+    await host.close();
+    for (const pid of p.pids()) if (alive(pid)) process.kill(pid);
+    await remove(p.parent);
+  }
+});

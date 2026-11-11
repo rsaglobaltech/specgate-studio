@@ -227,3 +227,59 @@ test("REQ-104 SCN-308: the same question answered in the browser — recorded, a
     await close(s, page);
   }
 });
+
+test("REQ-105 SCN-309: Stop now on the desktop — confirmed, the build stopped and its processes ended; cancelled, nothing stops", async () => {
+  const { s, page } = await building();
+  try {
+    await live(page);
+    await page.click('.lstop [data-act="stop-now"]');
+    await page.waitForSelector('[data-confirm="stop-now"]');
+    assert.match(await text(page, '[data-confirm="stop-now"]'), /Stop the build of REQ-030 now\?/);
+    await page.click('[data-confirm="stop-now"] [data-act="cancel"]');
+    await page.waitForSelector('[data-confirm="stop-now"]', { state: "detached" });
+    assert.equal(s.harness.stopped, 0, "cancelled: nothing stops");
+
+    await page.click('.lstop [data-act="stop-now"]');
+    await page.click('[data-confirm="stop-now"] [data-act="confirm"]');
+    await page.waitForSelector('.lreq[data-req="REQ-030"][data-state="stopped"]');
+    await page.waitForSelector('.live[data-building=""]');
+    assert.equal(s.harness.stopped, 1, "the harness's process tree was ended");
+    assert.equal(s.harness.started.length, 1, "REQ-032 did not start");
+    assert.equal(await page.$(".lstop"), null, "nothing left to stop");
+    await page.waitForSelector('.notice[data-tone]:has-text("every process it started")');
+  } finally {
+    await close(s, page);
+  }
+});
+
+test("REQ-105 SCN-310: Stop after this requirement in the browser — REQ-030 finishes, REQ-032 does not start", async () => {
+  const { s, page } = await building();
+  try {
+    await live(page);
+    await page.click('.lstop [data-act="stop-after"]');
+    await page.waitForSelector('[data-testid="live-stopping"]');
+    assert.match(
+      await text(page, '[data-testid="live-stopping"]'),
+      /Stops once REQ-030 ends: REQ-032 will not start/,
+    );
+    assert.equal(await page.$('[data-confirm="stop-now"]'), null, "no confirmation asked");
+    assert.equal(s.harness.stopped, 0, "REQ-030 goes on");
+
+    s.events.append("REQ-030", {
+      attempt: 1,
+      type: "gate",
+      stage: "test command: npm test",
+      result: "pass",
+      ms: 7000,
+    });
+    s.events.append("REQ-030", { attempt: 1, type: "attempt", state: "end", result: "pass" });
+    s.harness.finish(0, { results: [{ requirement: "REQ-030", result: "pass" }] });
+    await page.waitForSelector('.lreq[data-req="REQ-030"][data-state="pass"]');
+    await page.waitForSelector('.live[data-building=""]');
+    assert.equal(s.harness.started.length, 1, "REQ-032 was not started");
+    assert.match(await text(page, '[data-testid="live-queue"]'), /nothing queued/);
+    await page.waitForSelector('.notice[data-tone]:has-text("REQ-030 finished")');
+  } finally {
+    await close(s, page);
+  }
+});
