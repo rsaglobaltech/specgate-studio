@@ -207,3 +207,11 @@ export {
 } from "./domain/brief.js";
 export { quoted } from "./domain/args.js";
 export { Brief, type CommandRunner, type DraftResult } from "./application/Brief.js";
+export {
+  updateBlocker,
+  updateStep,
+  type UpdateBlocker,
+  type UpdateDecision,
+  type UpdateStep,
+} from "./domain/update.js";
+export { hostToJoin, projectKey, type HostLock } from "./domain/hostLock.js";

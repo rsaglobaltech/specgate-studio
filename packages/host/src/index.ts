@@ -10,3 +10,4 @@ export { attachBuilds, type BuildsWiring } from "./builds.js";
 export { NodeBuildRunner, type NodeBuildRunnerOptions } from "./NodeBuildRunner.js";
 export { killTree } from "./killTree.js";
 export { attachBrief, type BriefWiring } from "./brief.js";
+export { HostLocks } from "./hostLocks.js";

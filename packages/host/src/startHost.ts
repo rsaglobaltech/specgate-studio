@@ -23,6 +23,9 @@ import {
   type Section,
   type SectionReader,
   type SpecgateCommand,
+  updateBlocker,
+  updateStep,
+  type UpdateStep,
 } from "@specgate-studio/core";
 import { fromStudio, uiHandler } from "./serveUi.js";
 import { attachTerminals, type TerminalWiring } from "./terminals.js";
@@ -249,6 +252,27 @@ export async function startHost(options: HostOptions): Promise<Host> {
         ),
       ) as HelpVars;
       return { labels: PART_LABELS[lang], explanation: explain(p.action as ActionId, lang, vars) };
+    },
+    // The desktop shell asks before it installs an update: never during a build or a write (REQ-156).
+    "update.step": async (params) => {
+      const p = (params ?? {}) as {
+        phase?: unknown;
+        from?: unknown;
+        to?: unknown;
+        reason?: unknown;
+      };
+      if (typeof p.from !== "string" || typeof p.to !== "string")
+        throw rpcError(RPC_ERRORS.params, "an update step needs from and to");
+      const { from, to } = p;
+      let step: UpdateStep;
+      if (p.phase === "offered" || p.phase === "installed") step = { phase: p.phase, from, to };
+      else if (p.phase === "accepted") {
+        const running = updateBlocker(builds?.building() ?? null, commands.writingNow);
+        step = { phase: "accepted", from, to, running };
+      } else if (p.phase === "refused" && (p.reason === "signature" || p.reason === "download"))
+        step = { phase: "refused", from, to, reason: p.reason };
+      else throw rpcError(RPC_ERRORS.params, "no such update step");
+      return updateStep(step);
     },
     "files.list": async () => (options.files ? options.files.list() : []),
     // Saving: that one file, only when the person saves (REQ-045).

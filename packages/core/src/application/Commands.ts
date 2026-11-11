@@ -157,6 +157,11 @@ export class Commands {
     private readonly options: CommandsOptions = {},
   ) {}
 
+  /** The write command running now, as shown, or null: an update waits for it (draft-desktop A9). */
+  get writingNow(): string | null {
+    return this.writing;
+  }
+
   async run(command: SpecgateCommand): Promise<RunResult> {
     const line = commandLine(command);
     if (!line) {
