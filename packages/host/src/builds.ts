@@ -49,6 +49,8 @@ export function attachBuilds(
   onLive: (view: LiveView) => void,
 ): {
   handlers: Record<string, (params: unknown) => Promise<unknown>>;
+  /** A section was read again: Live is told if what it shows changed — an answer (REQ-104). */
+  refresh(): void;
   close(): Promise<void>;
 } {
   const builds = new Builds({
@@ -84,6 +86,7 @@ export function attachBuilds(
         return builds.resolve(reqOf(params), resolution);
       },
     },
+    refresh: () => void builds.refresh().catch(() => undefined),
     // The host waits for the build it started: none outlives it.
     close: () => builds.close(),
   };

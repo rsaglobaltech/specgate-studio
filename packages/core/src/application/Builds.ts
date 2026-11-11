@@ -12,7 +12,7 @@ import {
   type Resolution,
 } from "../domain/build.js";
 import { groupChanges, changeIds } from "../domain/changes.js";
-import { foldLive, queueStarted, type LiveView } from "../domain/live.js";
+import { foldLive, liveQuestions, queueStarted, type LiveView } from "../domain/live.js";
 import type { HarnessEventsPort } from "../ports/HarnessEventsPort.js";
 import type { SpecgateAnswer, SpecgatePort } from "../ports/SpecgatePort.js";
 import type { GitPort, GitWriter } from "../ports/GitPort.js";
@@ -162,12 +162,23 @@ export class Builds {
       ? await this.options.events.read(root, this.since ?? 0).catch(() => null)
       : null;
     const since = this.since ?? queueStarted(read?.queue ?? null) ?? 0;
-    return foldLive(read?.files ?? {}, since, {
+    const view = foldLive(read?.files ?? {}, since, {
       building: this.current?.req ?? null,
       queue: this.queue,
       stopping: this.stopping,
       stopped: this.stopped,
     });
+    // What the agent asked, as specgate recorded it and answered it (REQ-104).
+    if (view.requirements.some((r) => r.question)) {
+      const questions = await this.options.sections.section("questions").catch(() => null);
+      view.questions = liveQuestions(view.requirements, questions);
+    }
+    return view;
+  }
+
+  /** What Live shows may have changed — a question answered: it is told, if so (REQ-104). */
+  refresh(): Promise<void> {
+    return this.tell();
   }
 
   /** Live is told, when what it shows changed. */

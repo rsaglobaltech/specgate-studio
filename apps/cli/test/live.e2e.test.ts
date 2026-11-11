@@ -11,11 +11,23 @@ import { SPRICH, buildAnswers } from "./build-support.js";
 
 const text = async (page: Page, sel: string) => (await page.textContent(sel)) ?? "";
 
+const ASKED = "Round to the cent or to the nearest 5 cents?";
+/** What specgate records once the agent asked (A10): Q3 of draft-pedidos, blocking REQ-030. */
+const Q3 = {
+  id: "Q3",
+  change: "draft-pedidos",
+  text: ASKED,
+  blocks: ["REQ-030"],
+  options: [],
+  asked: "build",
+};
+
 /** sprich with REQ-030 building and REQ-032 queued after it, pressed in Build. */
-async function building() {
+async function building(questions: unknown[] = []) {
   const s = await studio({
     homeRequirements: SPRICH as never,
     specgate: buildAnswers("claude -p < {prompt_file}"),
+    questions: { open: questions, answered: [] },
   });
   const page = await open(s);
   await page.click('.sga[data-view="build"]');
@@ -141,6 +153,75 @@ test("REQ-103 SCN-306: Live opened in a second browser tab mid-build — the sam
       await p.waitForSelector(
         '[data-testid="live-output"] li:has-text("gate test command: npm test: pass")',
       );
+  } finally {
+    await second.close();
+    await close(s, page);
+  }
+});
+
+/** REQ-030's agent asks instead of guessing; its run ends, and specgate recorded Q3. */
+async function asks(s: Awaited<ReturnType<typeof building>>["s"]) {
+  s.events.append("REQ-030", { attempt: 1, type: "question", text: ASKED });
+  s.events.append("REQ-030", { attempt: 1, type: "attempt", state: "end", result: "question" });
+  s.harness.finish(1, {
+    results: [
+      {
+        requirement: "REQ-030",
+        result: "question",
+        error: `Needs clarification: Q3 in docs/specs/changes/draft-pedidos/questions.md — specgate answer Q3 "…"`,
+      },
+    ],
+  });
+}
+
+test('REQ-104 SCN-307: the agent asks on the desktop — "to the cent" answered in Live through specgate, the answer recorded under the question, the agent\'s output going on', async () => {
+  const { s, page } = await building([Q3]);
+  try {
+    await live(page);
+    await asks(s);
+    const open = '.lquestion[data-req="REQ-030"][data-question="Q3"][data-state="open"]';
+    await page.waitForSelector(open);
+    assert.match(await text(page, open), /Round to the cent or to the nearest 5 cents\?/);
+    assert.equal(await page.getAttribute('.lreq[data-req="REQ-030"]', "data-state"), "question");
+    await page.fill(`${open} input`, "to the cent");
+    await page.click(`${open} [data-act="answer"]`);
+    const answered = '.lquestion[data-question="Q3"][data-state="answered"]';
+    await page.waitForSelector(answered);
+    assert.equal(await text(page, `${answered} [data-answer]`), "to the cent");
+    assert.deepEqual(s.runs, [["answer", "Q3", "to the cent", "--change", "draft-pedidos"]]);
+    // The run goes on: REQ-032 builds, and its agent's output streams into Live.
+    assert.equal(s.harness.started.at(-1)![3], "REQ-032");
+    s.events.append("REQ-032", { attempt: 1, type: "attempt", state: "start" });
+    s.events.append("REQ-032", { attempt: 1, type: "message", text: "Refunding the order" });
+    await page.waitForSelector(
+      '[data-testid="live-output"] li[data-req="REQ-032"]:has-text("Refunding the order")',
+    );
+  } finally {
+    await close(s, page);
+  }
+});
+
+test("REQ-104 SCN-308: the same question answered in the browser — recorded, and gone from every open tab", async () => {
+  const { s, page } = await building([Q3]);
+  const second = await open(s, { lang: "es" });
+  try {
+    await live(page);
+    await live(second);
+    await asks(s);
+    const open = '.lquestion[data-question="Q3"][data-state="open"]';
+    await page.waitForSelector(open);
+    await second.waitForSelector(open);
+    await second.fill(`${open} input`, "to the cent");
+    await second.click(`${open} [data-act="answer"]`);
+    for (const p of [second, page]) {
+      await p.waitForSelector('.lquestion[data-question="Q3"][data-state="answered"]');
+      assert.equal(await p.$(open), null, "no longer asked in this tab");
+    }
+    assert.match(
+      await text(second, '.lquestion[data-question="Q3"]'),
+      /Respuesta guardada:\s*to the cent/,
+    );
+    assert.deepEqual(s.runs, [["answer", "Q3", "to the cent", "--change", "draft-pedidos"]]);
   } finally {
     await second.close();
     await close(s, page);

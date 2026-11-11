@@ -148,9 +148,12 @@ export async function startHost(options: HostOptions): Promise<Host> {
   // An outdated specgate reads nothing, not even for the notices (REQ-013).
   // A first read that fails (a folder that is no project) leaves Next unread.
   if (checked.ok) void opening.then(readNext, () => undefined);
+  // Live shows the agent's questions: an answer read again is told there too (REQ-104).
+  let liveRefresh: (() => void) | null = null;
   state.onChange((sections) => {
     if (checked.ok && sections.includes("home")) void readNext();
     broadcast("state.changed", { sections });
+    if (sections.includes("questions")) liveRefresh?.();
   });
   const workspace = options.workspace
     ? await attachWorkspace(options.projectDir, options.workspace, state, broadcast)
@@ -181,6 +184,7 @@ export async function startHost(options: HostOptions): Promise<Host> {
         (view) => broadcast("live.changed", view),
       )
     : null;
+  liveRefresh = builds ? () => builds.refresh() : null;
 
   const handlers: Record<string, (params: unknown) => Promise<unknown>> = {
     "project.open": async () => {

@@ -596,7 +596,16 @@ export function App({ rpc }: { rpc: Rpc }) {
                     onLive={() => show("live")}
                   />
                 }
-                liveView={<Live rpc={rpc} lang={lang} />}
+                liveView={
+                  <Live
+                    rpc={rpc}
+                    lang={lang}
+                    run={runCommand}
+                    onHelp={(feature, requests) =>
+                      setHelp({ title: tr("help.title", { feature }), requests })
+                    }
+                  />
+                }
                 traceFilter={traceFilter}
               />
             )}

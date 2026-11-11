@@ -68,6 +68,24 @@ export interface LiveView {
   output: LiveLine[];
   /** Cost and tokens spent so far, every attempt counted. */
   totals: Usage;
+  /** What the agent asked while it built, and its answer once given (REQ-104). */
+  questions: LiveQuestion[];
+}
+
+/**
+ * A question the agent asked instead of guessing (REQ-104): its text from the
+ * harness's events, and — once specgate recorded it — its id, change, the
+ * options listed and the answer, from `specgate questions --json`.
+ */
+export interface LiveQuestion {
+  req: string;
+  text: string;
+  /** `Q3`; null until specgate recorded it, when the agent's run ends. */
+  id: string | null;
+  change: string | null;
+  options: string[];
+  /** The answer given, waiting for "The spec says it"; null while it is open. */
+  answer: string | null;
 }
 
 /** What the studio knows that the events do not: what it builds, queues and stopped. */
@@ -257,7 +275,55 @@ export function foldLive(
     requirements: requirements.map(({ updated: _, ...r }) => r),
     output: output.slice(-OUTPUT_LIMIT),
     totals,
+    questions: [],
   };
+}
+
+interface QuestionRow {
+  id?: unknown;
+  change?: unknown;
+  text?: unknown;
+  blocks?: unknown;
+  options?: unknown;
+  asked?: unknown;
+  answer?: unknown;
+}
+
+/**
+ * The agent's questions of the run (REQ-104), each matched to the row
+ * specgate recorded for it in `questions --json` — the open one, or the one
+ * answered and waiting for review: the same requirement and text, else the
+ * question the agent asked about that requirement while it built.
+ */
+export function liveQuestions(
+  requirements: readonly LiveRequirement[],
+  section: unknown,
+): LiveQuestion[] {
+  const q = (section as { questions?: { open?: unknown; answered?: unknown } } | null)?.questions;
+  const rows = (v: unknown) => (Array.isArray(v) ? (v as QuestionRow[]) : []);
+  const open = rows(q?.open);
+  const answered = rows(q?.answered);
+  const blocks = (r: QuestionRow, req: string) => Array.isArray(r.blocks) && r.blocks.includes(req);
+  const find = (list: QuestionRow[], req: string, asked: string) =>
+    list.find((r) => blocks(r, req) && r.text === asked) ??
+    list.find((r) => blocks(r, req) && r.asked === "build");
+  const out: LiveQuestion[] = [];
+  for (const r of requirements) {
+    if (!r.question) continue;
+    const isOpen = find(open, r.req, r.question);
+    const row = isOpen ?? find(answered, r.req, r.question);
+    out.push({
+      req: r.req,
+      text: r.question,
+      id: typeof row?.id === "string" ? row.id : null,
+      change: typeof row?.change === "string" ? row.change : null,
+      options: Array.isArray(row?.options)
+        ? row.options.filter((o): o is string => typeof o === "string")
+        : [],
+      answer: !isOpen && typeof row?.answer === "string" ? row.answer : null,
+    });
+  }
+  return out;
 }
 
 /** When the last run specgate recorded started, from `queue.json`; null when it says none. */

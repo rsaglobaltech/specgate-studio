@@ -67,6 +67,15 @@ const en = {
   "live.state.fail": "failed",
   "live.state.question": "asked a question",
   "live.state.stopped": "stopped",
+  "live.question": "The agent asks, building {req}",
+  "live.question.unrecorded":
+    "specgate records it in the change's questions.md when this run ends; then it can be answered here.",
+  "live.question.answer": "Answer",
+  "live.question.other": "Another answer",
+  "live.question.options": "Options:",
+  "live.question.answered": "Answer recorded:",
+  "live.question.review":
+    'it waits for "The spec says it" in Questions once the requirement says it.',
 };
 
 const es: Record<keyof typeof en, string> = {
@@ -133,6 +142,14 @@ const es: Record<keyof typeof en, string> = {
   "live.state.fail": "falló",
   "live.state.question": "hizo una pregunta",
   "live.state.stopped": "detenido",
+  "live.question": "El agente pregunta, construyendo {req}",
+  "live.question.unrecorded":
+    "specgate la guarda en el questions.md del cambio cuando termine esta ejecución; entonces se puede responder aquí.",
+  "live.question.answer": "Responder",
+  "live.question.other": "Otra respuesta",
+  "live.question.options": "Opciones:",
+  "live.question.answered": "Respuesta guardada:",
+  "live.question.review": "espera a «La spec lo dice» en Preguntas cuando el requisito la diga.",
 };
 
 export type BuildTextKey = keyof typeof en;

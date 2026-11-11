@@ -1,5 +1,13 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import type { LiveRequirement, LiveStep, LiveView } from "@specgate-studio/protocol";
+import type {
+  LiveQuestion,
+  LiveRequirement,
+  LiveStep,
+  LiveView,
+  RunResult,
+  SpecgateCommand,
+} from "@specgate-studio/protocol";
+import { HelpButton, type HelpRequest } from "../Help.js";
 import type { Rpc } from "../rpc.js";
 import type { Lang } from "../i18n.js";
 import { bt, type BuildTextKey } from "./buildText.js";
@@ -7,6 +15,10 @@ import { bt, type BuildTextKey } from "./buildText.js";
 export interface LiveProps {
   rpc: Rpc;
   lang: Lang;
+  /** Runs a command for a button; the terminal's echo names the button (REQ-053). */
+  run: (label: string, command: SpecgateCommand) => Promise<RunResult>;
+  /** Opens the "?" of a feature: what it does, running nothing. */
+  onHelp: (feature: string, requests: HelpRequest[]) => void;
 }
 
 type T = (key: BuildTextKey, vars?: Record<string, string | number>) => string;
@@ -16,7 +28,8 @@ type T = (key: BuildTextKey, vars?: Record<string, string | number>) => string;
  * steps with the time each took, the agent's output as it streams, the queue,
  * and the cost and tokens so far. The host folds the harness's events and
  * tells every open UI the same view; this renders it, counting the running
- * step's time on the clock.
+ * step's time on the clock. The agent's question is answered here, through
+ * `specgate answer` (REQ-104).
  */
 export function Live(p: LiveProps) {
   const t: T = (key, vars) => bt(p.lang, key, vars);
@@ -100,6 +113,33 @@ export function Live(p: LiveProps) {
         </div>
       </div>
 
+      {view.questions.map((q) => (
+        <Question
+          key={`${q.req}/${q.id ?? q.text}`}
+          q={q}
+          t={t}
+          onAnswer={(answer) =>
+            q.id &&
+            q.change &&
+            void p.run(t("live.question.answer"), {
+              name: "answer",
+              q: q.id,
+              answer,
+              change: q.change,
+            })
+          }
+          onHelp={() =>
+            p.onHelp(t("live.question.answer"), [
+              {
+                action: "answer",
+                feature: t("live.question.answer"),
+                vars: q.id && q.change ? { q: q.id, change: q.change } : {},
+              },
+            ])
+          }
+        />
+      ))}
+
       {view.requirements.map((r) => (
         <Requirement key={r.req} r={r} t={t} now={now} />
       ))}
@@ -150,5 +190,71 @@ function Step(props: { s: LiveStep; t: T; now: number }) {
       <td class="ltime mono">{time}</td>
       <td class={`ltag ${s.result}`}>{s.result}</td>
     </tr>
+  );
+}
+
+/** The agent's question (REQ-104): answered here, or its answer recorded under it. */
+function Question(props: {
+  q: LiveQuestion;
+  t: T;
+  onAnswer: (answer: string) => void;
+  onHelp: () => void;
+}) {
+  const { q, t } = props;
+  const [chosen, setChosen] = useState("");
+  const state = q.answer !== null ? "answered" : q.id ? "open" : "unrecorded";
+  return (
+    <section
+      class="card qcard lquestion"
+      data-req={q.req}
+      data-question={q.id ?? undefined}
+      data-state={state}
+    >
+      <div class="muted">{t("live.question", { req: q.req })}</div>
+      <div>
+        {q.id && <b>{q.id} </b>}
+        {q.text}
+      </div>
+      {state === "unrecorded" && <p class="muted">{t("live.question.unrecorded")}</p>}
+      {state === "answered" && (
+        <div class="qanswer">
+          {t("live.question.answered")} <b data-answer>{q.answer}</b>
+          <span class="muted"> · {t("live.question.review")}</span>
+        </div>
+      )}
+      {state === "open" && (
+        <div class="qopts">
+          {q.options.length > 0 && <span class="muted">{t("live.question.options")}</span>}
+          {q.options.map((o) => (
+            <button
+              type="button"
+              class="btn"
+              key={o}
+              data-option={o}
+              aria-pressed={chosen === o}
+              onClick={() => setChosen(o)}
+            >
+              {o}
+            </button>
+          ))}
+          <input
+            class="filter"
+            aria-label={t("live.question.other")}
+            placeholder={t("live.question.other")}
+            onInput={(e) => setChosen((e.target as HTMLInputElement).value)}
+          />
+          <button
+            type="button"
+            class="btn pri"
+            data-act="answer"
+            disabled={!chosen.trim()}
+            onClick={() => props.onAnswer(chosen.trim())}
+          >
+            {t("live.question.answer")}
+          </button>
+          <HelpButton label={`? ${t("live.question.answer")}`} onOpen={props.onHelp} />
+        </div>
+      )}
+    </section>
   );
 }

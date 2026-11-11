@@ -89,3 +89,46 @@ test("REQ-103 SCN-305 against specgate: Live folds the real harness's events —
     await remove(p.parent);
   }
 });
+
+test("REQ-104 SCN-307 against specgate: the agent asks with `specgate ask`; specgate records it when the run ends; Live answers it with `specgate answer`", async () => {
+  const p = harnessProject();
+  p.mode("ask");
+  const { host, ui } = await realHost(p.dir);
+  try {
+    assert.equal((await ui.ask<any>("build.start", { req: "REQ-000" })).result.ok, true);
+    const ended = await endedOf(ui, "specgate harness run --req REQ-000");
+    assert.equal(ended.notice.en.tone, "failed");
+    assert.match(ended.notice.en.ran, /ended question/);
+    // What specgate recorded is read again once the run ended.
+    let q: any;
+    for (const end = Date.now() + 30_000; ;) {
+      q = (await ui.ask<any>("live.get")).result.questions[0];
+      if (q?.id) break;
+      if (Date.now() > end) throw new Error(`no question recorded: ${JSON.stringify(q)}`);
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    assert.equal(q.req, "REQ-000");
+    assert.equal(q.text, "Round to the cent or to the nearest 5 cents?");
+    assert.equal(q.answer, null);
+    const answered = (
+      await ui.ask<any>("command.run", {
+        name: "answer",
+        q: q.id,
+        answer: "to the cent",
+        change: q.change,
+      })
+    ).result;
+    assert.equal(answered.exitCode, 0, JSON.stringify(answered));
+    for (const end = Date.now() + 30_000; ;) {
+      q = (await ui.ask<any>("live.get")).result.questions[0];
+      if (q?.answer) break;
+      if (Date.now() > end) throw new Error(`the answer is not recorded: ${JSON.stringify(q)}`);
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    assert.equal(q.answer, "to the cent");
+  } finally {
+    ui.close();
+    await host.close();
+    await remove(p.parent);
+  }
+});

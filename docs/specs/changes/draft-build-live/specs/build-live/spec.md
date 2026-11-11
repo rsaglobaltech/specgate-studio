@@ -64,7 +64,7 @@ The system SHALL show in Live, while a build runs, each requirement's steps with
 
 ### Requirement: REQ-104 — The agent's question is answered inside Live
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL show inside Live a question the agent asks while it builds, with the requirement it is about, and SHALL send the Developer's answer to it there, through specgate, without leaving Live.
 
