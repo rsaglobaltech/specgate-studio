@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
-import type { ComponentType } from "preact";
+import type { ComponentType, JSX } from "preact";
 import type { EditorPaneProps, LensAction } from "./EditorPane.js";
 import type { TerminalPaneProps } from "./TerminalPane.js";
 import type {
@@ -19,6 +19,7 @@ import { BOTTOM_VIEWS, PANEL_TABS, TOP_VIEWS, type PanelTab, type ViewId } from 
 import { Logo, ViewIcon } from "./icons.js";
 import { VirtualList } from "./VirtualList.js";
 import { HelpButton, HelpDialog, NoticeToast, type HelpRequest } from "./Help.js";
+import { Changes } from "./views/Changes.js";
 import { loadSettings, saveSettings, type Theme } from "./settings.js";
 
 type Sections = Partial<
@@ -497,6 +498,18 @@ export function App({ rpc }: { rpc: Rpc }) {
                 openFile={openFile}
                 filterRef={filterRef}
                 ticketPanel={ticketPanel}
+                changesView={
+                  <Changes
+                    rpc={rpc}
+                    lang={lang}
+                    ticketPanel={ticketPanel}
+                    stamp={[sections.changes, sections.home]}
+                    run={(label, command) => runCommand(label, command)}
+                    onHelp={(feature, requests) =>
+                      setHelp({ title: tr("help.title", { feature }), requests })
+                    }
+                  />
+                }
                 reportTotal={(sections.report as { total?: number } | undefined)?.total}
                 onCheck={() =>
                   runFeature(
@@ -748,6 +761,8 @@ interface ViewProps {
   openFile: (p: string) => void;
   filterRef: { current: HTMLInputElement | null };
   ticketPanel: boolean;
+  /** The Changes view (draft-changes). */
+  changesView: JSX.Element;
   reportTotal: number | undefined;
   onCheck: () => void;
   onHelp: (r: HelpRequest) => void;
@@ -835,20 +850,7 @@ function View(p: ViewProps) {
       return (
         <>
           {title}
-          {p.ticketPanel && (
-            <section class="card" aria-label={p.tr("ticket.title")} style="margin-bottom:16px">
-              <h2 style="margin:0 0 6px;font-size:16px">{p.tr("ticket.title")}</h2>
-              <p class="muted" style="margin:0 0 8px">
-                {p.tr("ticket.body")}
-              </p>
-              <span class="mono muted">specgate propose --from-ticket &lt;KEY&gt;</span>
-            </section>
-          )}
-          {p.changes.map((c) => (
-            <div class="card" key={c.id} style="margin-bottom:8px">
-              {c.id}
-            </div>
-          ))}
+          {p.changesView}
         </>
       );
     case "questions":
