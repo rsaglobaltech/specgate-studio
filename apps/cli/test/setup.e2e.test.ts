@@ -71,7 +71,8 @@ test(
 
       // SCN-331: init runs in the studio's terminal; the project is the folder itself.
       await page.click('[data-setup="create"]');
-      await untilTerm(page, "specgate", /specgate init --config \S*academia\.yaml --out /, 120_000);
+      // The config's path is the studio's temporary folder: quoted on Windows, and long enough to wrap.
+      await untilTerm(page, "specgate", /▶ "Create" · specgate init --config /, 120_000);
       await page.waitForSelector('[data-ready="agent"][data-set="true"]', SLOW);
       assert.ok(fs.existsSync(path.join(dir, "spec.md")));
       assert.ok(fs.existsSync(path.join(dir, "docs", "specs", "traceability.md")));
