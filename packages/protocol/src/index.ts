@@ -110,3 +110,30 @@ export const RPC_ERRORS = {
   /** The installed specgate is missing or older than the studio needs (REQ-013). */
   specgate: -32001,
 } as const;
+
+/** Where a question was asked: the brief, a draft, or the agent while it builds (draft-questions A3). */
+export type Asked = "brief" | "draft" | "build";
+
+/** A question as `specgate questions --json` gives it (draft-questions REQ-091). */
+export interface Question {
+  id: string;
+  /** The change it was asked in, or `project`. */
+  change: string;
+  text: string;
+  blocks: string[];
+  /** specgate 0.33.1 and later (REQ-479). */
+  options?: string[];
+  /** specgate 0.33.2 and later (specgate REQ-481). */
+  asked?: Asked;
+  /** In `answered` only: the answer, waiting for "The spec says it" (specgate REQ-482). */
+  answer?: string;
+}
+
+/** The Questions section: `specgate questions --json`. */
+export interface QuestionsSection {
+  questions?: {
+    open?: Question[];
+    /** Answered and not yet confirmed; specgate 0.33.2 and later. */
+    answered?: Question[];
+  };
+}

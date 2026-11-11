@@ -17,6 +17,7 @@ export const ACTIONS = [
   "archive",
   "ask-change",
   "answer",
+  "answer-reviewed",
   "propose",
   "propose-brief",
   "propose-ticket",
@@ -211,6 +212,36 @@ export const HELP: Catalog = {
       notice: {
         ranOk: "`{command}` guardó la respuesta.",
         next: "specgate answer {q} --reviewed --change {change}",
+      },
+    },
+  },
+  "answer-reviewed": {
+    en: {
+      does: "Confirms that the specification says the answer to {q} of {change}: the answer is marked reviewed, and the requirements it blocked leave Needs Clarification.",
+      command: "specgate answer {q} --reviewed --change {change}",
+      files:
+        "The change's `questions.md` and `assumptions.md`, and the status of each requirement it blocked where that requirement is defined.",
+      doesNot:
+        "It does not change a requirement's text: revise it to say the answer first, in the editor or with a redraft.",
+      next: "Build the requirements it blocked: `specgate status` names the next one.",
+      notice: {
+        ranOk: "`{command}` marked the answer reviewed.",
+        next: "specgate status",
+        after: "The requirements it blocked no longer wait for an answer.",
+      },
+    },
+    es: {
+      does: "Confirma que la especificación dice la respuesta a {q} de {change}: la respuesta queda revisada y los requisitos que bloqueaba salen de Needs Clarification.",
+      command: "specgate answer {q} --reviewed --change {change}",
+      files:
+        "El `questions.md` y el `assumptions.md` del cambio, y el estado de cada requisito que bloqueaba, donde está definido.",
+      doesNot:
+        "No cambia el texto de ningún requisito: revísalo antes para que diga la respuesta, en el editor o redactándolo de nuevo.",
+      next: "Construye los requisitos que bloqueaba: `specgate status` dice el siguiente.",
+      notice: {
+        ranOk: "`{command}` marcó la respuesta como revisada.",
+        next: "specgate status",
+        after: "Los requisitos que bloqueaba ya no esperan una respuesta.",
       },
     },
   },

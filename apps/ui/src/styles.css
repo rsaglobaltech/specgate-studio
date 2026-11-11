@@ -588,6 +588,36 @@ pre.file {
   margin: 0;
   height: 26px;
 }
+/* Questions (draft-questions): where each was asked, what it blocks. */
+.qcard {
+  margin-bottom: 8px;
+}
+.qcard[data-state="answered"] {
+  border-color: var(--warn);
+}
+.qwhere,
+.qanswer,
+.qblocks {
+  margin-top: 4px;
+}
+.qblocks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.qreq .tag {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border: 1px solid var(--warn);
+  border-radius: 10px;
+  color: var(--warn);
+  font-size: 11px;
+}
+.qhead {
+  margin: 20px 0 8px;
+  font-size: 14px;
+}
 .tab .dirty {
   color: var(--accent-soft);
   font-size: 10px;

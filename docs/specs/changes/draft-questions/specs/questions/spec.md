@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-091 — Every open question in one place, with what it blocks
 
-<!-- specgate:trace actor=Reviewer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Reviewer kind=functional -->
 
 The system SHALL list in the studio's Questions view every open question of the project — those the brief leaves open, those the drafts ask, and those the agent asks while it builds — each with the requirements it blocks and where it was asked, read from specgate's questions and never from the studio's own copy.
 
@@ -24,7 +24,7 @@ The system SHALL list in the studio's Questions view every open question of the 
 
 ### Requirement: REQ-092 — An answer is written to its row, and the requirement stays blocked
 
-<!-- specgate:trace actor=Reviewer kind=business-rule -->
+<!-- specgate:trace status=Implemented actor=Reviewer kind=business-rule -->
 
 The system SHALL write the Reviewer's answer to the question's row of `questions.md` through `specgate answer`, and SHALL keep each requirement the question blocks in Needs Clarification, still blocked, until the Reviewer confirms that the specification says the answer.
 
@@ -44,7 +44,7 @@ The system SHALL write the Reviewer's answer to the question's row of `questions
 
 ### Requirement: REQ-093 — "The spec says it" marks the answer reviewed and lifts Needs Clarification
 
-<!-- specgate:trace actor=Reviewer kind=business-rule -->
+<!-- specgate:trace status=Implemented actor=Reviewer kind=business-rule -->
 
 The system SHALL offer "The spec says it" on an answered question, and when the Reviewer confirms it SHALL mark the answer reviewed through `specgate answer <Q> --reviewed` and lift Needs Clarification from every requirement the question blocked; the studio SHALL NOT change a requirement's text itself.
 
