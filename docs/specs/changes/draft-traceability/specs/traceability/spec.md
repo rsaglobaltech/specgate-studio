@@ -4,9 +4,9 @@
 
 ### Requirement: REQ-121 — One row per scenario: requirement, feature, test, code, status
 
-<!-- specgate:trace status="Needs Clarification" actor=Reviewer kind=functional -->
+<!-- specgate:trace actor=Reviewer kind=functional -->
 
-The system SHALL show in Traceability one row for every scenario of the project, each naming its requirement, its feature file, the tests that name it, the code that implements it and its requirement's status, and SHALL mark as a gap every row that lacks a feature, a test or code — read from specgate's JSON, never from the prose of `docs/specs/traceability.md`.
+The system SHALL show in Traceability one row for every scenario of the project, each naming its requirement, its feature file, the tests that name it, the code that implements it and its requirement's status, and SHALL mark as a gap every row that lacks a feature, a test or code — read from specgate's per-scenario rows (`specgate matrix --json` `rows[]`, or the API's `matrix()`), never from the prose of `docs/specs/traceability.md`, and never as one row per requirement.
 
 > Brief: "One row per scenario: requirement, feature, test, code, status."
 
@@ -24,7 +24,7 @@ The system SHALL show in Traceability one row for every scenario of the project,
 
 ### Requirement: REQ-122 — Filters: gaps, without a test, waiting for an answer
 
-<!-- specgate:trace status="Needs Clarification" actor=Reviewer kind=functional -->
+<!-- specgate:trace actor=Reviewer kind=functional -->
 
 The system SHALL filter Traceability's rows by three filters — gaps, without a test, and waiting for an answer — showing how many rows each filter keeps, and SHALL name, on a row waiting for an answer, the open question that blocks its requirement.
 
@@ -50,9 +50,9 @@ The system SHALL filter Traceability's rows by three filters — gaps, without a
 
 ### Requirement: REQ-123 — "Fix" opens the scenario and proposes the missing test, written only on confirmation
 
-<!-- specgate:trace status="Needs Clarification" actor=Developer kind=business-rule -->
+<!-- specgate:trace actor=Developer kind=business-rule -->
 
-The system SHALL offer "Fix" on a row without a test; pressing it SHALL open the scenario in the editor and propose the missing test — the file it would write and its content, naming the requirement and the scenario — and SHALL write nothing until the Developer confirms; when it ends, its notice SHALL name the file written, or say that nothing was written, and the next step.
+The system SHALL offer "Fix" on a row without a test; pressing it SHALL open the scenario in the editor and propose the missing test as a skeleton the studio writes from the scenario's GIVEN/WHEN/THEN — the file it would write and its content, naming the requirement and the scenario — with no agent and no cost; beside it, "Ask the agent" SHALL have the project's agent complete the skeleton and show the result as a diff with its cost. The system SHALL write nothing until the Developer confirms; when it ends, its notice SHALL name the file written, or say that nothing was written, and the next step.
 
 > Brief: ""Fix" opens the scenario and proposes the missing test; nothing is written without confirmation."
 
@@ -60,7 +60,7 @@ The system SHALL offer "Fix" on a row without a test; pressing it SHALL open the
 
 - GIVEN sprich's Traceability open in the desktop app, SCN-020b shown as a gap
 - WHEN the Developer presses "Fix" on SCN-020b
-- THEN the editor opens `features/pagos/REQ-020.feature` at SCN-020b, the proposal shows the file `test/pagos/REQ-020.test.ts` and a test that names REQ-020 and SCN-020b, and no file of sprich has changed
+- THEN the editor opens `features/pagos/REQ-020.feature` at SCN-020b, the proposal shows the file `test/pagos/REQ-020.test.ts` and a skeleton that names REQ-020 and SCN-020b with one step per GIVEN, WHEN and THEN, no agent has run, and no file of sprich has changed
 
 #### Scenario: SCN-367 — The proposal confirmed, in the browser
 
@@ -73,3 +73,9 @@ The system SHALL offer "Fix" on a row without a test; pressing it SHALL open the
 - GIVEN the proposed test for SCN-020b shown in the desktop app
 - WHEN the Developer cancels it
 - THEN no file is written, SCN-020b is still a gap, and the notice says that nothing was written
+
+#### Scenario: SCN-369 — "Ask the agent" completes the skeleton, in the browser
+
+- GIVEN the skeleton proposed for SCN-020b shown in the browser, and the agent `claude` set in sprich's `harness.config.yaml`
+- WHEN the Developer presses "Ask the agent"
+- THEN the Developer sees the agent's completed test as a diff against the skeleton, with its cost, and `test/pagos/REQ-020.test.ts` is still not written until the Developer confirms
