@@ -37,10 +37,12 @@ Rules
 - "Draft again with N requested changes" hands the open notes to the agent.
 - A change from a ticket is reviewed first, opened on the ticket's branch, and its commit and push are said and confirmed.
 - Archive runs only after its preview.
+- Apply runs the gate for one requirement and, when it refuses, says why and the fix.
 
 Examples
 
 - The one where KAN-13 is opened on `feature/parking/KAN-13` with `--no-branch --no-push`.
+- The one where Apply on REQ-031 is refused with `apply_no_test` and its fix.
 
 Questions
 

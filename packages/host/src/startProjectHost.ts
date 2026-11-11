@@ -5,6 +5,7 @@ import {
   toPosix,
   type Finding,
   type SectionReader,
+  type SpecgatePort,
 } from "@specgate-studio/core";
 import {
   NodeFileSystem,
@@ -101,9 +102,15 @@ export async function startProjectHost(
     ...(options.files ? { files: options.files(projectDir) } : {}),
     ...(options.findings ? { findings: options.findings(projectDir) } : {}),
     ...(options.terminals ? { terminals: options.terminals } : {}),
+    // The Changes view reads specgate's `--json` through the same port (draft-changes).
+    ...(hasCall(reader) ? { changes: { specgate: reader } } : {}),
     setup: { port: new SpecgateSetup(cli), fs, onPath: options.onPath ?? (() => false) },
   });
   await recent.opened(projectDir);
   registry.add(projectDir, host);
   return host;
+}
+
+function hasCall(r: SectionReader): r is SectionReader & Pick<SpecgatePort, "call"> {
+  return typeof (r as Partial<SpecgatePort>).call === "function";
 }

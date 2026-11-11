@@ -5,6 +5,12 @@
 import type {
   Annotations,
   ActionId,
+  ArchivePreview,
+  ChangeCard,
+  ChangeGroup,
+  ChangesView,
+  Finding,
+  TicketReview,
   CommandEvent,
   FolderKind,
   GitState,
@@ -32,6 +38,8 @@ export type { Annotations };
 export type { FolderKind, GitState, RecentProject, UncommittedGroup, WorkspaceState };
 /** What every action says about itself (draft-help). */
 export type { ActionId, Explanation, HelpVars, Lang, Notice };
+/** The Changes view (draft-changes). */
+export type { ArchivePreview, ChangeCard, ChangeGroup, ChangesView, Finding, TicketReview };
 /** Setting up a folder that is no project yet (draft-project-setup). */
 export type { AdoptPreview, Area, InitAnswers, ReadyItem };
 
@@ -70,6 +78,10 @@ export interface Requests {
   "terminal.scrollback": { params: { id: string }; result: { data: string } };
   /** A file of the project, as text. */
   "file.read": { params: { path: string }; result: { path: string; text: string } };
+  /** Every open change in its group: to review, in progress, ready to archive (draft-changes REQ-081). */
+  "changes.get": { params: Record<string, never>; result: ChangesView };
+  /** A ticket's review and what its confirmation runs; runs nothing that writes (REQ-084). */
+  "changes.ticket": { params: { key: string }; result: TicketReview };
   /** What the five questions offer, and the folder's name (draft-project-setup REQ-111). */
   "setup.options": {
     params: Record<string, never>;

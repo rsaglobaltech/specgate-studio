@@ -15,6 +15,7 @@ export const ACTIONS = [
   "build",
   "apply",
   "archive",
+  "archive-preview",
   "ask-change",
   "answer",
   "answer-reviewed",
@@ -165,6 +166,32 @@ export const HELP: Catalog = {
       },
     },
   },
+  "archive-preview": {
+    en: {
+      does: "Shows what archiving {change} would write — the capability specs, the matrix rows and the feature files — before anything is archived.",
+      command: "specgate archive {change} --dry-run",
+      files: "None: the preview writes nothing.",
+      doesNot:
+        "It does not archive: the change is archived only when you confirm the preview, and never while a requirement of it is not applied.",
+      next: "Confirm the preview to run `specgate archive {change}`.",
+      notice: {
+        ranOk: "`{command}` previewed the archive of {change}.",
+        next: "specgate archive {change}",
+      },
+    },
+    es: {
+      does: "Muestra lo que escribiría archivar {change} — las specs de capacidad, las filas de la matriz y los archivos de features — antes de archivar nada.",
+      command: "specgate archive {change} --dry-run",
+      files: "Ninguno: la vista previa no escribe nada.",
+      doesNot:
+        "No archiva: el cambio se archiva solo cuando confirmas la vista previa, y nunca mientras alguno de sus requisitos no esté aplicado.",
+      next: "Confirma la vista previa para ejecutar `specgate archive {change}`.",
+      notice: {
+        ranOk: "`{command}` mostró la vista previa del archivo de {change}.",
+        next: "specgate archive {change}",
+      },
+    },
+  },
   "ask-change": {
     en: {
       does: "Sends your request about the draft to its author, for the next time it is drafted.",
@@ -298,27 +325,29 @@ export const HELP: Catalog = {
   },
   "propose-ticket": {
     en: {
-      does: "Reads the ticket {key} and opens a change from its story and acceptance criteria, on its own branch.",
+      does: "Opens a change from the ticket {key}, after you reviewed what specgate read from it: on the ticket's branch — the one you are on when it names {key}, else a new one — with the opening committed there.",
       command: "specgate propose --from-ticket {key}",
       files:
-        "`docs/specs/changes/<change>/` with the ticket's text in `ticket.md`; a new branch named after the ticket.",
-      doesNot: "It does not write to the ticket, move it on the board or build anything.",
-      next: "Write the delta from the ticket, then `specgate change validate <change>`.",
+        "`docs/specs/changes/<change>/` with the ticket's text in `ticket.md`; a commit of that folder on the ticket's branch, and the branch pushed to origin unless you choose Don't push yet (`--no-push`).",
+      doesNot:
+        "It runs nothing before you confirm; it does not write to the ticket, move it on the board or build anything.",
+      next: "Write the delta from the ticket, then `specgate propose --from-ticket {key}` until it says Ready to review.",
       notice: {
         ranOk: "`{command}` opened a change from {key}.",
-        next: "specgate change validate <change>",
+        next: "specgate propose --from-ticket {key}",
       },
     },
     es: {
-      does: "Lee el ticket {key} y abre un cambio con su historia y sus criterios de aceptación, en su propia rama.",
+      does: "Abre un cambio desde el ticket {key}, después de que revises lo que specgate leyó de él: en la rama del ticket — en la que estás si nombra {key}, si no en una nueva — con la apertura en un commit allí.",
       command: "specgate propose --from-ticket {key}",
       files:
-        "`docs/specs/changes/<cambio>/` con el texto del ticket en `ticket.md`; una rama nueva con el nombre del ticket.",
-      doesNot: "No escribe en el ticket, no lo mueve en el tablero y no construye nada.",
-      next: "Escribe el delta desde el ticket y después `specgate change validate <cambio>`.",
+        "`docs/specs/changes/<cambio>/` con el texto del ticket en `ticket.md`; un commit de esa carpeta en la rama del ticket, y la rama enviada a origin salvo que elijas No hacer push todavía (`--no-push`).",
+      doesNot:
+        "No ejecuta nada antes de que confirmes; no escribe en el ticket, no lo mueve en el tablero y no construye nada.",
+      next: "Escribe el delta desde el ticket y después `specgate propose --from-ticket {key}` hasta que diga Ready to review.",
       notice: {
         ranOk: "`{command}` abrió un cambio desde {key}.",
-        next: "specgate change validate <change>",
+        next: "specgate propose --from-ticket {key}",
       },
     },
   },

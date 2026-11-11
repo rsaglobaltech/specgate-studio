@@ -6,10 +6,26 @@ export {
   commandLine,
   shown,
   type SpecgateCommand,
+  type ArchivePreview,
+  type ArchiveWrite,
   type CommandLine,
   type CommandEvent,
   type RunResult,
 } from "./domain/command.js";
+export {
+  CHANGE_GROUPS,
+  archivePreviewOf,
+  deltaFilesOf,
+  groupChanges,
+  ticketOfBranch,
+  ticketReview,
+  type ChangeCard,
+  type ChangeGroup,
+  type ChangeRequirement,
+  type ChangesView,
+  type TicketReview,
+} from "./domain/changes.js";
+export { Changes, type SectionSource } from "./application/Changes.js";
 export type { ProcessRunner } from "./ports/ProcessRunner.js";
 export { Commands, type CommandsOptions, type EventListener } from "./application/Commands.js";
 export type { Finding } from "./domain/finding.js";
