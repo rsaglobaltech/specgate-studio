@@ -4,17 +4,17 @@
 
 ### Requirement: REQ-131 — Built of the total, scenarios proven, coverage, mutation score, cost and time
 
-<!-- specgate:trace status="Needs Clarification" actor=Reviewer kind=functional -->
+<!-- specgate:trace actor=Reviewer kind=functional -->
 
-The system SHALL show in Report, for the whole project and for each module, the requirements built of the total, the scenarios proven of the total, the coverage, the mutation score, the cost and the time spent building — each read from specgate's JSON, and each one specgate has not measured shown as not measured with the command that measures it, never as 0.
+The system SHALL show in Report, for the whole project and for each module, the requirements built of the total, the scenarios proven of the total, the coverage, the mutation score, the cost and the time spent building — each read from specgate's JSON, and each one specgate has not measured shown as not measured with the command that measures it, never as 0. Coverage SHALL be shown as two labelled figures: the diff coverage the harness measured per requirement, and the project's line coverage when it exists. Cost SHALL be the cost measured from the agent's tokens when it exists, labelled measured, and otherwise the estimate declared per agent profile, labelled estimated.
 
 > Brief: "Built of the total, scenarios proven, coverage, mutation score, cost and time."
 
 #### Scenario: SCN-391 — pagos is 2 of 6, on the desktop
 
-- GIVEN sprich open in the desktop app, its module pagos with 6 requirements of which 2 are Implemented, and the quality checks measured its coverage at 74 %
+- GIVEN sprich open in the desktop app, its module pagos with 6 requirements of which 2 are Implemented, the harness's diff coverage of pagos at 74 %, no line coverage of the project measured, and the cost of its builds measured from the agent's tokens
 - WHEN the Reviewer opens Report and chooses pagos
-- THEN the Reviewer sees pagos built 2 of 6, the scenarios proven of its total, coverage 74 %, its mutation score, its cost and its time
+- THEN the Reviewer sees pagos built 2 of 6, the scenarios proven of its total, diff coverage 74 % labelled as the harness's, line coverage not measured, its mutation score, its cost labelled measured, and its time
 
 #### Scenario: SCN-392 — No mutation score yet, in the browser
 
@@ -22,11 +22,17 @@ The system SHALL show in Report, for the whole project and for each module, the 
 - WHEN the Reviewer opens Report
 - THEN the Reviewer sees the mutation score as not measured, with the command that sets the checks up, `specgate quality init --level strict`, and no 0 %
 
+#### Scenario: SCN-397 — Only an estimate of the cost, in the browser
+
+- GIVEN sprich open in the browser, its builds run by an agent whose cost specgate did not measure, and the profile `claude-sonnet` declaring a cost per run
+- WHEN the Reviewer opens Report
+- THEN the Reviewer sees the cost labelled estimated, from the profile `claude-sonnet`, and no measured cost
+
 ### Requirement: REQ-132 — The gate by stage, with the fix of what fails
 
 <!-- specgate:trace actor=Developer kind=functional -->
 
-The system SHALL show in Report the last gate run on the project stage by stage — specification, architecture, tests and each quality check — each passed, failed, not configured or not run, and for a stage that failed its finding code and specgate's fix; with no gate run yet, it SHALL say so and name `specgate check`.
+The system SHALL show in Report the last gate run on the project, as specgate records it, stage by stage — specification, architecture, tests and each quality check — each passed, failed, not configured or not run, with when it ran, and for a stage that failed its finding code and specgate's fix; when specgate has no gate recorded for the project, it SHALL say so and name `specgate check`.
 
 > Brief: "The gate by stage, with the fix of what fails."
 
@@ -36,11 +42,17 @@ The system SHALL show in Report the last gate run on the project stage by stage 
 - WHEN the Developer opens Report
 - THEN the Developer sees specification passed, architecture not configured, tests failed with `check_tests_failed` and the fix "Make `npm test` pass, then run `specgate check` again.", and the quality checks not run
 
-#### Scenario: SCN-394 — No gate run yet, in the browser
+#### Scenario: SCN-394 — No gate recorded yet, in the browser
 
-- GIVEN sprich just opened in the browser, no gate run since it was opened
+- GIVEN sprich open in the browser, specgate with no gate recorded for it
 - WHEN the Developer opens Report
 - THEN the Developer sees that no gate has run yet, and the command `specgate check` beside a Check button
+
+#### Scenario: SCN-398 — The last gate after a restart, on the desktop
+
+- GIVEN sprich's last gate recorded by specgate as failed at the tests stage, and the desktop app restarted since
+- WHEN the Developer opens Report
+- THEN the Developer sees that gate, stage by stage, with when it ran, and no gate was run to show it
 
 ### Requirement: REQ-133 — Download as one HTML page; print to PDF
 
