@@ -7,7 +7,10 @@ import type {
   CommandEvent,
   Lang as NoticeLang,
   Notice,
+  Requests,
+  RunResult,
   SectionData,
+  SpecgateCommand,
   WorkspaceState,
 } from "@specgate-studio/protocol";
 import { Rpc } from "./rpc.js";
@@ -20,6 +23,7 @@ import { Logo, ViewIcon } from "./icons.js";
 import { VirtualList } from "./VirtualList.js";
 import { HelpButton, HelpDialog, NoticeToast, type HelpRequest } from "./Help.js";
 import { loadSettings, saveSettings, type Theme } from "./settings.js";
+import { AdoptedAreas, SetupNext, SetupPane, type SetupStep } from "./Setup.js";
 
 type Sections = Partial<
   Record<"home" | "changes" | "questions" | "matrix" | "report", SectionData>
@@ -79,6 +83,9 @@ export function App({ rpc }: { rpc: Rpc }) {
   const annotateRef = useRef<(path: string) => Promise<unknown>>(async () => undefined);
   const [lost, setLost] = useState(false);
   const [workspace, setWorkspace] = useState<WorkspaceState | null>(null);
+  // Setting up a folder that is no project yet (draft-project-setup).
+  const [setup, setSetup] = useState<SetupStep | null>(null);
+  const [areas, setAreas] = useState<Requests["setup.areas"]["result"] | null>(null);
   // The terminals (draft-terminal): xterm.js loads after the first paint.
   const [TerminalPane, setTerminalPane] = useState<ComponentType<TerminalPaneProps> | null>(null);
   const [echo, setEcho] = useState("");
@@ -112,15 +119,26 @@ export function App({ rpc }: { rpc: Rpc }) {
     saveSettings({ lang, theme });
   }, [lang, theme]);
 
+  const openProject = useCallback(
+    () =>
+      rpc.ask("project.open", {}).then(
+        (opened) => {
+          setProject(opened.project);
+          setSections(opened.sections as Sections);
+        },
+        // A folder that is no project yet has nothing to read: Home offers its setup.
+        () =>
+          rpc.ask("workspace.get", {}).then(
+            (w) => w.kind === "specgate" && setLost(true),
+            () => setLost(true),
+          ),
+      ),
+    [rpc],
+  );
+
   // The project, read once (core-host REQ-002); a change of language or theme reads nothing.
   useEffect(() => {
-    rpc.ask("project.open", {}).then(
-      (opened) => {
-        setProject(opened.project);
-        setSections(opened.sections as Sections);
-      },
-      () => setLost(true),
-    );
+    void openProject();
     rpc.ask("files.list", {}).then(setFiles, () => undefined);
     // The open folder: its branch, team and ticket (draft-workspace), kept current.
     rpc.ask("workspace.get", {}).then(setWorkspace, () => undefined);
@@ -157,6 +175,18 @@ export function App({ rpc }: { rpc: Rpc }) {
       offCommand();
     };
   }, [rpc]);
+
+  // A folder created or adopted here is read once it is a project (draft-project-setup).
+  const kind = workspace?.kind;
+  const wasProject = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (!kind) return;
+    if (wasProject.current === false && kind === "specgate") {
+      void openProject();
+      rpc.ask("files.list", {}).then(setFiles, () => undefined);
+    }
+    wasProject.current = kind === "specgate";
+  }, [kind, rpc, openProject]);
 
   useEffect(() => {
     if (lost) setNotice(t(lang, "error.host"));
@@ -215,15 +245,20 @@ export function App({ rpc }: { rpc: Rpc }) {
     [unsaved],
   );
 
+  /** Names the button whose command runs next, in the terminal's echo (REQ-053). */
+  const announce = useCallback((label: string) => {
+    pendingLabel.current = label;
+    setPanel({ open: true, tab: "terminal" });
+    setShowStudio((n) => n + 1);
+  }, []);
+
   /** Runs a studio command for a button, which the terminal's echo names (REQ-053). */
   const runCommand = useCallback(
-    (label: string, command: Parameters<Rpc["ask"]>[1] & { name: string }) => {
-      pendingLabel.current = label;
-      setPanel({ open: true, tab: "terminal" });
-      setShowStudio((n) => n + 1);
-      return rpc.ask("command.run", command as never);
+    (label: string, command: SpecgateCommand): Promise<RunResult> => {
+      announce(label);
+      return rpc.ask("command.run", command);
     },
-    [rpc],
+    [rpc, announce],
   );
 
   const runFeature = useCallback(
@@ -319,6 +354,11 @@ export function App({ rpc }: { rpc: Rpc }) {
     | undefined;
   const total = home?.total ?? 0;
   const done = total - (home?.pending ?? 0);
+  // Just adopted, REQ-001 alone: the areas it found and the next step (REQ-115).
+  useEffect(() => {
+    if (kind !== "specgate" || !home || total > 1) return setAreas(null);
+    rpc.ask("setup.areas", {}).then(setAreas, () => setAreas(null));
+  }, [rpc, kind, home, total]);
   const requirements = home?.requirements ?? [];
   const changes =
     (sections.changes as { changes?: Array<{ id: string }> } | undefined)?.changes ?? [];
@@ -490,6 +530,15 @@ export function App({ rpc }: { rpc: Rpc }) {
                 total={total}
                 done={done}
                 next={home?.nextCommand ?? null}
+                rpc={rpc}
+                folder={workspace?.name ?? ""}
+                kind={kind ?? null}
+                setup={setup}
+                openSetup={setSetup}
+                closeSetup={() => setSetup(null)}
+                areas={areas}
+                run={runCommand}
+                announce={announce}
                 requirements={requirements}
                 changes={changes}
                 questions={questions}
@@ -732,6 +781,15 @@ function FileList(props: {
 
 interface ViewProps {
   view: ViewId;
+  rpc: Rpc;
+  folder: string;
+  kind: WorkspaceState["kind"] | null;
+  setup: SetupStep | null;
+  openSetup: (step: SetupStep) => void;
+  closeSetup: () => void;
+  areas: Requests["setup.areas"]["result"] | null;
+  run: (label: string, command: SpecgateCommand) => Promise<RunResult>;
+  announce: (label: string) => void;
   tr: (k: string, v?: Record<string, string | number>) => string;
   lang: Lang;
   theme: Theme;
@@ -759,7 +817,30 @@ function View(p: ViewProps) {
   const [filter, setFilter] = useState("");
   const title = <h1>{p.tr(`view.${p.view}`)}</h1>;
   switch (p.view) {
-    case "home":
+    case "home": {
+      if (p.setup) {
+        return (
+          <SetupPane
+            rpc={p.rpc}
+            tr={p.tr}
+            step={p.setup}
+            run={p.run}
+            announce={p.announce}
+            onHelp={p.onHelp}
+            onDone={p.closeSetup}
+          />
+        );
+      }
+      // A folder that is no project yet: its setup is the next step (REQ-116).
+      const step = p.kind === "empty" ? "create" : p.kind === "code" ? "adopt" : null;
+      if (step) {
+        return (
+          <>
+            <h1>{p.folder || p.tr("view.home")}</h1>
+            <SetupNext tr={p.tr} step={step} onOpen={() => p.openSetup(step)} />
+          </>
+        );
+      }
       return (
         <>
           <h1>{p.project || p.tr("view.home")}</h1>
@@ -777,13 +858,17 @@ function View(p: ViewProps) {
               <div class="v">{p.total - p.done}</div>
             </div>
           </div>
-          {p.next && (
-            <div class="next">
-              <div class="k">[ {p.tr("home.next").toUpperCase()} ]</div>
-              <div class="mono" style="margin-top:6px">
-                {p.next}
+          {p.areas?.adopted ? (
+            <AdoptedAreas tr={p.tr} byKind={p.areas.byKind} areas={p.areas.areas} />
+          ) : (
+            p.next && (
+              <div class="next">
+                <div class="k">[ {p.tr("home.next").toUpperCase()} ]</div>
+                <div class="mono" style="margin-top:6px">
+                  {p.next}
+                </div>
               </div>
-            </div>
+            )
           )}
           <div class="actions">
             <button type="button" class="btn pri" onClick={p.onCheck}>
@@ -805,6 +890,7 @@ function View(p: ViewProps) {
           </div>
         </>
       );
+    }
     case "explorer":
       return (
         <div style="display:flex;flex-direction:column;height:100%">

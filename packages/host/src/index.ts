@@ -4,3 +4,4 @@ export { HostRegistry } from "./HostRegistry.js";
 export { attachWorkspace, type WorkspaceWiring } from "./workspace.js";
 export { startProjectHost, type ProjectHostOptions } from "./startProjectHost.js";
 export { attachTerminals, type TerminalWiring } from "./terminals.js";
+export { attachSetup, type SetupWiring } from "./setup.js";

@@ -21,6 +21,10 @@ export const ACTIONS = [
   "propose-brief",
   "propose-ticket",
   "config-set",
+  "init",
+  "adopt",
+  "agents-init",
+  "ci-init",
 ] as const;
 export type ActionId = (typeof ACTIONS)[number];
 
@@ -303,6 +307,98 @@ export const HELP: Catalog = {
       doesNot: "No ejecuta el comando que configura.",
       next: "Después, `specgate check` para ver el gate con él.",
       notice: { ranOk: "`{command}` guardó el ajuste.", next: "specgate check" },
+    },
+  },
+  init: {
+    en: {
+      does: "Creates the specgate project in this folder from your five answers: the specification, the traceability matrix, AGENTS.md and the spec gate. It is built in a folder of the studio's and moved here, so nothing in this folder is overwritten; then the agent you chose is wired in with `specgate agents init`.",
+      command: "specgate init --config <your answers> --yes",
+      files:
+        "`spec.md`, `docs/specs/`, `features/`, `AGENTS.md`, `README.md`, the spec gate in `.github/workflows/`, and `harness.config.yaml` for the agent.",
+      doesNot: "It does not write code, commit or push.",
+      next: "Then set what the readiness list says is not ready yet.",
+      notice: {
+        ranOk: "`{command}` created the project.",
+        next: "specgate status",
+        after: "The readiness list says what is set and what is not.",
+      },
+    },
+    es: {
+      does: "Crea el proyecto specgate en esta carpeta con tus cinco respuestas: la especificación, la matriz de trazabilidad, AGENTS.md y el gate. Se construye en una carpeta del studio y se mueve aquí, así que no se sobrescribe nada de esta carpeta; después se conecta el agente que elegiste con `specgate agents init`.",
+      command: "specgate init --config <tus respuestas> --yes",
+      files:
+        "`spec.md`, `docs/specs/`, `features/`, `AGENTS.md`, `README.md`, el gate en `.github/workflows/` y `harness.config.yaml` para el agente.",
+      doesNot: "No escribe código, ni hace commit ni push.",
+      next: "Después, fija lo que la lista de preparación dice que aún no está listo.",
+      notice: {
+        ranOk: "`{command}` creó el proyecto.",
+        next: "specgate status",
+        after: "La lista de preparación dice qué está fijado y qué no.",
+      },
+    },
+  },
+  adopt: {
+    en: {
+      does: "Adopts this folder in place: writes the specification, the traceability matrix, AGENTS.md and the spec gate beside your code, the areas it finds as a map in `docs/specs/adoption.md`, and saves the test command and agent the preview shows.",
+      command: "specgate adopt --yes",
+      files: "Only the files of the preview: never one that exists, never a line of your code.",
+      doesNot: "It does not turn the areas into requirements, commit or push.",
+      next: 'Then specify a behaviour you rely on: `specgate new "<behaviour>"`.',
+      notice: {
+        ranOk: "`{command}` adopted the folder.",
+        next: 'specgate new "<a behaviour you rely on>"',
+        after: "The readiness list says what is set and what is not.",
+      },
+    },
+    es: {
+      does: "Adopta esta carpeta tal cual: escribe la especificación, la matriz de trazabilidad, AGENTS.md y el gate junto a tu código, las áreas que encuentra como un mapa en `docs/specs/adoption.md`, y guarda el comando de tests y el agente que muestra la vista previa.",
+      command: "specgate adopt --yes",
+      files:
+        "Solo los archivos de la vista previa: nunca uno que ya existe, nunca una línea de tu código.",
+      doesNot: "No convierte las áreas en requisitos, ni hace commit ni push.",
+      next: 'Después, especifica un comportamiento que ya usas: `specgate new "<comportamiento>"`.',
+      notice: {
+        ranOk: "`{command}` adoptó la carpeta.",
+        next: 'specgate new "<un comportamiento que ya usas>"',
+        after: "La lista de preparación dice qué está fijado y qué no.",
+      },
+    },
+  },
+  "agents-init": {
+    en: {
+      does: "Wires the agent you choose into the project: its /specgate commands and, for Claude Code, the command Build runs it with.",
+      command: "specgate agents init --tool <tool>",
+      files: "The agent's command files (e.g. `.claude/commands/`) and `harness.config.yaml`.",
+      doesNot: "It does not run the agent, commit or push.",
+      next: "Then Build can run the agent for a requirement.",
+      notice: { ranOk: "`{command}` wired the agent in.", next: "specgate status" },
+    },
+    es: {
+      does: "Conecta el agente que eliges al proyecto: sus comandos /specgate y, para Claude Code, el comando con el que Construir lo ejecuta.",
+      command: "specgate agents init --tool <herramienta>",
+      files:
+        "Los archivos de comandos del agente (p. ej. `.claude/commands/`) y `harness.config.yaml`.",
+      doesNot: "No ejecuta el agente, ni hace commit ni push.",
+      next: "Después, Construir puede ejecutar el agente para un requisito.",
+      notice: { ranOk: "`{command}` conectó el agente.", next: "specgate status" },
+    },
+  },
+  "ci-init": {
+    en: {
+      does: "Writes the spec gate for your CI: it runs the specification, the tests and the architecture check on every push.",
+      command: "specgate ci init",
+      files: "`.github/workflows/spec-gate.yml` (or your provider's CI file).",
+      doesNot: "It does not push it or run it.",
+      next: "Then commit it, and `specgate ci status` says what it checks.",
+      notice: { ranOk: "`{command}` wrote the spec gate.", next: "specgate ci status" },
+    },
+    es: {
+      does: "Escribe el gate para tu CI: ejecuta la especificación, los tests y la comprobación de arquitectura en cada push.",
+      command: "specgate ci init",
+      files: "`.github/workflows/spec-gate.yml` (o el archivo de CI de tu proveedor).",
+      doesNot: "No lo sube ni lo ejecuta.",
+      next: "Después, haz commit de él, y `specgate ci status` dice qué comprueba.",
+      notice: { ranOk: "`{command}` escribió el gate.", next: "specgate ci status" },
     },
   },
 };

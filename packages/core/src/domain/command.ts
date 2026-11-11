@@ -1,4 +1,5 @@
 import type { Lang, Notice } from "./help.js";
+import { AGENT_TOOLS } from "./setup.js";
 
 /**
  * The specgate commands the host may run, and the argument array each one is
@@ -13,7 +14,11 @@ export type SpecgateCommand =
   | { name: "archive"; change: string }
   | { name: "config-set"; key: string; value: string }
   | { name: "answer"; q: string; answer: string; change: string }
-  | { name: "change-note"; change: string; text: string; req?: string };
+  | { name: "change-note"; change: string; text: string; req?: string }
+  | { name: "adopt-preview" }
+  | { name: "adopt" }
+  | { name: "agents-init"; tool: string }
+  | { name: "ci-init" };
 
 export interface CommandLine {
   args: string[];
@@ -45,6 +50,16 @@ export function commandLine(c: SpecgateCommand): CommandLine | null {
         args: ["change", "note", c.change, c.text, ...(c.req ? ["--req", c.req] : [])],
         write: true,
       };
+    case "adopt-preview":
+      return { args: ["adopt", "--dry-run"], write: false };
+    case "adopt":
+      return { args: ["adopt", "--yes"], write: true };
+    case "agents-init":
+      return Object.prototype.hasOwnProperty.call(AGENT_TOOLS, c.tool)
+        ? { args: ["agents", "init", "--tool", c.tool], write: true }
+        : null;
+    case "ci-init":
+      return { args: ["ci", "init"], write: true };
     default:
       return null;
   }
