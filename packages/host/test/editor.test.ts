@@ -183,3 +183,44 @@ test("REQ-044 SCN-128: after `specgate answer`, Questions is read again and ever
     await host.close();
   }
 });
+
+test("REQ-044 SCN-127: with specgate 0.33.1 the options come from `questions --json` — questions.md is not read", async () => {
+  const p = project();
+  const reads: string[] = [];
+  const files = { ...p.files, read: async (f: string) => (reads.push(f), p.files.read(f)) };
+  const reader = {
+    read: async (s: string) =>
+      s === "questions"
+        ? {
+            questions: {
+              open: [
+                {
+                  id: "Q2",
+                  change: "draft-pedidos",
+                  text: "Until when?",
+                  blocks: ["REQ-031"],
+                  options: ["until it is shipped", "within 24 h"],
+                },
+              ],
+            },
+          }
+        : {},
+  } as never;
+  const host = await startHost({
+    projectDir: "/tmp/sprich",
+    reader,
+    runner: p.runner,
+    files,
+    port: 0,
+  });
+  const ui = await rpc(host.url);
+  try {
+    await ui.ask("project.open", {});
+    const a = (await ui.ask("file.annotations", { path: PATH })).result;
+    assert.deepEqual(a.questions[0].options, ["until it is shipped", "within 24 h"]);
+    assert.ok(!reads.some((f) => f.endsWith("questions.md")), `read: ${reads.join(", ")}`);
+  } finally {
+    ui.close();
+    await host.close();
+  }
+});
