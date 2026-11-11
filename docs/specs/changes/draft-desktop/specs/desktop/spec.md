@@ -42,33 +42,45 @@ The system SHALL open each project in its own window over its own core host; ope
 - WHEN the Developer opens `~/mvp/sprich-platform/sprich` again
 - THEN sprich's window comes to the front, and still exactly one window and one core host run for sprich
 
-### Requirement: REQ-153 — A signed and notarized .dmg for macOS
+### Requirement: REQ-153 — A .dmg for macOS: unsigned with "Open anyway" steps now, signed and notarized once the certificate exists
 
-<!-- specgate:trace status="Needs Clarification" actor=Developer kind=non-functional -->
+<!-- specgate:trace actor=Developer kind=non-functional -->
 
-The system SHALL ship for macOS as a .dmg whose app, sidecar included, is signed with a Developer ID certificate, built with the hardened runtime and notarized by Apple, with the notarization ticket stapled, so that Gatekeeper opens it on first launch without a warning and without a connection.
+The system SHALL ship for macOS as a .dmg from one release pipeline in two stages: until a Developer ID certificate exists, the .dmg SHALL be unsigned (ad-hoc signed only) and its release SHALL link to documented "Open anyway" steps; once the certificate exists, the same pipeline SHALL gain the signing step — the app, sidecar included, signed with the Developer ID certificate in the owner's own name, built with the hardened runtime, notarized by Apple and stapled — so that Gatekeeper opens it on first launch without a warning and without a connection. Moving to the organization rsaglobaltech later SHALL change only the certificate the pipeline uses.
 
 > Brief: "Signed installers for macOS (.dmg), Windows (.msi) and Linux (.AppImage, .deb), and auto-update."
 
-#### Scenario: SCN-455 — First launch on a Mac that never saw the studio
+#### Scenario: SCN-466 — First launch of the unsigned .dmg, with the "Open anyway" steps
 
-- GIVEN a Mac with Gatekeeper on its default setting, offline, and the studio's .dmg downloaded from its release
+- GIVEN a Mac with Gatekeeper on its default setting, the studio's unsigned .dmg downloaded from its release, and no Developer ID certificate in the pipeline yet
+- WHEN the Developer opens the studio, sees Gatekeeper's warning, and follows the "Open anyway" steps the release links to
+- THEN the studio opens, and the steps the Developer followed are the ones published for that macOS version
+
+#### Scenario: SCN-455 — First launch of the signed .dmg, once the certificate exists
+
+- GIVEN the release pipeline with the owner's Developer ID certificate, a Mac with Gatekeeper on its default setting, offline, and the .dmg that pipeline built
 - WHEN the Developer drags the studio to Applications and opens it
-- THEN the studio opens with no "cannot be opened" or "unidentified developer" warning, and `spctl --assess --type execute` accepts the app as notarized
+- THEN the studio opens with no "cannot be opened" or "unidentified developer" warning, `spctl --assess --type execute` accepts the app as notarized, and the developer it names is the owner
 
-### Requirement: REQ-154 — A code-signed .msi for Windows
+### Requirement: REQ-154 — An .msi for Windows: unsigned with SmartScreen steps now, code-signed once the certificate exists
 
-<!-- specgate:trace status="Needs Clarification" actor=Developer kind=non-functional -->
+<!-- specgate:trace actor=Developer kind=non-functional -->
 
-The system SHALL ship for Windows as an .msi whose installer, app and sidecar are signed with a code-signing certificate and timestamped, so that Windows names the publisher when it installs and no "unknown publisher" warning is shown.
+The system SHALL ship for Windows as an .msi from the same release pipeline in two stages: until a code-signing certificate exists, the .msi SHALL be unsigned and its release SHALL link to documented SmartScreen steps; once the certificate exists, the pipeline SHALL gain the signing step — installer, app and sidecar signed in the owner's own name and timestamped — so that Windows names the owner as publisher and no "unknown publisher" warning is shown. Moving to the organization rsaglobaltech later SHALL change only the certificate the pipeline uses.
 
 > Brief: "Signed installers for macOS (.dmg), Windows (.msi) and Linux (.AppImage, .deb), and auto-update."
 
-#### Scenario: SCN-456 — Installing on Windows 11
+#### Scenario: SCN-467 — Installing the unsigned .msi, with the SmartScreen steps
 
-- GIVEN a Windows 11 machine with SmartScreen on, and the studio's .msi downloaded from its release
+- GIVEN a Windows 11 machine with SmartScreen on, the studio's unsigned .msi downloaded from its release, and no code-signing certificate in the pipeline yet
+- WHEN the Developer opens the .msi, sees SmartScreen's warning, and follows the SmartScreen steps the release links to
+- THEN the installer runs, and the studio opens from the Start menu
+
+#### Scenario: SCN-456 — Installing the signed .msi, once the certificate exists
+
+- GIVEN the release pipeline with the owner's code-signing certificate, a Windows 11 machine with SmartScreen on, and the .msi that pipeline built
 - WHEN the Developer opens the .msi
-- THEN the Developer sees the installer name the studio's publisher, and no "unknown publisher" warning; and `Get-AuthenticodeSignature` reports the installer and the installed app as Valid
+- THEN the Developer sees the installer name the owner as publisher, and no "unknown publisher" warning; and `Get-AuthenticodeSignature` reports the installer and the installed app as Valid
 
 ### Requirement: REQ-155 — An .AppImage and a .deb for Linux, signed
 
@@ -90,11 +102,11 @@ The system SHALL ship for Linux as an .AppImage and a .deb, each with a signatur
 - WHEN the Developer verifies it, makes it executable and opens it
 - THEN the signature is good and the studio opens with no Node installed
 
-### Requirement: REQ-156 — Auto-update, verified, and asked before it installs
+### Requirement: REQ-156 — Auto-update: offered on start, applied on restart, never during a build
 
-<!-- specgate:trace status="Needs Clarification" actor=Developer kind=business-rule -->
+<!-- specgate:trace actor=Developer kind=business-rule -->
 
-The system SHALL check for a newer release when it starts, verify the update's signature before using it, and install it only after the Developer accepts — never while a build or a write command runs; its notice SHALL say which version was installed, from which, and that a restart applies it.
+The system SHALL check for a newer release when it starts and offer it; it SHALL verify the update's signature before using it, install it only after the Developer accepts, and apply it on the next restart — never while a build or a write command runs; its notice SHALL say which version was installed, from which, and that a restart applies it. Updates SHALL work the same whether the installers are signed by the operating system's certificates yet or not.
 
 > Brief: "Signed installers for macOS (.dmg), Windows (.msi) and Linux (.AppImage, .deb), and auto-update."
 
@@ -102,7 +114,7 @@ The system SHALL check for a newer release when it starts, verify the update's s
 
 - GIVEN the studio 0.7.0 running on macOS, sprich open, no build running, and the release 0.7.1 published
 - WHEN the Developer accepts the update the studio offers
-- THEN the studio downloads 0.7.1, verifies its signature, installs it, and the notice says 0.7.1 was installed over 0.7.0 and applies on restart
+- THEN the studio downloads 0.7.1, verifies its signature, installs it, the notice says 0.7.1 was installed over 0.7.0 and applies on restart, and the studio still runs 0.7.0 until it restarts
 
 #### Scenario: SCN-460 — No update during a build, on Windows
 
