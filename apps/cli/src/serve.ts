@@ -5,6 +5,7 @@ import {
   type Finding,
   type ProcessRunner,
   type SectionReader,
+  type SpecgatePort,
 } from "@specgate-studio/core";
 import {
   NodeProcessRunner,
@@ -34,8 +35,12 @@ export interface ServeOptions {
   files?: ProjectFiles;
   findings?: () => Promise<Finding[]>;
   workspace?: WorkspaceWiring;
+  /** specgate's `--json` answers for the Changes view (draft-changes). */
+  specgate?: Pick<SpecgatePort, "call">;
   /** The Developer's terminals; the real pty and their shell when not given. */
   terminals?: TerminalWiring;
+  /** The studio's settings folder; the user's when not given (draft-workspace A6). */
+  home?: string;
 }
 
 /**
@@ -65,6 +70,7 @@ export async function serve(options: ServeOptions): Promise<Host> {
       files: options.files ?? nodeFiles(projectDir),
       ...(options.findings ? { findings: options.findings } : {}),
       ...(options.workspace ? { workspace: options.workspace } : {}),
+      ...(options.specgate ? { changes: { specgate: options.specgate } } : {}),
       terminals,
       port,
       ui,
@@ -74,7 +80,10 @@ export async function serve(options: ServeOptions): Promise<Host> {
     port,
     ui,
     terminals,
+    ...(options.home ? { home: options.home } : {}),
     reader: async (dir) => (await inProcessSpecgate(cliFor(dir), dir)) ?? cliFor(dir),
+    // The agent an adoption saves is the one on the PATH (draft-project-setup A8).
+    onPath: hasProgram,
     files: nodeFiles,
     // The specification's findings with file and line, for the editor (REQ-043): read-only.
     findings: (dir) => async () => (await cliFor(dir).call(["validate", "--strict"])).findings,

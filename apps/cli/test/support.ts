@@ -15,6 +15,7 @@ import {
   type ProcessRunner,
   type Section,
   type SectionReader,
+  type SpecgateAnswer,
 } from "@specgate-studio/core";
 import type { Host, ProjectFiles } from "@specgate-studio/host";
 import { serve, UI_DIST } from "../src/index.js";
@@ -57,6 +58,18 @@ export interface StudioOptions {
   findings?: Finding[];
   /** The project's git branch, read through the workspace (draft-workspace). */
   branch?: string | null;
+  /** Sections over the defaults (draft-changes). */
+  sections?: Partial<Record<Section, unknown>>;
+  /**
+   * specgate's `--json` answers, by the arguments joined with spaces; a
+   * function may change the sections, as the command would. Every call is
+   * recorded in `calls` (draft-changes).
+   */
+  specgate?: Record<string, SpecgateAnswer | ((data: Record<Section, unknown>) => SpecgateAnswer)>;
+  /** What `specgate questions --json` answers; Q2 of draft-pedidos by default. */
+  questions?: { open: unknown[]; answered?: unknown[] };
+  /** Home's requirements; `requirements(rows)` by default. */
+  homeRequirements?: Array<{ id: string; title: string; category: string; needs: string | null }>;
 }
 
 export async function studio(opts: StudioOptions = {}) {
@@ -66,12 +79,12 @@ export async function studio(opts: StudioOptions = {}) {
     home: {
       total: rows,
       pending: 1,
-      requirements: requirements(rows),
+      requirements: opts.homeRequirements ?? requirements(rows),
       nextCommand: opts.next ?? "specgate apply REQ-000",
     },
     changes: { changes: [{ id: "draft-pedidos" }] },
     questions: {
-      questions: {
+      questions: opts.questions ?? {
         open: [
           {
             id: "Q2",
@@ -84,6 +97,7 @@ export async function studio(opts: StudioOptions = {}) {
     },
     matrix: { matrix: { derived: true, written: false, rows } },
     report: { total: rows },
+    ...opts.sections,
   };
   const reader: SectionReader = {
     read: async (s) => (reads.push(s), structuredClone(data[s])),
@@ -92,10 +106,24 @@ export async function studio(opts: StudioOptions = {}) {
   const runner: ProcessRunner = {
     run: async (args, onOutput) => {
       runs.push([...args]);
-      // specgate answer: the question is answered, so it is no longer open.
+      // specgate answer: the question is answered, so it is no longer open;
+      // it waits in `answered` until --reviewed, which lifts what it blocked.
       if (args[0] === "answer") {
-        const q = data.questions as { questions: { open: Array<{ id: string }> } };
-        q.questions.open = q.questions.open.filter((x) => x.id !== args[1]);
+        type Q = { id: string; blocks: string[]; answer?: string };
+        const q = data.questions as { questions: { open: Q[]; answered?: Q[] } };
+        const home = data.home as { requirements: Array<{ id: string; category: string }> };
+        if (args[2] === "--reviewed") {
+          const done = q.questions.answered?.find((x) => x.id === args[1]);
+          if (q.questions.answered)
+            q.questions.answered = q.questions.answered.filter((x) => x.id !== args[1]);
+          for (const r of home.requirements)
+            if (done?.blocks.includes(r.id)) r.category = "NEEDS_EVERYTHING";
+        } else {
+          const asked = q.questions.open.find((x) => x.id === args[1]);
+          q.questions.open = q.questions.open.filter((x) => x.id !== args[1]);
+          if (asked && q.questions.answered)
+            q.questions.answered.push({ ...asked, answer: args[2]! });
+        }
       }
       onOutput("✔ Specification\n✔ Tests\n");
       return 0;
@@ -130,8 +158,37 @@ export async function studio(opts: StudioOptions = {}) {
     }),
     git,
   };
-  const host = await serve({ projectDir, port: 0, reader, runner, files, findings, workspace });
-  return { host, reads, runs, writes, disk, git, projectDir, url: host.url.replace(/^ws/, "http") };
+  const calls: string[][] = [];
+  const answers = opts.specgate;
+  const specgate = answers && {
+    call: async (args: readonly string[]): Promise<SpecgateAnswer> => {
+      calls.push([...args]);
+      const a = answers[args.join(" ")];
+      if (!a) throw new Error(`no answer recorded for specgate ${args.join(" ")}`);
+      return structuredClone(typeof a === "function" ? a(data) : a);
+    },
+  };
+  const host = await serve({
+    projectDir,
+    port: 0,
+    reader,
+    runner,
+    files,
+    findings,
+    workspace,
+    ...(specgate ? { specgate } : {}),
+  });
+  return {
+    host,
+    reads,
+    runs,
+    calls,
+    writes,
+    disk,
+    git,
+    projectDir,
+    url: host.url.replace(/^ws/, "http"),
+  };
 }
 
 export async function open(

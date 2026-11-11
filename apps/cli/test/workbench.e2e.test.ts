@@ -270,6 +270,13 @@ test("REQ-034 SCN-097: Spanish on Cambios, English chosen — the view is Change
     await page.waitForFunction(
       () => document.querySelector('[data-testid="status-progress"]')?.textContent === "13 de 14",
     );
+    // Cambios reads its changes once when it opens (draft-changes): that read is
+    // the view's, not the language's, so it is in before the count starts.
+    await page.waitForFunction(
+      () =>
+        ((window as never as { __studio: { rpc: { sent: Record<string, number> } } }).__studio.rpc
+          .sent["changes.get"] ?? 0) >= 1,
+    );
     const readsBefore = s.reads.length;
     const sentBefore = await page.evaluate(() => ({
       ...(window as never as { __studio: { rpc: { sent: Record<string, number> } } }).__studio.rpc

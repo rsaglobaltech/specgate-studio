@@ -4,11 +4,16 @@ import type { Pty, PtyPort, Shell } from "../ports/PtyPort.js";
 /** How many lines each terminal keeps (draft-terminal A7). */
 export const SCROLLBACK_LINES = 10_000;
 
+/** How long closing waits for a killed shell to exit before it stops waiting. */
+export const EXIT_WAIT_MS = 5_000;
+
 interface Open {
   id: string;
   name: string;
   pty: Pty;
   scrollback: Scrollback;
+  /** Settles once the shell has exited. */
+  exited: Promise<void>;
 }
 
 /**
@@ -27,6 +32,7 @@ export class Terminals {
   constructor(
     private readonly port: PtyPort,
     private readonly where: { cwd: string; shell: Shell },
+    private readonly options: { exitWaitMs?: number } = {},
   ) {}
 
   open(cols: number, rows: number): { id: string; name: string } {
@@ -35,13 +41,21 @@ export class Terminals {
     this.counters.set(this.where.shell.name, n);
     const name = `${this.where.shell.name} ${n}`;
     const pty = this.port.spawn({ cwd: this.where.cwd, cols, rows, shell: this.where.shell });
-    const t: Open = { id, name, pty, scrollback: new Scrollback(SCROLLBACK_LINES) };
+    let exited!: () => void;
+    const t: Open = {
+      id,
+      name,
+      pty,
+      scrollback: new Scrollback(SCROLLBACK_LINES),
+      exited: new Promise<void>((ok) => (exited = ok)),
+    };
     this.open_.set(id, t);
     pty.onData((data) => {
       t.scrollback.push(data);
       for (const l of this.dataListeners) l(id, data);
     });
     pty.onExit((code) => {
+      exited();
       this.open_.delete(id);
       for (const l of this.exitListeners) l(id, code);
     });
@@ -64,14 +78,24 @@ export class Terminals {
     return this.get(id).scrollback.text();
   }
 
-  close(id: string): void {
+  /** Kills the terminal's shell; settles once it has exited, or after EXIT_WAIT_MS. */
+  close(id: string): Promise<void> {
     const t = this.get(id);
     this.open_.delete(id);
     t.pty.kill();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const waited = new Promise<void>((ok) => {
+      timer = setTimeout(ok, this.options.exitWaitMs ?? EXIT_WAIT_MS);
+    });
+    return Promise.race([t.exited, waited]).finally(() => clearTimeout(timer));
   }
 
-  closeAll(): void {
-    for (const id of [...this.open_.keys()]) this.close(id);
+  /**
+   * Closes every terminal and waits for their shells to exit: on Windows a
+   * shell still running holds the project's folder.
+   */
+  async closeAll(): Promise<void> {
+    await Promise.all([...this.open_.keys()].map((id) => this.close(id)));
   }
 
   onData(listener: (id: string, data: string) => void): () => void {
