@@ -35,7 +35,7 @@ export interface ServeOptions {
   files?: ProjectFiles;
   findings?: () => Promise<Finding[]>;
   workspace?: WorkspaceWiring;
-  /** specgate's `--json` answers for the Changes view (draft-changes). */
+  /** specgate's `--json` answers for the Changes and Brief views (draft-changes, draft-brief). */
   specgate?: Pick<SpecgatePort, "call">;
   /** The Developer's terminals; the real pty and their shell when not given. */
   terminals?: TerminalWiring;
@@ -70,7 +70,9 @@ export async function serve(options: ServeOptions): Promise<Host> {
       files: options.files ?? nodeFiles(projectDir),
       ...(options.findings ? { findings: options.findings } : {}),
       ...(options.workspace ? { workspace: options.workspace } : {}),
-      ...(options.specgate ? { changes: { specgate: options.specgate } } : {}),
+      ...(options.specgate
+        ? { changes: { specgate: options.specgate }, brief: { specgate: options.specgate } }
+        : {}),
       terminals,
       port,
       ui,

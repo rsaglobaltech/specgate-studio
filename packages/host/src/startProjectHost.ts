@@ -113,6 +113,8 @@ export async function startProjectHost(
       },
     },
     setup: { port: new SpecgateSetup(cli), fs, onPath: options.onPath ?? (() => false) },
+    // The brief's checks and drafts, with --json through the CLI (draft-brief).
+    brief: { specgate: cli },
   });
   await recent.opened(projectDir);
   registry.add(projectDir, host);

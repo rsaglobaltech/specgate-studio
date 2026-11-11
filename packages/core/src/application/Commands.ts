@@ -9,7 +9,8 @@ import {
 import type { ProcessRunner } from "../ports/ProcessRunner.js";
 import type { SpecgatePort } from "../ports/SpecgatePort.js";
 import type { Finding } from "../domain/finding.js";
-import { notice, type ActionId, type HelpVars } from "../domain/help.js";
+import { notice, type ActionId, type HelpVars, type Outcome } from "../domain/help.js";
+import { briefCheckOutcome, draftWritten } from "../domain/brief.js";
 import { archivePreviewOf, archiveWritten, findingLine } from "../domain/changes.js";
 import { CI_GATE, HARNESS_CONFIG, initArgs } from "../domain/setup.js";
 
@@ -85,9 +86,18 @@ function noticed(
   }
 }
 
-/** The commands run with `--json`: the action their notice is, and what it names. */
-function answered(c: SpecgateCommand): { action: ActionId; vars: HelpVars } | null {
+/** The commands run with `--json`: the action their notice is, what it names, and how it ended. */
+function answered(c: SpecgateCommand): {
+  action: ActionId;
+  vars: HelpVars;
+  /** How it ended when its answer says it otherwise than its exit code and findings. */
+  outcome?: (data: unknown, findings: Finding[], exitCode: number) => Outcome;
+} | null {
   switch (c.name) {
+    case "brief-check":
+      return { action: "brief-check", vars: {}, outcome: briefCheckOutcome };
+    case "draft-module":
+      return { action: "draft-modules", vars: { module: c.module, agent: c.agent } };
     case "apply":
       return { action: "apply", vars: { req: c.req } };
     case "archive":
@@ -104,6 +114,7 @@ function answered(c: SpecgateCommand): { action: ActionId; vars: HelpVars } | nu
 /** What a `--json` command wrote, from its answer. */
 function writtenIn(c: SpecgateCommand, data: unknown): string[] {
   if (c.name === "archive") return archiveWritten(data);
+  if (c.name === "draft-module") return draftWritten(data);
   if (c.name === "propose-ticket") {
     const created = (data as { created?: unknown } | null)?.created;
     return Array.isArray(created)
@@ -243,7 +254,7 @@ export class Commands {
     const known = answered(command);
     if (known) {
       const vars = { ...(this.options.helpVars?.() ?? {}), ...known.vars };
-      const outcome = { exitCode, findings, written };
+      const outcome = known.outcome?.(data, findings, exitCode) ?? { exitCode, findings, written };
       this.emit({
         type: "ended",
         run,

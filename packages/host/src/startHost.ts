@@ -15,6 +15,7 @@ import {
   type Lang,
   Commands,
   checkSpecgate,
+  fromWire,
   ProjectState,
   type SpecgatePort,
   SECTIONS,
@@ -29,6 +30,7 @@ import { RPC_ERRORS, type Notifications, type ProjectOpened } from "@specgate-st
 import { attachWorkspace, type WorkspaceWiring } from "./workspace.js";
 import { attachChanges, type ChangesWiring } from "./changes.js";
 import { attachSetup, type SetupWiring } from "./setup.js";
+import { attachBrief, type BriefWiring } from "./brief.js";
 
 export interface HostOptions {
   projectDir: string;
@@ -54,6 +56,8 @@ export interface HostOptions {
   changes?: ChangesWiring;
   /** Creating or adopting a folder that is no project yet (draft-project-setup). */
   setup?: SetupWiring;
+  /** specgate's `--json` answers for the Brief view: its checks and drafts (draft-brief). */
+  brief?: BriefWiring;
 }
 
 /** The project's files, by paths relative to it with `/`. */
@@ -101,6 +105,7 @@ export async function startHost(options: HostOptions): Promise<Host> {
     : null;
   const commands = new Commands(options.runner, {
     helpVars: () => (nextReq ? { req: nextReq } : {}),
+    ...(options.brief ? { json: options.brief.specgate } : {}),
     ...changes?.commands,
   });
   // The installed specgate first: an older one reads nothing (REQ-013).
@@ -158,6 +163,8 @@ export async function startHost(options: HostOptions): Promise<Host> {
       )
     : null;
 
+  const brief = options.brief ? attachBrief(options.brief, commands, broadcast) : null;
+
   const setup = options.setup
     ? attachSetup(
         options.projectDir,
@@ -190,6 +197,13 @@ export async function startHost(options: HostOptions): Promise<Host> {
       return state.section(section as Section);
     },
     "command.run": async (params) => {
+      // A module's draft runs the project's agent: the host's, never one the wire names (draft-brief A6).
+      if (!fromWire(params as SpecgateCommand))
+        return {
+          ok: false,
+          code: "command_unknown",
+          message: 'A module is drafted with "Draft the modules", with the project\'s agent.',
+        };
       const result = await commands.run(params as SpecgateCommand);
       // What it wrote feeds sections: read them again now, not when the watcher says.
       if (result.ok)
@@ -212,7 +226,8 @@ export async function startHost(options: HostOptions): Promise<Host> {
       const lang = p.lang as Lang;
       const vars = Object.fromEntries(
         Object.entries((p.vars ?? {}) as Record<string, unknown>).filter(
-          ([k, v]) => ["req", "change", "module", "key", "q"].includes(k) && typeof v === "string",
+          ([k, v]) =>
+            ["req", "change", "module", "key", "q", "agent"].includes(k) && typeof v === "string",
         ),
       ) as HelpVars;
       return { labels: PART_LABELS[lang], explanation: explain(p.action as ActionId, lang, vars) };
@@ -224,6 +239,8 @@ export async function startHost(options: HostOptions): Promise<Host> {
       if (!insideProject(p.path) || typeof p.text !== "string" || !options.files?.write)
         throw rpcError(RPC_ERRORS.params, "not a file of the project, or no text");
       await options.files.write(p.path, p.text);
+      // The brief's checks on every save, in Problems (draft-brief REQ-072).
+      brief?.saved(p.path);
       return { path: p.path };
     },
     // What the editor shows over a file: findings and blocking questions (REQ-043, REQ-044).
@@ -235,7 +252,10 @@ export async function startHost(options: HostOptions): Promise<Host> {
       const [text, findings, questionsData] = await Promise.all([
         // The editor's unsaved text when it sends it: the actions follow the edit.
         typeof unsaved === "string" ? unsaved : files.read(path),
-        options.findings ? options.findings().catch(() => []) : Promise.resolve([]),
+        (options.findings ? options.findings().catch(() => []) : Promise.resolve([])).then(
+          // The brief's own findings are underlined too (draft-brief A3).
+          (found) => [...found, ...(brief?.findings() ?? [])],
+        ),
         checked.ok ? state.section("questions").catch(() => null) : Promise.resolve(null),
       ]);
       const open =
@@ -268,6 +288,7 @@ export async function startHost(options: HostOptions): Promise<Host> {
     ...terminals?.handlers,
     ...changes?.handlers,
     ...setup?.handlers,
+    ...brief?.handlers,
   };
 
   server.on("connection", (ws: WebSocket) => {
