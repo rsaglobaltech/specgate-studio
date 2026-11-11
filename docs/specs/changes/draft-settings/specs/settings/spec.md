@@ -44,9 +44,9 @@ The system SHALL show beside every project setting the `specgate config set` com
 
 ### Requirement: REQ-143 — The sections: agents and profiles, preferences, agent guards, quality, ALM, editor, terminal, shortcuts, appearance
 
-<!-- specgate:trace status="Needs Clarification" actor=Developer kind=functional -->
+<!-- specgate:trace actor=Developer kind=functional -->
 
-The system SHALL group Settings in nine sections, in this order — Agents and profiles, Preferences, Agent guards, Quality, ALM, Editor, Terminal, Shortcuts, Appearance — each setting under one scope; it SHALL show where a credential comes from, by the name of its environment variable, and never its value.
+The system SHALL group Settings in nine sections, in this order — Agents and profiles, Preferences, Agent guards, Quality, ALM, Editor, Terminal, Shortcuts, Appearance — each setting under one scope; every project setting of every section SHALL be saved through `specgate config set`, the studio never editing specgate's files itself; it SHALL show where a credential comes from, by the name of its environment variable, and never its value.
 
 > Brief: "Agents and profiles, preferences, agent guards, quality, ALM, editor, terminal, shortcuts, appearance."
 
@@ -67,3 +67,9 @@ The system SHALL group Settings in nine sections, in this order — Agents and p
 - GIVEN sprich open in the desktop app, its agent guards on
 - WHEN the Developer opens the section Agent guards
 - THEN the Developer sees Agent guards on, beside `specgate config set agent_guard off` and `.specgate/config.json`, and the "?" that explains what the guards refuse
+
+#### Scenario: SCN-428 — Quality saved through specgate, in the browser
+
+- GIVEN sprich open in the browser, its quality checks at the level basic
+- WHEN the Developer sets Quality to strict and saves
+- THEN the setting showed its `specgate config set` command and `harness.config.yaml` before saving, and the notice names that command, that file and the next step `specgate check`

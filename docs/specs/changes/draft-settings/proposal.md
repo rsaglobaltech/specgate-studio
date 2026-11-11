@@ -15,7 +15,8 @@ In scope (docs/briefs/phase-3-proof-and-desktop.md, module settings):
 - Each project setting names its `specgate config set` command and file, and is
   saved only through it (REQ-142).
 - The nine sections: agents and profiles, preferences, agent guards, quality,
-  ALM, editor, terminal, shortcuts, appearance (REQ-143) — waiting for Q1.
+  ALM, editor, terminal, shortcuts, appearance (REQ-143). Agents and profiles,
+  Quality and ALM ship with the specgate release that adds their keys (Q1).
 
 Out of scope:
 
@@ -27,6 +28,7 @@ Out of scope:
 
 Project settings are read and saved through `SpecgatePort` (`specgate config
 get|set --json`); user settings in the studio's own `settings.json` in the
-user's configuration folder, per operating system. specgate 0.33.2 does not say
-in JSON where a key is kept, nor offers keys for profiles, quality or ALM: both
-are asked of specgate (A6, A7, Q1).
+user's configuration folder, per operating system. specgate 0.35.0 is expected
+to say in JSON where each key lives, with a catalog of keys, and to add keys for
+profiles, quality and ALM; the studio builds against it and never edits
+specgate's files itself (A6, A7, A12, Q1).
