@@ -44,7 +44,7 @@ The system SHALL, when the project has uncommitted files that are not the specif
 
 ### Requirement: REQ-103 — Live shows each step, the agent's output, the queue, cost and tokens
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL show in Live, while a build runs, each requirement's steps with the time each took, the agent's output as it streams, the requirements still queued, and the cost and tokens spent so far.
 

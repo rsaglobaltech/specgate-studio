@@ -37,6 +37,13 @@ import type {
   Estimate,
   WaitReason,
   WaitingItem,
+  LiveLine,
+  LiveRequirement,
+  LiveState,
+  LiveStep,
+  LiveView,
+  StepResult,
+  Usage,
 } from "@specgate-studio/core";
 
 export type { CommandEvent, RunResult, Section, SectionData, SpecgateCommand };
@@ -60,6 +67,13 @@ export type {
   Uncommitted,
   WaitReason,
   WaitingItem,
+  LiveLine,
+  LiveRequirement,
+  LiveState,
+  LiveStep,
+  LiveView,
+  StepResult,
+  Usage,
 };
 
 /** What the UI may ask, and what it gets back. */
@@ -139,6 +153,8 @@ export interface Requests {
       | { req: string; choice: "stash" | "ignore" };
     result: BuildStart;
   };
+  /** What Live shows: the steps, the agent's output, the queue, cost and tokens (REQ-103). */
+  "live.get": { params: Record<string, never>; result: LiveView };
 }
 
 /** What the host tells every connected UI, unasked. */
@@ -150,6 +166,8 @@ export interface Notifications {
   "terminal.exit": { id: string; code: number };
   /** The folder changed: its new state (REQ-023). */
   "workspace.changed": { state: WorkspaceState };
+  /** What Live shows changed: every open UI sees the same (draft-build-live REQ-103). */
+  "live.changed": LiveView;
 }
 
 export interface ProjectOpened {

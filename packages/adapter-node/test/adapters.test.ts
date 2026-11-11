@@ -332,3 +332,28 @@ test("REQ-026: the settings folder of each system, and SPECGATE_STUDIO_HOME over
   assert.equal(caseInsensitivePaths("darwin"), true);
   assert.equal(caseInsensitivePaths("linux"), false);
 });
+
+test("REQ-103: the Node harness events — each requirement's lines and the queue; a file not written since the run is left out", async () => {
+  const root = tmp("sg-live-");
+  try {
+    const { NodeHarnessEvents } = await import("../src/index.js");
+    const events = new NodeHarnessEvents();
+    assert.deepEqual(await events.read(root, 0), { files: {}, queue: null }, "no run yet");
+    write(root, ".harness/events/REQ-030.jsonl", '{"t":1,"type":"message","text":"a"}\r\n');
+    write(root, ".harness/events/REQ-029.jsonl", '{"t":1,"type":"message","text":"old"}\n');
+    write(root, ".harness/events/queue.json", '{"t":5,"queue":["REQ-030"]}');
+    write(root, ".harness/events/run.lock", "{}");
+    const old = new Date(Date.now() - 3_600_000);
+    fs.utimesSync(path.join(root, ".harness/events/REQ-029.jsonl"), old, old);
+    const now = Math.floor(Date.now() / 1000) - 60;
+    const read = await events.read(root, now);
+    assert.deepEqual(Object.keys(read.files), ["REQ-030"]);
+    assert.match(read.files["REQ-030"]!, /"text":"a"/);
+    assert.equal(read.queue, '{"t":5,"queue":["REQ-030"]}');
+    // Appended: read again, with the new line.
+    fs.appendFileSync(path.join(root, ".harness/events/REQ-030.jsonl"), '{"t":2}\n');
+    assert.match((await events.read(root, now)).files["REQ-030"]!, /"t":2/);
+  } finally {
+    await rm(root);
+  }
+});

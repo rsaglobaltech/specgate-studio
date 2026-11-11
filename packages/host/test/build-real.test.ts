@@ -54,3 +54,38 @@ test("REQ-102 SCN-303 against specgate: an uncommitted file makes Build wait; co
     await remove(p.parent);
   }
 });
+
+test("REQ-103 SCN-305 against specgate: Live folds the real harness's events — REQ-000's steps with their times, the agent's output, its cost and tokens — and tells every UI", async () => {
+  const p = harnessProject();
+  const { host, ui } = await realHost(p.dir);
+  try {
+    const started = (await ui.ask<any>("build.start", { req: "REQ-000" })).result;
+    assert.equal(started.ok, true, JSON.stringify(started));
+    await endedOf(ui, "specgate harness run --req REQ-000");
+    const view = (await ui.ask<any>("live.get")).result;
+    const r = view.requirements.find((x: any) => x.req === "REQ-000");
+    assert.ok(r, JSON.stringify(view));
+    assert.equal(r.state, "pass");
+    const write = r.steps.find((s: any) => s.kind === "write");
+    assert.deepEqual(
+      [write.label, write.seconds, write.result],
+      ["test/health.test.js", 1.5, "ok"],
+    );
+    assert.ok(
+      r.steps.some((s: any) => s.kind === "gate" && s.result === "pass" && s.seconds !== null),
+      JSON.stringify(r.steps),
+    );
+    assert.ok(view.output.some((l: any) => l.text === "Reading the scenario of REQ-000"));
+    assert.equal(view.totals.cost, 0.12);
+    assert.equal(view.totals.input, 1200);
+    assert.equal(view.building, null);
+    assert.ok(
+      ui.notes.some((n) => n.method === "live.changed"),
+      "Live was told without being asked",
+    );
+  } finally {
+    ui.close();
+    await host.close();
+    await remove(p.parent);
+  }
+});

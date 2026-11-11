@@ -7,50 +7,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  Builds,
-  Commands,
-  FakeHarness,
   GIT_WRITER_CONTRACT,
   InMemoryGit,
   harnessArgs,
   notice,
   uncommittedWork,
-  type CommandEvent,
-  type SpecgateAnswer,
 } from "../src/index.js";
-import { REPORT, SPRICH_STATUS } from "./sprich-build.js";
-
-const ROOT = "/work/sprich";
-
-/** sprich's 325 uncommitted files (SCN-303): 200 in src/orders, 100 in src/web, 25 in test. */
-export function files325(): string[] {
-  return [
-    ...Array.from({ length: 200 }, (_, i) => `src/orders/f${i}.ts`),
-    ...Array.from({ length: 100 }, (_, i) => `src/web/c${i}.tsx`),
-    ...Array.from({ length: 25 }, (_, i) => `test/t${i}.test.ts`),
-  ];
-}
-
-export function sprichBuilds(uncommitted: string[] = [], agent: string | null = "claude") {
-  const answers: Record<string, SpecgateAnswer> = {
-    "harness report": { data: REPORT, findings: [], exitCode: 0 },
-    "config list": { data: { config: agent ? { agent } : {} }, findings: [], exitCode: 0 },
-  };
-  const git = new InMemoryGit({ [ROOT]: { branch: "main", uncommitted } });
-  const harness = new FakeHarness();
-  const commands = new Commands({ run: async () => 0 });
-  const events: CommandEvent[] = [];
-  commands.onEvent((e) => events.push(e));
-  const builds = new Builds({
-    specgate: { call: async (args) => answers[args.join(" ")] ?? Promise.reject(new Error("no")) },
-    sections: { section: async (s) => (s === "home" ? SPRICH_STATUS : { changes: [] }) },
-    root: ROOT,
-    git,
-    harness,
-    commands,
-  });
-  return { builds, git, harness, commands, events };
-}
+import { ROOT, files325, sprichBuilds } from "./sprich-build.js";
 
 test("REQ-102: the specification is spec.md, docs/specs/ and features/; the rest is grouped by folder, largest first (A6)", () => {
   const work = uncommittedWork([

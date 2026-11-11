@@ -10,6 +10,7 @@ import {
 import {
   NodeFileSystem,
   NodeGit,
+  NodeHarnessEvents,
   NodeStore,
   NodeWatcher,
   caseInsensitivePaths,
@@ -114,6 +115,7 @@ export async function startProjectHost(
         prefix: [specgateBin()],
         projectDir,
       }),
+      events: new NodeHarnessEvents(),
     },
     setup: { port: new SpecgateSetup(cli), fs, onPath: options.onPath ?? (() => false) },
   });

@@ -172,8 +172,13 @@ export async function startHost(options: HostOptions): Promise<Host> {
     : null;
 
   const builds = options.builds
-    ? attachBuilds(options.projectDir, options.builds, state, commands, (m) =>
-        rpcError(RPC_ERRORS.params, m),
+    ? attachBuilds(
+        options.projectDir,
+        options.builds,
+        state,
+        commands,
+        (m) => rpcError(RPC_ERRORS.params, m),
+        (view) => broadcast("live.changed", view),
       )
     : null;
 

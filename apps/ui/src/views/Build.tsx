@@ -42,7 +42,7 @@ export function Build(p: BuildProps) {
   const [unreadable, setUnreadable] = useState(false);
   const [waits, setWaits] = useState<Waits | null>(null);
   const [confirm, setConfirm] = useState<"commit" | "stash" | null>(null);
-  const [started, setStarted] = useState<string | null>(null);
+  const [started, setStarted] = useState<{ req: string; queued: boolean } | null>(null);
   const [refused, setRefused] = useState<string | null>(null);
 
   useEffect(() => {
@@ -64,7 +64,7 @@ export function Build(p: BuildProps) {
     if (r.ok) {
       setWaits(null);
       setRefused(null);
-      setStarted(r.req);
+      setStarted({ req: r.req, queued: r.queued });
     } else if (r.code === "build_waits") {
       setWaits(r);
       setRefused(null);
@@ -130,8 +130,13 @@ export function Build(p: BuildProps) {
       </div>
 
       {started && (
-        <div class="card bstarted" role="status" data-req={started}>
-          {t("build.started", { req: started })}{" "}
+        <div
+          class="card bstarted"
+          role="status"
+          data-req={started.req}
+          data-queued={started.queued ? "1" : undefined}
+        >
+          {t(started.queued ? "build.queued" : "build.started", { req: started.req })}{" "}
           <button type="button" class="btn" onClick={p.onLive}>
             {t("build.openLive")}
           </button>

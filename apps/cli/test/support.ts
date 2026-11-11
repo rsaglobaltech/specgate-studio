@@ -10,6 +10,7 @@ import * as path from "node:path";
 import { chromium, type Browser, type Page } from "playwright";
 import {
   FakeHarness,
+  InMemoryHarnessEvents,
   InMemoryFileSystem,
   InMemoryGit,
   type Finding,
@@ -159,6 +160,7 @@ export async function studio(opts: StudioOptions = {}) {
   });
   // Build's harness: a build ends when the test says (draft-build-live).
   const harness = new FakeHarness();
+  const events = new InMemoryHarnessEvents();
   const workspace = {
     fs: new InMemoryFileSystem({
       [path.join(projectDir, "docs/specs/traceability.md")]: "# Matrix\n",
@@ -184,7 +186,7 @@ export async function studio(opts: StudioOptions = {}) {
     findings,
     workspace,
     ...(specgate ? { specgate } : {}),
-    builds: { git, harness },
+    builds: { git, harness, events, pollMs: 50 },
   });
   return {
     host,
@@ -195,6 +197,7 @@ export async function studio(opts: StudioOptions = {}) {
     disk,
     git,
     harness,
+    events,
     projectDir,
     url: host.url.replace(/^ws/, "http"),
   };

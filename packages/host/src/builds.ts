@@ -4,6 +4,8 @@ import {
   type Commands,
   type GitPort,
   type GitWriter,
+  type HarnessEventsPort,
+  type LiveView,
   type Resolution,
   type SectionSource,
   type SpecgatePort,
@@ -17,6 +19,10 @@ export interface BuildsWiring {
   git?: GitPort & GitWriter;
   /** Runs `specgate harness run` (A5). */
   harness?: BuildPort;
+  /** The harness's events, which Live folds (REQ-103, A9). */
+  events?: HarnessEventsPort;
+  /** How often Live reads them while a build runs, in ms. */
+  pollMs?: number;
 }
 
 /** A requirement id from the wire. */
@@ -29,8 +35,10 @@ const reqOf = (params: unknown) => {
  * Build and Live in the host (draft-build-live): `build.get` lists what is
  * ready, its estimate and who codes (REQ-101); `build.start` builds one or
  * says why it waits, and `build.resolve` runs the commit or stash the
- * Developer confirmed, then builds (REQ-102). Each run is told as a command
- * event, with its notice; when a build ends, every section is read again.
+ * Developer confirmed, then builds (REQ-102); one more is queued (REQ-103).
+ * Each run is told as a command event, with its notice; when a build ends,
+ * every section is read again. `live.get` and `live.changed` are what Live
+ * shows, the same for every open UI (REQ-103).
  */
 export function attachBuilds(
   projectDir: string,
@@ -38,6 +46,7 @@ export function attachBuilds(
   sections: SectionSource & { fileChanged(path: string): Promise<unknown> },
   commands: Pick<Commands, "track">,
   fail: (message: string) => Error,
+  onLive: (view: LiveView) => void,
 ): {
   handlers: Record<string, (params: unknown) => Promise<unknown>>;
   close(): Promise<void>;
@@ -51,10 +60,15 @@ export function attachBuilds(
     commands,
     // What a build changed — the questions it recorded, the status — is read again.
     onEnded: () => void sections.fileChanged("*").catch(() => undefined),
+    ...(wiring.events ? { events: wiring.events } : {}),
+    ...(wiring.pollMs ? { pollMs: wiring.pollMs } : {}),
+    // Every open UI is told what Live shows: a second tab sees the same (SCN-306).
+    onLive,
   });
   return {
     handlers: {
       "build.get": () => builds.list(),
+      "live.get": () => builds.live(),
       "build.start": (params) => builds.start(reqOf(params)),
       "build.resolve": (params) => {
         const p = (params ?? {}) as { choice?: unknown; message?: unknown };

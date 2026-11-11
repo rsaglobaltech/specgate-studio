@@ -26,6 +26,7 @@ const en = {
   "build.feature": "Build a requirement",
   "build.button": "Build",
   "build.started": "{req} is building on its own branch.",
+  "build.queued": "{req} is queued: it builds when the build running now ends.",
   "build.openLive": "Open Live",
   "build.waits.title": "Build waits: {n} uncommitted files that are not the specification",
   "build.waits.why":
@@ -45,6 +46,27 @@ const en = {
   "build.message": "Commit message",
   "build.confirm": "Confirm",
   "build.cancel": "Cancel",
+  "live.intro":
+    "What the agent does while it builds: each requirement's steps with their time, its output as it writes it, what is queued, and what it has cost. Read from the harness's events in .harness/events/; every open tab sees the same.",
+  "live.building": "Building {req}",
+  "live.idle": "No build is running.",
+  "live.queue": "Queued",
+  "live.queueEmpty": "nothing queued",
+  "live.cost": "Cost so far",
+  "live.noCost": "not reported yet",
+  "live.tokens": "Tokens",
+  "live.tokensText": "{input} in · {output} out · {cache} from cache",
+  "live.steps": "Steps",
+  "live.output": "The agent's output",
+  "live.noOutput": "Nothing written yet.",
+  "live.running": "running {s} s",
+  "live.agent": "the agent is working",
+  "live.attempt": "attempt {n}",
+  "live.state.running": "building",
+  "live.state.pass": "passed",
+  "live.state.fail": "failed",
+  "live.state.question": "asked a question",
+  "live.state.stopped": "stopped",
 };
 
 const es: Record<keyof typeof en, string> = {
@@ -70,6 +92,7 @@ const es: Record<keyof typeof en, string> = {
   "build.feature": "Construir un requisito",
   "build.button": "Construir",
   "build.started": "{req} se está construyendo en su propia rama.",
+  "build.queued": "{req} está en cola: se construye cuando termine la construcción en marcha.",
   "build.openLive": "Abrir En vivo",
   "build.waits.title": "Construir espera: {n} archivos sin commit que no son la especificación",
   "build.waits.why":
@@ -89,6 +112,27 @@ const es: Record<keyof typeof en, string> = {
   "build.message": "Mensaje del commit",
   "build.confirm": "Confirmar",
   "build.cancel": "Cancelar",
+  "live.intro":
+    "Lo que hace el agente mientras construye: los pasos de cada requisito con su tiempo, su salida según la escribe, lo que está en cola y lo que ha costado. Se lee de los eventos del harness en .harness/events/; todas las pestañas abiertas ven lo mismo.",
+  "live.building": "Construyendo {req}",
+  "live.idle": "No hay ninguna construcción en marcha.",
+  "live.queue": "En cola",
+  "live.queueEmpty": "nada en cola",
+  "live.cost": "Coste hasta ahora",
+  "live.noCost": "aún sin informar",
+  "live.tokens": "Tokens",
+  "live.tokensText": "{input} de entrada · {output} de salida · {cache} de caché",
+  "live.steps": "Pasos",
+  "live.output": "La salida del agente",
+  "live.noOutput": "Aún no ha escrito nada.",
+  "live.running": "en marcha {s} s",
+  "live.agent": "el agente está trabajando",
+  "live.attempt": "intento {n}",
+  "live.state.running": "construyendo",
+  "live.state.pass": "pasó",
+  "live.state.fail": "falló",
+  "live.state.question": "hizo una pregunta",
+  "live.state.stopped": "detenido",
 };
 
 export type BuildTextKey = keyof typeof en;

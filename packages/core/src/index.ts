@@ -173,3 +173,22 @@ export type { BuildPort, BuildProcess } from "./ports/BuildPort.js";
 export { FakeHarness } from "./fakes/FakeHarness.js";
 export { Builds, type BuildsOptions } from "./application/Builds.js";
 export { GIT_WRITER_CONTRACT, type MakeGitWriter } from "./contracts/buildContracts.js";
+export {
+  OUTPUT_LIMIT,
+  foldLive,
+  foldRequirement,
+  foldUsage,
+  parseEvents,
+  queueStarted,
+  type HarnessEvent,
+  type LiveLine,
+  type LiveRequirement,
+  type LiveState,
+  type LiveStep,
+  type LiveStudio,
+  type LiveView,
+  type StepResult,
+  type Usage,
+} from "./domain/live.js";
+export type { HarnessEventsPort, HarnessEventsSnapshot } from "./ports/HarnessEventsPort.js";
+export { InMemoryHarnessEvents } from "./fakes/InMemoryHarnessEvents.js";

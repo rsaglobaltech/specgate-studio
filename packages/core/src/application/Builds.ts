@@ -12,6 +12,8 @@ import {
   type Resolution,
 } from "../domain/build.js";
 import { groupChanges, changeIds } from "../domain/changes.js";
+import { foldLive, queueStarted, type LiveView } from "../domain/live.js";
+import type { HarnessEventsPort } from "../ports/HarnessEventsPort.js";
 import type { SpecgateAnswer, SpecgatePort } from "../ports/SpecgatePort.js";
 import type { GitPort, GitWriter } from "../ports/GitPort.js";
 import type { BuildPort, BuildProcess } from "../ports/BuildPort.js";
@@ -33,6 +35,14 @@ export interface BuildsOptions {
   commands?: Pick<Commands, "track">;
   /** Told when a build ends: what it changed is read again. */
   onEnded?: (req: string) => void;
+  /** The harness's events, which Live folds (REQ-103, A9). */
+  events?: HarnessEventsPort;
+  /** Told what Live shows whenever it changes, while a build runs (REQ-103). */
+  onLive?: (view: LiveView) => void;
+  /** How often the events are read while a build runs, in ms; 250 by default. */
+  pollMs?: number;
+  /** The clock, in ms. */
+  now?: () => number;
 }
 
 /** Why Build waits, in the words REQ-102 asks for. */
@@ -62,6 +72,16 @@ const gitShown = (args: readonly string[]) => shown(args).replace(/^specgate /, 
 export class Builds {
   private current: { req: string; process: BuildProcess | null; done: Promise<unknown> } | null =
     null;
+  /** The requirements to build after the current one, in order (REQ-103). */
+  private queue: string[] = [];
+  /** A stop after this requirement was asked (REQ-105). */
+  private stopping = false;
+  /** The requirements whose build the studio ended (REQ-105). */
+  private readonly stopped = new Set<string>();
+  /** When the run Live shows started, epoch seconds; null until the studio builds. */
+  private since: number | null = null;
+  private poll: ReturnType<typeof setInterval> | null = null;
+  private shown = "";
 
   constructor(private readonly options: BuildsOptions) {}
 
@@ -117,21 +137,57 @@ export class Builds {
     const work = uncommittedWork(files);
     if (work.other.total > 0)
       return { ok: false, code: "build_waits", req, message: WAITS, waits: work.other };
-    if (this.current)
-      return {
-        ok: false,
-        code: "write_busy",
-        req,
-        message: `${shown(harnessArgs(this.current.req)!.slice(0, 4))} is running: wait for it to end.`,
-      };
-    if (work.specification.length > 0) {
-      const saved = await this.commit(req, work.specification, saveSpecification(req), [
-        { group: "specification", files: work.specification },
-      ]);
-      if (saved) return saved;
+    // One build at a time: another waits in the queue, once (REQ-103).
+    if (this.current) {
+      if (this.current.req !== req && !this.queue.includes(req)) this.queue.push(req);
+      void this.tell();
+      return { ok: true, req, queued: true };
     }
+    const saved = await this.saveSpecification(req, work.specification);
+    if (saved) return saved;
+    this.since = Math.floor(this.now() / 1000);
+    this.stopped.clear();
     this.launch(req);
     return { ok: true, req, queued: false };
+  }
+
+  /**
+   * What Live shows (REQ-103): the run the studio started — or, before it
+   * started one, the last run specgate recorded — folded from the harness's
+   * events, with the queue the studio keeps.
+   */
+  async live(): Promise<LiveView> {
+    const root = this.options.root ?? "";
+    const read = this.options.events
+      ? await this.options.events.read(root, this.since ?? 0).catch(() => null)
+      : null;
+    const since = this.since ?? queueStarted(read?.queue ?? null) ?? 0;
+    return foldLive(read?.files ?? {}, since, {
+      building: this.current?.req ?? null,
+      queue: this.queue,
+      stopping: this.stopping,
+      stopped: this.stopped,
+    });
+  }
+
+  /** Live is told, when what it shows changed. */
+  private async tell(): Promise<void> {
+    if (!this.options.onLive) return;
+    const view = await this.live();
+    const text = JSON.stringify(view);
+    if (text === this.shown) return;
+    this.shown = text;
+    this.options.onLive(view);
+  }
+
+  private now(): number {
+    return this.options.now?.() ?? Date.now();
+  }
+
+  /** The uncommitted specification, committed before the agent's branch is cut (A6). */
+  private async saveSpecification(req: string, files: string[]): Promise<BuildStart | null> {
+    if (files.length === 0) return null;
+    return this.commit(req, files, saveSpecification(req), [{ group: "specification", files }]);
   }
 
   /**
@@ -176,10 +232,14 @@ export class Builds {
     while (this.current) await this.current.done;
   }
 
-  /** The host closes: the build it started is stopped, and waited for. */
+  /** The host closes: the build it started is stopped, and waited for; nothing queued starts. */
   async close(): Promise<void> {
+    this.queue = [];
+    this.stopping = true;
     await this.current?.process?.stop();
     await this.idle();
+    if (this.poll) clearInterval(this.poll);
+    this.poll = null;
   }
 
   private async refusal(req: string): Promise<BuildStart | null> {
@@ -280,6 +340,12 @@ export class Builds {
       done: Promise.resolve(),
     };
     this.current = me;
+    // Live is read while it builds: the agent writes its events as it works (A9).
+    if (this.options.onLive && !this.poll) {
+      this.poll = setInterval(() => void this.tell(), this.options.pollMs ?? 250);
+      this.poll.unref?.();
+    }
+    void this.tell();
     // Shown as the person would type it: `--format json` is the studio's, like `--json`.
     me.done = commands
       .track(shown(args.slice(0, 4)), false, async (output): Promise<Tracked> => {
@@ -287,10 +353,30 @@ export class Builds {
         const { exitCode, stdout } = await me.process.done;
         return { ...this.outcome(req, exitCode, stdout), action: "build", vars: { req } };
       })
-      .finally(() => {
-        if (this.current === me) this.current = null;
-        this.options.onEnded?.(req);
-      });
+      .finally(() => this.ended(me));
+  }
+
+  /**
+   * A build ended: the next queued one starts — unless a stop was asked
+   * (REQ-105) — and Live is told one last time once none runs.
+   */
+  private async ended(me: { req: string }): Promise<void> {
+    this.options.onEnded?.(me.req);
+    const next = this.stopping ? undefined : this.queue.shift();
+    if (this.stopping) this.queue = [];
+    this.stopping = false;
+    // It stays the current build until the next one starts: another Build is queued meanwhile.
+    if (next) {
+      const files = (await this.options.git?.uncommitted(this.options.root ?? "")) ?? [];
+      const saved = await this.saveSpecification(next, uncommittedWork(files).specification);
+      // A commit that failed is told; what is queued after it waits for the Developer.
+      if (!saved) return this.launch(next);
+      this.queue = [];
+    }
+    if (this.current === me) this.current = null;
+    if (this.poll) clearInterval(this.poll);
+    this.poll = null;
+    await this.tell();
   }
 
   /** How a build ended (help REQ-063): passed, how it ended otherwise, or specgate's refusal. */

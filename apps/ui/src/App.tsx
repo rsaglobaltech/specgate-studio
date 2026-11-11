@@ -26,6 +26,7 @@ import { VirtualList } from "./VirtualList.js";
 import { HelpButton, HelpDialog, NoticeToast, type HelpRequest } from "./Help.js";
 import { Changes } from "./views/Changes.js";
 import { Build } from "./views/Build.js";
+import { Live } from "./views/Live.js";
 import { loadSettings, saveSettings, type Theme } from "./settings.js";
 import Questions from "./views/Questions.js";
 import { AdoptedAreas, SetupNext, SetupPane, type SetupStep } from "./Setup.js";
@@ -595,6 +596,7 @@ export function App({ rpc }: { rpc: Rpc }) {
                     onLive={() => show("live")}
                   />
                 }
+                liveView={<Live rpc={rpc} lang={lang} />}
                 traceFilter={traceFilter}
               />
             )}
@@ -851,8 +853,9 @@ interface ViewProps {
   reportTotal: number | undefined;
   onCheck: () => void;
   onHelp: (r: HelpRequest) => void;
-  /** Build (draft-build-live). */
+  /** Build and Live (draft-build-live). */
   buildView: JSX.Element;
+  liveView: JSX.Element;
   traceFilter: string;
 }
 
@@ -987,6 +990,13 @@ function View(p: ViewProps) {
         <>
           {title}
           {p.buildView}
+        </>
+      );
+    case "live":
+      return (
+        <>
+          {title}
+          {p.liveView}
         </>
       );
     case "traceability": {

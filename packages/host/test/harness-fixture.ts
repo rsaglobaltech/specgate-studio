@@ -9,7 +9,7 @@ import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { NodeGit } from "@specgate-studio/adapter-node";
+import { NodeGit, NodeHarnessEvents } from "@specgate-studio/adapter-node";
 import { SpecgateCli, specgateBin } from "@specgate-studio/adapter-specgate-cli";
 import { NodeBuildRunner, NodeProcessRunner, startHost } from "../src/index.js";
 import { client } from "./rpc.js";
@@ -162,7 +162,13 @@ export async function realHost(dir: string) {
     reader: cli,
     runner: new NodeProcessRunner(opts),
     port: 0,
-    builds: { specgate: cli, git: new NodeGit(), harness: new NodeBuildRunner(opts) },
+    builds: {
+      specgate: cli,
+      git: new NodeGit(),
+      harness: new NodeBuildRunner(opts),
+      events: new NodeHarnessEvents(),
+      pollMs: 100,
+    },
   });
   return { host, ui: await client(host.url) };
 }
