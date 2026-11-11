@@ -15,10 +15,22 @@ import { serve } from "../src/index.js";
 import { close, open, studio, untilTerm, type Page } from "./support.js";
 
 /**
- * On Windows a shell, or a git or specgate read still running when the host
- * closes, lets go of the folder a moment later — seconds on a loaded runner.
+ * Removes a test's folder. On Windows a shell, or a git or specgate read still
+ * running when the host closes, lets go of the folder a moment later — seconds
+ * on a loaded runner — and `rmSync` does not retry an EBUSY from a sub-folder.
  */
-const RM = { recursive: true, force: true, maxRetries: 60, retryDelay: 500 } as const;
+async function remove(dir: string): Promise<void> {
+  for (let i = 0; ; i++) {
+    try {
+      fs.rmSync(dir, { recursive: true, force: true });
+      return;
+    } catch (e) {
+      const code = (e as NodeJS.ErrnoException).code;
+      if (i >= 60 || !["EBUSY", "EPERM", "ENOTEMPTY"].includes(code ?? "")) throw e;
+      await new Promise((r) => setTimeout(r, 500));
+    }
+  }
+}
 
 /** Long enough for the real specgate on a loaded Windows runner. */
 const SLOW = { timeout: 180_000 };
@@ -32,7 +44,7 @@ async function studioOn(dir: string) {
     url: host.url.replace(/^ws/, "http"),
     done: async (page?: Page) => {
       await close({ host }, page);
-      fs.rmSync(home, RM);
+      await remove(home);
     },
   };
 }
@@ -86,7 +98,7 @@ test(
       assert.match(await text(page, '[data-ready="agent"]'), /Claude Code/);
     } finally {
       await s.done(page);
-      fs.rmSync(parent, RM);
+      await remove(parent);
     }
   },
 );
@@ -154,7 +166,7 @@ test(
     } finally {
       await s.done(page);
       claude.restore();
-      fs.rmSync(path.dirname(dir), RM);
+      await remove(path.dirname(dir));
     }
   },
 );
@@ -186,7 +198,7 @@ test(
     } finally {
       await s.done(page);
       claude.restore();
-      fs.rmSync(path.dirname(dir), RM);
+      await remove(path.dirname(dir));
     }
   },
 );
@@ -209,7 +221,7 @@ test(
       assert.match(await text(page, '[data-next="specify"]'), /Specify a behaviour you rely on/);
     } finally {
       await s.done(page);
-      fs.rmSync(path.dirname(dir), RM);
+      await remove(path.dirname(dir));
     }
   },
 );
