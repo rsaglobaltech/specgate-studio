@@ -794,6 +794,19 @@ test("REQ-171 SCN-511: the editor's theme — titles bold near-white, the marker
         spans.some((x) => x.startsWith(t)),
       );
     });
+    // Tokenized down to the trace: Monaco colours the later lines in the background, a moment
+    // after drawing them in the editor's plain foreground.
+    await page.waitForFunction(() => {
+      const plain = getComputedStyle(document.querySelector(".monaco-editor .view-lines")!).color;
+      const trace = [...document.querySelectorAll(".monaco-editor .view-line span span")].find(
+        (x) =>
+          x.textContent
+            ?.replace(/\u00a0/g, " ")
+            .trim()
+            .startsWith("<!--"),
+      );
+      return !!trace && getComputedStyle(trace).color !== plain;
+    });
     assert.deepEqual(await color(page, "REQ-031 — Cancel an order"), ["rgb(236, 231, 222)", "700"]);
     assert.equal((await color(page, "###"))?.[0], "rgb(255, 138, 92)");
     assert.equal((await color(page, "SHALL"))?.[0], "rgb(108, 182, 255)");
