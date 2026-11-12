@@ -7,3 +7,4 @@ retire_capabilities: false
 req_range: [REQ-161, REQ-170]
 scn_range: [SCN-481, SCN-510]
 brief: docs/briefs/design-conformance.md
+approved: 2026-11-12
