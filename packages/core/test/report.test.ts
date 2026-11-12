@@ -38,14 +38,14 @@ const req = (id: string, category: string, capability: string, needs: string | n
 /** sprich (A1): pagos with 6 requirements, 2 Implemented; auth with 1; pedidos waiting for Q2. */
 const status = {
   requirements: [
-    req("REQ-001", "DONE", "pagos"),
-    req("REQ-002", "DONE", "pagos"),
-    req("REQ-003", "NEEDS_TEST", "pagos", "its test"),
-    req("REQ-004", "NEEDS_EVERYTHING", "pagos", "a test and code"),
-    req("REQ-005", "NEEDS_EVERYTHING", "pagos", "a test and code"),
-    req("REQ-006", "NEEDS_EVERYTHING", "pagos", "a test and code"),
-    req("REQ-007", "DONE", "auth"),
-    req("REQ-031", "WAITING_FOR_ANSWER", "pedidos", "an answer"),
+    req("REQ-951", "DONE", "pagos"),
+    req("REQ-952", "DONE", "pagos"),
+    req("REQ-953", "NEEDS_TEST", "pagos", "its test"),
+    req("REQ-954", "NEEDS_EVERYTHING", "pagos", "a test and code"),
+    req("REQ-955", "NEEDS_EVERYTHING", "pagos", "a test and code"),
+    req("REQ-956", "NEEDS_EVERYTHING", "pagos", "a test and code"),
+    req("REQ-957", "DONE", "auth"),
+    req("REQ-981", "WAITING_FOR_ANSWER", "pedidos", "an answer"),
   ],
 };
 const report = { total: 8, implemented: 3, requirements: [], coverage: { lines: null } };
@@ -58,12 +58,12 @@ const scenario = (requirement: string, s: string, st: string, gaps: string[] = [
 const matrix = {
   matrix: {
     scenarios: [
-      scenario("REQ-001", "SCN-001", "Implemented"),
-      scenario("REQ-002", "SCN-002", "Implemented"),
-      scenario("REQ-002", "SCN-003", "Implemented"),
-      scenario("REQ-003", "SCN-004", "Draft", ["test", "code"]),
-      scenario("REQ-004", "SCN-005", "Draft", ["test", "code"]),
-      scenario("REQ-007", "SCN-006", "Implemented"),
+      scenario("REQ-951", "SCN-951", "Implemented"),
+      scenario("REQ-952", "SCN-952", "Implemented"),
+      scenario("REQ-952", "SCN-953", "Implemented"),
+      scenario("REQ-953", "SCN-954", "Draft", ["test", "code"]),
+      scenario("REQ-954", "SCN-955", "Draft", ["test", "code"]),
+      scenario("REQ-957", "SCN-956", "Implemented"),
     ],
   },
 };
@@ -73,7 +73,7 @@ const PASSED = {
 };
 const questions = {
   questions: {
-    open: [{ id: "Q2", text: "Until when can an order be cancelled?", blocks: ["REQ-031"] }],
+    open: [{ id: "Q2", text: "Until when can an order be cancelled?", blocks: ["REQ-981"] }],
   },
 };
 const input = (over: Partial<ReportInput> = {}): ReportInput => ({
@@ -97,9 +97,9 @@ test("REQ-131 SCN-391: pagos is 2 of 6 — its scenarios proven, diff coverage 7
         quality: {
           coverage: 81,
           requirements: [
-            { requirement: "REQ-001", coverage: 70 },
-            { requirement: "REQ-002", coverage: 78 },
-            { requirement: "REQ-007", coverage: 95 },
+            { requirement: "REQ-951", coverage: 70 },
+            { requirement: "REQ-952", coverage: 78 },
+            { requirement: "REQ-957", coverage: 95 },
           ],
         },
       }),
@@ -148,10 +148,10 @@ test("REQ-131 SCN-391: pagos is 2 of 6 — its scenarios proven, diff coverage 7
   assert.deepEqual(
     view.missing.map((m) => `${m.id} ${m.category} ${m.needs}`),
     [
-      "REQ-003 NEEDS_TEST its test",
-      "REQ-004 NEEDS_EVERYTHING a test and code",
-      "REQ-005 NEEDS_EVERYTHING a test and code",
-      "REQ-006 NEEDS_EVERYTHING a test and code",
+      "REQ-953 NEEDS_TEST its test",
+      "REQ-954 NEEDS_EVERYTHING a test and code",
+      "REQ-955 NEEDS_EVERYTHING a test and code",
+      "REQ-956 NEEDS_EVERYTHING a test and code",
     ],
   );
 });
@@ -178,7 +178,7 @@ test("REQ-131: the whole project — every module, the project's line coverage a
   assert.deepEqual(view.built, { done: 3, total: 8 });
   assert.deepEqual(view.lineCoverage, { measured: true, value: 81.4 });
   assert.deepEqual(view.scenarios, { measured: true, value: { proven: 4, total: 6 } });
-  const waiting = view.missing.find((m) => m.id === "REQ-031");
+  const waiting = view.missing.find((m) => m.id === "REQ-981");
   assert.deepEqual(waiting?.question, { id: "Q2", text: "Until when can an order be cancelled?" });
 });
 
@@ -187,12 +187,12 @@ test("REQ-131: a requirement without a capability belongs to its open change's m
     input({
       status: {
         requirements: [
-          { id: "REQ-040", title: "", category: "NEEDS_EVERYTHING", change: "draft-pedidos" },
-          { id: "REQ-041", title: "", category: "DONE", change: null },
+          { id: "REQ-960", title: "", category: "NEEDS_EVERYTHING", change: "draft-pedidos" },
+          { id: "REQ-961", title: "", category: "DONE", change: null },
         ],
       },
       report: {
-        requirements: [{ requirement: "REQ-041", featureFile: "`features/auth/REQ-041.feature`" }],
+        requirements: [{ requirement: "REQ-961", featureFile: "`features/auth/REQ-961.feature`" }],
       },
     }),
   );

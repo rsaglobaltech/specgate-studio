@@ -7,22 +7,11 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
-import * as fs from "node:fs";
-import * as path from "node:path";
-import { fileURLToPath } from "node:url";
 import type { SpecgateAnswer } from "@specgate-studio/core";
 import { close, open, studio, type Page, type StudioOptions } from "./support.js";
+import { coreFixture } from "./fixtures.js";
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
-const KEYS = JSON.parse(
-  fs.readFileSync(
-    [
-      path.join(HERE, "..", "..", "..", "..", "packages/core/test/fixtures/config-keys-0.34.json"),
-      path.join(HERE, "..", "..", "..", "packages/core/test/fixtures/config-keys-0.34.json"),
-    ].find((p) => fs.existsSync(p))!,
-    "utf8",
-  ),
-) as { keys: unknown[] };
+const KEYS = coreFixture("config-keys-0.34.json") as { keys: unknown[] };
 
 /** The file specgate keeps each of sprich's settings in (specgate 0.34, REQ-505). */
 const FILE: Record<string, string> = {

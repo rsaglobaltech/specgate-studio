@@ -8,27 +8,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import * as fs from "node:fs";
-import * as path from "node:path";
-import { fileURLToPath } from "node:url";
 import type { SpecgateAnswer } from "@specgate-studio/core";
 import { browser, close, open, studio, type Page, type StudioOptions } from "./support.js";
+import { coreFixture } from "./fixtures.js";
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
-const fixture = (name: string): unknown =>
-  JSON.parse(
-    fs.readFileSync(
-      [
-        path.join(HERE, "..", "..", "..", "..", "packages/core/test/fixtures", name),
-        path.join(HERE, "..", "..", "..", "packages/core/test/fixtures", name),
-      ].find((p) => fs.existsSync(p))!,
-      "utf8",
-    ),
-  );
-const TESTS_FAILED = fixture("check-last-tests-failed-0.34.json");
+const TESTS_FAILED = coreFixture("check-last-tests-failed-0.34.json");
 const QUALITY_INIT = "specgate quality init --level strict";
 
 /** sprich (A1): pagos with 6 requirements, 2 Implemented, and auth with 1; each with its capability. */
-const PAGOS = ["REQ-001", "REQ-002", "REQ-003", "REQ-004", "REQ-005", "REQ-006"];
+const PAGOS = ["REQ-951", "REQ-952", "REQ-953", "REQ-954", "REQ-955", "REQ-956"];
 const homeRequirements = [
   ...PAGOS.map((id, i) => ({
     id,
@@ -37,7 +25,7 @@ const homeRequirements = [
     needs: i < 2 ? null : "a test and code",
     capability: "pagos",
   })),
-  { id: "REQ-007", title: "Auth", category: "DONE", needs: null, capability: "auth" },
+  { id: "REQ-957", title: "Auth", category: "DONE", needs: null, capability: "auth" },
 ];
 const matrix = {
   matrix: {
@@ -45,11 +33,11 @@ const matrix = {
     written: false,
     rows: 7,
     scenarios: [
-      { requirement: "REQ-001", scenario: "SCN-001", status: "Implemented", gaps: [] },
-      { requirement: "REQ-002", scenario: "SCN-002", status: "Implemented", gaps: [] },
-      { requirement: "REQ-003", scenario: "SCN-003", status: "Draft", gaps: ["test", "code"] },
-      { requirement: "REQ-004", scenario: "SCN-004", status: "Draft", gaps: ["test", "code"] },
-      { requirement: "REQ-007", scenario: "SCN-005", status: "Implemented", gaps: [] },
+      { requirement: "REQ-951", scenario: "SCN-951", status: "Implemented", gaps: [] },
+      { requirement: "REQ-952", scenario: "SCN-952", status: "Implemented", gaps: [] },
+      { requirement: "REQ-953", scenario: "SCN-953", status: "Draft", gaps: ["test", "code"] },
+      { requirement: "REQ-954", scenario: "SCN-954", status: "Draft", gaps: ["test", "code"] },
+      { requirement: "REQ-957", scenario: "SCN-955", status: "Implemented", gaps: [] },
     ],
   },
 };
@@ -176,7 +164,7 @@ test("REQ-131 SCN-391: pagos is 2 of 6, on the desktop — scenarios proven, dif
       await page.$$eval('[data-testid="report-missing"] .rmiss', (els) =>
         els.map((e) => e.getAttribute("data-req")),
       ),
-      ["REQ-003", "REQ-004", "REQ-005", "REQ-006"],
+      ["REQ-953", "REQ-954", "REQ-955", "REQ-956"],
     );
     // Back to the whole project.
     await page.click('[data-testid="report-module-chosen"]');

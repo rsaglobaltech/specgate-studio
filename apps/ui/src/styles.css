@@ -893,9 +893,6 @@ pre.file {
 .snav .tr[aria-current="true"] {
   color: var(--text);
 }
-.settings-body {
-  max-width: 900px;
-}
 .settings-bar {
   display: flex;
   align-items: center;
