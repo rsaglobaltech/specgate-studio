@@ -243,3 +243,6 @@ export {
   type RouteState,
   type RouteStep,
 } from "./domain/home.js";
+/** Opening a folder and cloning a repository when none is open (draft-workbench-v2 REQ-185). */
+export { clonePlan, repoName, type ClonePlan } from "./domain/clone.js";
+export type { FoldersPort, ProgramPort } from "./ports/FoldersPort.js";

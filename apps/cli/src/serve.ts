@@ -9,6 +9,7 @@ import {
   type SpecgatePort,
 } from "@specgate-studio/core";
 import {
+  HostRegistry,
   NodeProcessRunner,
   startHost,
   startProjectHost,
@@ -17,18 +18,29 @@ import {
   type TerminalWiring,
   type WorkspaceWiring,
   type BuildsWiring,
+  type FoldersWiring,
 } from "@specgate-studio/host";
 import { NodePty, hasProgram } from "@specgate-studio/adapter-pty-node";
 import { SpecgateCli, specgateBin } from "@specgate-studio/adapter-specgate-cli";
 import { inProcessSpecgate } from "@specgate-studio/adapter-specgate-api";
-import { NodeGit } from "@specgate-studio/adapter-node";
+import {
+  NodeFolders,
+  NodeGit,
+  NodePrograms,
+  caseInsensitivePaths,
+} from "@specgate-studio/adapter-node";
 import { nodeFiles } from "./nodeFiles.js";
 
 /** The UI bundle built by apps/ui. */
 export const UI_DIST = fileURLToPath(new URL("../../../ui/dist", import.meta.url));
 
 export interface ServeOptions {
+  /** The folder to open; with `noFolder`, none is (draft-workbench-v2 REQ-185). */
   projectDir: string;
+  /** Started with no folder open: the Explorer offers Open Folder and Clone Repository. */
+  noFolder?: boolean;
+  /** Open Folder and Clone Repository's fakes, for tests. */
+  folders?: FoldersWiring;
   /** 4180 by default (draft-core-host A2); 0 picks a free one. */
   port?: number;
   ui?: string;
@@ -64,6 +76,40 @@ export async function serve(options: ServeOptions): Promise<Host> {
     shell: shellFor(process.platform, process.env, hasProgram),
     home: os.homedir(),
   };
+  // No folder open (REQ-185): a host with nothing to read, terminals in the
+  // Developer's home, and Open Folder and Clone opening a project's own host.
+  if (options.noFolder) {
+    const registry = new HostRegistry(
+      (dir) => serve({ ...options, noFolder: false, projectDir: dir, port: 0 }),
+      caseInsensitivePaths(),
+    );
+    const folders: FoldersWiring = options.folders ?? {
+      folders: new NodeFolders(),
+      programs: new NodePrograms(),
+      open: async (dir) => ({ url: (await registry.open(dir)).url }),
+      none: true,
+    };
+    const home = folders.folders.home();
+    const host = await startHost({
+      projectDir: home,
+      reader: {
+        read: async () => {
+          throw new Error("No folder is open.");
+        },
+      },
+      runner: { run: async () => 127 },
+      terminals: { ...terminals, home },
+      port,
+      ui,
+      folders: { ...folders, none: true },
+    });
+    const close = host.close.bind(host);
+    host.close = async () => {
+      await registry.closeAll();
+      await close();
+    };
+    return host;
+  }
   const cliFor = (dir: string) =>
     new SpecgateCli({ program: process.execPath, prefix: [specgateBin()], projectDir: dir });
   if (options.reader || options.runner || options.files || options.workspace) {

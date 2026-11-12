@@ -83,6 +83,19 @@ const en = {
   "build.soon":
     "The agent builds it with `specgate harness run --req {req}` once the Build module comes (phase 2).",
   "term.new": "New terminal",
+  "nofolder.title": "No folder opened",
+  "nofolder.body": "You have not yet opened a folder.",
+  "nofolder.open": "Open Folder",
+  "nofolder.clone": "Clone Repository",
+  "nofolder.cloneLine":
+    "Clone Repository clones a repository into a folder you choose and opens it — with gh when the GitHub CLI is signed in, git otherwise; you see it run in the terminal.",
+  "chooser.up": "Up",
+  "chooser.ok": "Open this folder",
+  "chooser.cancel": "Cancel",
+  "chooser.empty": "No folders here.",
+  "clone.repo": "Repository: owner/name or its URL",
+  "clone.into": "Cloned inside this folder:",
+  "clone.ok": "Clone here",
   "term.empty": 'No terminal open. "+" or the button opens your shell in {project}.',
   "term.close": "Close",
   "term.readonly":
@@ -437,6 +450,19 @@ const es: Record<MessageKey, string> = {
   "build.soon":
     "El agente lo construye con `specgate harness run --req {req}` cuando llegue el módulo Construir (fase 2).",
   "term.new": "Nueva terminal",
+  "nofolder.title": "Ninguna carpeta abierta",
+  "nofolder.body": "Aún no has abierto ninguna carpeta.",
+  "nofolder.open": "Abrir carpeta",
+  "nofolder.clone": "Clonar repositorio",
+  "nofolder.cloneLine":
+    "Clonar repositorio clona un repositorio en la carpeta que elijas y lo abre — con gh si la CLI de GitHub tiene sesión, con git si no; lo ves ejecutarse en la terminal.",
+  "chooser.up": "Subir",
+  "chooser.ok": "Abrir esta carpeta",
+  "chooser.cancel": "Cancelar",
+  "chooser.empty": "No hay carpetas aquí.",
+  "clone.repo": "Repositorio: propietario/nombre o su URL",
+  "clone.into": "Se clona dentro de esta carpeta:",
+  "clone.ok": "Clonar aquí",
   "term.empty": "No hay ninguna terminal abierta. «+» o el botón abre tu shell en {project}.",
   "term.close": "Cerrar",
   "term.readonly":

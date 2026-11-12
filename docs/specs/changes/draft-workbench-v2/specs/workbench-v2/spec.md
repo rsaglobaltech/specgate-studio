@@ -90,7 +90,7 @@ The system SHALL show the bottom panel on every view, always, with the tabs TERM
 
 ### Requirement: REQ-185 — No folder open: "No folder opened", "Open Folder" and "Clone Repository"
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL show, when no folder is open, in the Explorer's side panel "No folder opened", a line that explains it, and the buttons "Open Folder" and "Clone Repository", each with its "?"; "Open Folder" SHALL open the chosen folder as the project, and "Clone Repository" SHALL clone a repository into a folder the Developer chooses — with `gh repo clone` when the GitHub CLI is signed in, `git clone` otherwise, the command shown in the terminal — and open it.
 

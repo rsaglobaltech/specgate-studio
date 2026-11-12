@@ -44,6 +44,13 @@ export const ACTIONS = [
   "file-delete-permanent",
   "copy-path",
   "open-terminal",
+  "folder-open",
+  "folder-clone",
+  "editor-split",
+  "editor-move",
+  "group-close",
+  "panel-position",
+  "panel-maximize",
 ] as const;
 export type ActionId = (typeof ACTIONS)[number];
 
@@ -878,6 +885,137 @@ export const HELP: Catalog = {
       notice: { ranOk: "Abierto un terminal en {path}", next: "Escribe un comando" },
     },
   },
+  "folder-open": {
+    en: {
+      does: "Opens a folder you choose as the project: its Explorer, Home and terminals, in a host of its own.",
+      command: "None: the studio's host opens {path}.",
+      files: "None: opening a folder changes no file; it joins your recent projects.",
+      doesNot: "It writes nothing in the folder, runs no specgate command and commits nothing.",
+      next: "If it is no specgate project yet, Home offers to create or adopt one.",
+      notice: { ranOk: "Opened {path}", next: "Look at Home" },
+    },
+    es: {
+      does: "Abre como proyecto la carpeta que elijas: su Explorador, su Inicio y sus terminales, en un host propio.",
+      command: "Ninguno: el host del studio abre {path}.",
+      files: "Ninguno: abrir una carpeta no cambia ningún archivo; pasa a tus proyectos recientes.",
+      doesNot:
+        "No escribe nada en la carpeta, no ejecuta ningún comando de specgate y no hace commit.",
+      next: "Si aún no es un proyecto de specgate, Inicio ofrece crearlo o adoptarlo.",
+      notice: { ranOk: "Abierta {path}", next: "Mira Inicio" },
+    },
+  },
+  "folder-clone": {
+    en: {
+      does: "Clones a repository into a folder you choose — `gh repo clone` when the GitHub CLI is signed in, `git clone` otherwise — shown in the terminal, then opens it.",
+      command: "gh repo clone {repo} {path}, or git clone <its URL> {path}",
+      files: "{path}: a new folder with the repository; nothing else.",
+      doesNot:
+        "It never clones into a folder that already exists, changes no other folder, and pushes or commits nothing.",
+      next: "Once open, Home says whether it is a specgate project.",
+      notice: { ranOk: "Cloned {repo} into {path}", next: "Look at Home" },
+    },
+    es: {
+      does: "Clona un repositorio en la carpeta que elijas — `gh repo clone` si la CLI de GitHub tiene sesión, `git clone` si no —, a la vista en la terminal, y luego lo abre.",
+      command: "gh repo clone {repo} {path}, o git clone <su URL> {path}",
+      files: "{path}: una carpeta nueva con el repositorio; nada más.",
+      doesNot:
+        "Nunca clona en una carpeta que ya exista, no cambia ninguna otra carpeta y no hace push ni commit.",
+      next: "Una vez abierto, Inicio dice si es un proyecto de specgate.",
+      notice: { ranOk: "Clonado {repo} en {path}", next: "Mira Inicio" },
+    },
+  },
+  "editor-split": {
+    en: {
+      does: "Opens the file in a new editor group on the {side} of the active one, with its own tabs; the same file in both stays one document.",
+      command: "None: the studio lays out its editors.",
+      files: "None: it writes no file; the layout is kept for this project.",
+      doesNot: "It writes no file and runs no command.",
+      next: "Ctrl/Cmd+1, 2 or 3 focuses a group; drag a splitter to resize, double-click it to even them.",
+      notice: { ranOk: "Split the editor to the {side}", next: "Ctrl/Cmd+W closes the tab" },
+    },
+    es: {
+      does: "Abre el archivo en un grupo de editores nuevo a la {side} del activo, con sus propias pestañas; el mismo archivo en los dos sigue siendo un solo documento.",
+      command: "Ninguno: el studio coloca sus editores.",
+      files: "Ninguno: no escribe ningún archivo; la disposición se guarda para este proyecto.",
+      doesNot: "No escribe ningún archivo y no ejecuta ningún comando.",
+      next: "Ctrl/Cmd+1, 2 o 3 enfoca un grupo; arrastra un separador para cambiar el tamaño, doble clic para igualarlos.",
+      notice: { ranOk: "Dividido el editor a la {side}", next: "Ctrl/Cmd+W cierra la pestaña" },
+    },
+  },
+  "editor-move": {
+    en: {
+      does: "Moves the tab to another editor group: dropped on its tab strip, or on an edge of a group to make a new one there.",
+      command: "None: the studio lays out its editors.",
+      files: "None: it writes no file.",
+      doesNot: "It writes no file, runs no command, and loses no unsaved change.",
+      next: "A group whose last tab leaves closes.",
+      notice: { ranOk: "Moved the tab", next: "Ctrl/Cmd+1, 2 or 3 focuses a group" },
+    },
+    es: {
+      does: "Mueve la pestaña a otro grupo de editores: soltada en su barra de pestañas, o en un borde de un grupo para crear uno nuevo allí.",
+      command: "Ninguno: el studio coloca sus editores.",
+      files: "Ninguno: no escribe ningún archivo.",
+      doesNot:
+        "No escribe ningún archivo, no ejecuta ningún comando y no pierde cambios sin guardar.",
+      next: "Un grupo cuya última pestaña sale se cierra.",
+      notice: { ranOk: "Movida la pestaña", next: "Ctrl/Cmd+1, 2 o 3 enfoca un grupo" },
+    },
+  },
+  "group-close": {
+    en: {
+      does: "Closes the editor group and its tabs; the groups beside it take its room. A tab with unsaved changes asks first.",
+      command: "None: the studio lays out its editors.",
+      files: "None: it writes no file unless you choose Save.",
+      doesNot: "It discards no unsaved change without asking and runs no command.",
+      next: "Ctrl/Cmd+\\ splits again.",
+      notice: { ranOk: "Closed the editor group", next: "Ctrl/Cmd+\\ splits again" },
+    },
+    es: {
+      does: "Cierra el grupo de editores y sus pestañas; los grupos de al lado ocupan su sitio. Una pestaña con cambios sin guardar pregunta antes.",
+      command: "Ninguno: el studio coloca sus editores.",
+      files: "Ninguno: no escribe ningún archivo salvo que elijas Guardar.",
+      doesNot: "No descarta cambios sin guardar sin preguntar y no ejecuta ningún comando.",
+      next: "Ctrl/Cmd+\\ vuelve a dividir.",
+      notice: { ranOk: "Cerrado el grupo de editores", next: "Ctrl/Cmd+\\ vuelve a dividir" },
+    },
+  },
+  "panel-position": {
+    en: {
+      does: "Moves the bottom panel — its terminals, the gate, problems — to the {side} of the editor groups; it is never hidden.",
+      command: "None: the studio lays out its panels.",
+      files: "None: it writes no file; the position is kept for this project.",
+      doesNot: "It closes no terminal, stops nothing running, and runs no command.",
+      next: "Choose Panel Position again to move it back.",
+      notice: { ranOk: "The panel is on the {side}", next: "Panel Position: Bottom puts it back" },
+    },
+    es: {
+      does: "Mueve el panel inferior — sus terminales, el gate, los problemas — a la {side} de los grupos de editores; nunca se oculta.",
+      command: "Ninguno: el studio coloca sus paneles.",
+      files: "Ninguno: no escribe ningún archivo; la posición se guarda para este proyecto.",
+      doesNot: "No cierra ninguna terminal, no detiene nada en marcha y no ejecuta ningún comando.",
+      next: "Elige de nuevo Posición del panel para devolverlo.",
+      notice: { ranOk: "El panel está a la {side}", next: "Posición del panel: abajo lo devuelve" },
+    },
+  },
+  "panel-maximize": {
+    en: {
+      does: "Maximizes the panel over the editor area, or restores it to its size.",
+      command: "None: the studio lays out its panels.",
+      files: "None: it writes no file.",
+      doesNot: "It closes no editor, loses no unsaved change and runs no command.",
+      next: "The same button restores it.",
+      notice: { ranOk: "Maximized the panel", next: "The same button restores it" },
+    },
+    es: {
+      does: "Maximiza el panel sobre el área de editores, o lo devuelve a su tamaño.",
+      command: "Ninguno: el studio coloca sus paneles.",
+      files: "Ninguno: no escribe ningún archivo.",
+      doesNot:
+        "No cierra ningún editor, no pierde cambios sin guardar y no ejecuta ningún comando.",
+      next: "El mismo botón lo restaura.",
+      notice: { ranOk: "Maximizado el panel", next: "El mismo botón lo restaura" },
+    },
+  },
 };
 
 /** What a placeholder reads as when the action has no value for it yet. */
@@ -893,11 +1031,24 @@ const UNSET: Record<string, string> = {
   command: "<command>",
   path: "<path>",
   to: "<new name>",
+  repo: "<owner/name>",
+  side: "<side>",
 };
 
 export type HelpVars = Partial<
   Record<
-    "req" | "change" | "module" | "key" | "q" | "count" | "queued" | "agent" | "path" | "to",
+    | "req"
+    | "change"
+    | "module"
+    | "key"
+    | "q"
+    | "count"
+    | "queued"
+    | "agent"
+    | "path"
+    | "to"
+    | "repo"
+    | "side",
     string
   >
 >;
@@ -1074,6 +1225,8 @@ const DONE: Record<Lang, Partial<Record<ActionId, string>>> = {
     "file-rename": "renamed",
     "file-delete": "deleted",
     "file-delete-permanent": "deleted",
+    "folder-clone": "cloned",
+    "folder-open": "opened",
   },
   es: {
     "file-new": "creado",
@@ -1081,6 +1234,8 @@ const DONE: Record<Lang, Partial<Record<ActionId, string>>> = {
     "file-rename": "renombrado",
     "file-delete": "borrado",
     "file-delete-permanent": "borrado",
+    "folder-clone": "clonado",
+    "folder-open": "abierto",
   },
 };
 

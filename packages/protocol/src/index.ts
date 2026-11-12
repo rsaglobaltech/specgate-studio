@@ -165,6 +165,20 @@ export interface Requests {
     result: Record<string, never>;
   };
   "terminal.close": { params: { id: string }; result: Record<string, never> };
+  /** Whether a folder is open, and the Developer's home (draft-workbench-v2 REQ-185). */
+  "folder.get": { params: Record<string, never>; result: { open: boolean; home: string } };
+  /** The folders inside one, for Open Folder and Clone Repository's chooser (REQ-185). */
+  "folder.browse": {
+    params: { path?: string };
+    result: { path: string; parent: string | null; folders: string[] };
+  };
+  /** Open a folder as the project, in a host of its own: its page's URL (REQ-185). */
+  "folder.open": { params: { path: string }; result: { url: string } };
+  /** Clone a repository into a chosen folder with gh or git, shown in the terminal, then open it (REQ-185). */
+  "folder.clone": {
+    params: { repo: string; parent: string };
+    result: { ok: boolean; path: string; url?: string; notice: Record<Lang, Notice> };
+  };
   /** The shell new terminals run and their folder, as the panel shows them (draft-workbench-v2 REQ-184). */
   "terminal.shell": { params: Record<string, never>; result: { name: string; folder: string } };
   "terminal.list": { params: Record<string, never>; result: Array<{ id: string; name: string }> };

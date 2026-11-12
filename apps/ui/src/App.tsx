@@ -1,3 +1,4 @@
+import { CloneDialog, FolderChooser, NoFolderPanel } from "./NoFolder.js";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { ComponentType, JSX } from "preact";
 import type { EditorPaneProps, LensAction } from "./EditorPane.js";
@@ -97,6 +98,41 @@ export function App({ rpc }: { rpc: Rpc }) {
     open: true,
     tab: "terminal",
   });
+  /** Whether a folder is open; false shows Open Folder and Clone Repository (REQ-185). */
+  const [folderOpen, setFolderOpen] = useState<boolean>(true);
+  const [choosing, setChoosing] = useState<null | "open" | "clone">(null);
+  useEffect(() => {
+    void rpc.ask("folder.get", {}).then(
+      (r) => {
+        setFolderOpen(r.open);
+        if (!r.open) setView("explorer");
+      },
+      () => undefined,
+    );
+  }, [rpc]);
+  /** Goes to the opened folder's own page (REQ-185); tests may stay to read the terminal. */
+  const goTo = (url: string) => {
+    const studio = (window as unknown as { __studio: Record<string, unknown> }).__studio;
+    studio.opening = url;
+    if (!studio.stayOnOpen) location.href = url.replace(/^ws/, "http");
+  };
+  const openFolder = (path: string) => {
+    setChoosing(null);
+    void rpc.ask("folder.open", { path }).then(
+      ({ url }) => goTo(url),
+      (e: Error) => setNotice(e.message),
+    );
+  };
+  const cloneInto = (repo: string, parent: string) => {
+    setChoosing(null);
+    pendingLabel.current = tr("nofolder.clone");
+    setPanel({ open: true, tab: "terminal" });
+    setShowStudio((n) => n + 1);
+    void rpc.ask("folder.clone", { repo, parent }).then(
+      (r) => (r.url ? goTo(r.url) : setEnded(r.notice)),
+      (e: Error) => setNotice(e.message),
+    );
+  };
   /** The shell new terminals run and their folder, beside "+" (REQ-184). */
   const [shell, setShell] = useState<{ name: string; folder: string } | null>(null);
   useEffect(() => {
@@ -198,7 +234,12 @@ export function App({ rpc }: { rpc: Rpc }) {
         () =>
           rpc.ask("workspace.get", {}).then(
             (w) => w.kind === "specgate" && setLost(true),
-            () => setLost(true),
+            // No folder open has nothing to read either (draft-workbench-v2 REQ-185).
+            () =>
+              rpc.ask("folder.get", {}).then(
+                (f) => f.open && setLost(true),
+                () => setLost(true),
+              ),
           ),
       ),
     [rpc],
@@ -600,7 +641,9 @@ export function App({ rpc }: { rpc: Rpc }) {
         {/* The menu bar: in the page in the browser; the desktop app's is the system's (REQ-172). */}
         {!DESKTOP && <MenuBar lang={lang} onFeature={(f) => runFeature(f)} />}
         <button type="button" class="search" onClick={() => setPalette("features")}>
-          <span>{tr("palette.search", { project: project || "…" })}</span>
+          <span>
+            {tr("palette.search", { project: project || (folderOpen ? "…" : "specgate studio") })}
+          </span>
           <span class="mono">{isMac ? "⌘ ⇧ P" : "Ctrl ⇧ P"}</span>
         </button>
         <span class="top-end">
@@ -646,7 +689,22 @@ export function App({ rpc }: { rpc: Rpc }) {
           ))}
         </nav>
 
-        {(view === "explorer" || sidebar) && (
+        {!folderOpen && (view === "explorer" || sidebar) && (
+          <aside class="side" aria-label={tr("nofolder.title")}>
+            <div class="shead">
+              <span>{tr("nofolder.title")}</span>
+            </div>
+            <NoFolderPanel
+              tr={tr}
+              onOpen={() => setChoosing("open")}
+              onClone={() => setChoosing("clone")}
+              onHelp={(r) =>
+                setHelp({ title: tr("help.title", { feature: r.feature }), requests: [r] })
+              }
+            />
+          </aside>
+        )}
+        {folderOpen && (view === "explorer" || sidebar) && (
           <Explorer
             rpc={rpc}
             lang={lang}
@@ -824,6 +882,18 @@ export function App({ rpc }: { rpc: Rpc }) {
               ) : (
                 <pre class="file">{texts[activeFile] ?? ""}</pre>
               )
+            ) : !folderOpen ? (
+              <div class="nofolder-main">
+                <h1>{tr("nofolder.title")}</h1>
+                <NoFolderPanel
+                  tr={tr}
+                  onOpen={() => setChoosing("open")}
+                  onClone={() => setChoosing("clone")}
+                  onHelp={(r) =>
+                    setHelp({ title: tr("help.title", { feature: r.feature }), requests: [r] })
+                  }
+                />
+              </div>
             ) : mainSection && unreadable[mainSection] ? (
               <CouldNotRead
                 tr={tr}
@@ -1042,7 +1112,9 @@ export function App({ rpc }: { rpc: Rpc }) {
                   close: tr("term.close"),
                   readonly: tr("term.readonly"),
                   openTerminal: tr("term.open"),
-                  empty: tr("term.empty", { project: project || workspace?.name || "" }),
+                  empty: tr("term.empty", {
+                    project: project || workspace?.name || shell?.folder || "~",
+                  }),
                 }}
               />
             </div>
@@ -1104,6 +1176,12 @@ export function App({ rpc }: { rpc: Rpc }) {
             });
           }}
         />
+      )}
+      {choosing === "open" && (
+        <FolderChooser rpc={rpc} tr={tr} onCancel={() => setChoosing(null)} onChoose={openFolder} />
+      )}
+      {choosing === "clone" && (
+        <CloneDialog rpc={rpc} tr={tr} onCancel={() => setChoosing(null)} onClone={cloneInto} />
       )}
       {help && (
         <HelpDialog

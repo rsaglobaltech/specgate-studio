@@ -12,3 +12,4 @@ export { killTree } from "./killTree.js";
 export { attachBrief, type BriefWiring } from "./brief.js";
 export { attachExplorer, insideProject, type ExplorerWiring } from "./explorer.js";
 export { attachHome, type HomeWiring } from "./home.js";
+export { attachFolders, type FoldersWiring } from "./folders.js";

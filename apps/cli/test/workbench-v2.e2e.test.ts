@@ -8,7 +8,12 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { close, open, type Page } from "./support.js";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import { NodeFolders } from "@specgate-studio/adapter-node";
+import { serve } from "../src/index.js";
+import { browser, close, open, type Page } from "./support.js";
 import { sprich } from "./sprich.js";
 
 const texts = (page: Page, sel: string) =>
@@ -184,5 +189,159 @@ test("REQ-187 SCN-555: notes.xyz, a kind it does not know — the generic file i
     assert.equal((await icon(page, "docs/notes.xyz"))[0], "file");
   } finally {
     await close(s, page);
+  }
+});
+
+// ── REQ-185 ─────────────────────────────────────────────────────────────
+
+/**
+ * The studio started with no folder: the Developer's folders a temporary
+ * home with `mvp/sprich-platform/sprich`; Open Folder and Clone open sprich's
+ * own host, fed by fakes; `gh` and `git` recorded, not run.
+ */
+async function noFolder(opts: { gh?: boolean } = {}) {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "studio-home-"));
+  fs.mkdirSync(path.join(home, "mvp", "sprich-platform", "sprich"), { recursive: true });
+  const runs: Array<{ program: string; args: string[]; cwd: string }> = [];
+  const opened: string[] = [];
+  const project = await sprich();
+  const host = await serve({
+    projectDir: home,
+    noFolder: true,
+    port: 0,
+    folders: {
+      folders: new NodeFolders(home),
+      programs: {
+        run: async (program, args, cwd, out) => {
+          runs.push({ program, args: [...args], cwd });
+          if (program === "gh" && args[0] === "auth") return opts.gh ? 0 : 1;
+          out("Cloning into 'sprich'...\n");
+          fs.mkdirSync(args.at(-1)!, { recursive: true });
+          return 0;
+        },
+      },
+      open: async (dir) => (opened.push(dir), { url: project.url }),
+    },
+  });
+  const page = await browser.newPage({ locale: "en-US" });
+  await page.goto(host.url.replace(/^ws/, "http"));
+  await page.waitForSelector("body[data-ready] .activity .sga");
+  return {
+    home,
+    runs,
+    opened,
+    page,
+    project,
+    close: async () => {
+      await page.close();
+      await host.close();
+      await project.host.close();
+      fs.rmSync(home, { recursive: true, force: true });
+    },
+  };
+}
+
+test('REQ-185 SCN-550: the studio with no folder — "No folder opened", Open Folder and Clone Repository, each with its "?"', async () => {
+  const s = await noFolder();
+  try {
+    await s.page.click('.sga[data-view="explorer"]');
+    const side = s.page.locator('.side [data-testid="no-folder"]');
+    await side.waitFor();
+    assert.equal(
+      (await s.page.locator(".side .shead").first().innerText()).split("\n")[0],
+      "NO FOLDER OPENED",
+    );
+    const text = await side.innerText();
+    assert.match(text, /You have not yet opened a folder\./);
+    assert.match(text, /clones? a repository into a folder you choose and opens it/i);
+    assert.equal(await side.locator('[data-act="folder-open"]').innerText(), "Open Folder");
+    assert.equal(await side.locator('[data-act="folder-clone"]').innerText(), "Clone Repository");
+    assert.equal(await side.locator(".hq").count(), 2, "a ? for each");
+    await side.locator('[data-act="folder-clone"] + .hq').click();
+    const help = s.page.locator('[role="dialog"] [data-action="folder-clone"]');
+    await help.waitFor();
+    assert.match(await help.innerText(), /gh repo clone/);
+  } finally {
+    await s.close();
+  }
+});
+
+test("REQ-185 SCN-551: Open Folder, ~/mvp/sprich-platform/sprich chosen — sprich's Explorer with its root and its Home", async () => {
+  const s = await noFolder();
+  try {
+    await s.page.click('.sga[data-view="explorer"]');
+    await s.page.click('.side [data-act="folder-open"]');
+    const chooser = s.page.locator('[role="dialog"][data-testid="folder-chooser"]');
+    await chooser.waitFor();
+    assert.equal(await chooser.locator('[data-testid="chooser-path"]').innerText(), s.home);
+    for (const name of ["mvp", "sprich-platform", "sprich"])
+      await chooser.locator(`[data-folder="${name}"]`).click();
+    await chooser.locator('[data-testid="chooser-ok"]').click();
+    await s.page.waitForURL(s.project.url);
+    await s.page.waitForSelector("body[data-ready] .activity .sga");
+    assert.deepEqual(s.opened, [path.join(s.home, "mvp", "sprich-platform", "sprich")]);
+    await s.page.click('.sga[data-view="explorer"]');
+    await s.page.waitForSelector('[data-testid="tree-root"]');
+    assert.equal(await s.page.innerText('[data-testid="tree-root"]'), "SPRICH");
+  } finally {
+    await s.close();
+  }
+});
+
+test("REQ-185 SCN-572: Clone Repository with the GitHub CLI signed in — gh repo clone into ~/mvp/sprich, shown in the terminal, then sprich opened", async () => {
+  const s = await noFolder({ gh: true });
+  try {
+    await s.page.click('.sga[data-view="explorer"]');
+    await s.page.click('.side [data-act="folder-clone"]');
+    const dialog = s.page.locator('[role="dialog"][data-testid="clone-dialog"]');
+    await dialog.waitFor();
+    await dialog.locator('[data-testid="clone-repo"]').fill("rsaglobaltech/sprich");
+    await dialog.locator('[data-folder="mvp"]').click();
+    await dialog.locator('[data-testid="clone-ok"]').click();
+    await s.page.waitForURL(s.project.url);
+    const dest = path.join(s.home, "mvp", "sprich");
+    assert.deepEqual(
+      s.runs.map((r) => [r.program, ...r.args]),
+      [
+        ["gh", "auth", "status"],
+        ["gh", "repo", "clone", "rsaglobaltech/sprich", dest],
+      ],
+    );
+    assert.equal(s.runs[1]!.cwd, path.join(s.home, "mvp"));
+    assert.deepEqual(s.opened, [dest]);
+  } finally {
+    await s.close();
+  }
+});
+
+test("REQ-185: Clone without the GitHub CLI — git clone, echoed in the studio's terminal before the folder opens", async () => {
+  const s = await noFolder({ gh: false });
+  try {
+    // The page stays: the echo is read before sprich opens.
+    await s.page.evaluate(() => {
+      (window as any).__studio.stayOnOpen = true;
+    });
+    await s.page.click('.sga[data-view="explorer"]');
+    await s.page.click('.side [data-act="folder-clone"]');
+    const dialog = s.page.locator('[role="dialog"][data-testid="clone-dialog"]');
+    await dialog.locator('[data-testid="clone-repo"]').fill("rsaglobaltech/sprich");
+    await dialog.locator('[data-testid="clone-ok"]').click();
+    const dest = path.join(s.home, "sprich");
+    await s.page.waitForFunction(() => (window as any).__studio.opening);
+    assert.deepEqual(s.runs.at(-1)!.args, [
+      "clone",
+      "https://github.com/rsaglobaltech/sprich.git",
+      dest,
+    ]);
+    const text = await s.page.evaluate(() => {
+      const b = (window as any).__studio.terms.get("specgate").buffer.active;
+      const out: string[] = [];
+      for (let i = 0; i < b.length; i++) out.push(b.getLine(i).translateToString(true));
+      return out.join("\n");
+    });
+    assert.match(text, /git clone https:\/\/github\.com\/rsaglobaltech\/sprich\.git/);
+    assert.match(text, /Cloning into 'sprich'/);
+  } finally {
+    await s.close();
   }
 });
