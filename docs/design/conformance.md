@@ -144,3 +144,31 @@ Board `IDE-Nuevo.dc.html` · studio `screens/studio/setup.png`, `setup-form.png`
 
 - Matches: the five questions, the command it runs, its "?".
 - Differs: the board puts the questions on Home of an empty folder at once, as option cards (Una web / Un servicio / App móvil; stacks; Claude Code "detectado" / Codex "no instalado" / Otro comando; Básico / Estándar / Estricto), with "¿Ya tienes código? Abrir carpeta…" and "Recientes" beside it; the studio shows a next-step card, then a form of selects with the generated YAML. The board asks the quality level; the studio asks the architecture. **medium**
+
+## After draft-explorer-tree and draft-design-conformance (2026-11-12)
+
+The views again at 1440×900 against a sprich-like fake host, next to their
+boards: `docs/design/screens/after/` (after) beside `screens/studio/` (before)
+and `screens/design/` (the boards).
+
+| View | Board | After | What closed |
+|---|---|---|---|
+| Explorer and editor | `design/shell.png` | `after/shell.png` | The tree in the side panel with SPEC EXPLORER and MODULES · REQUIREMENTS above it, types, git letters and dots, the spec marked (REQ-161 … REQ-169); a REQ tab with its id and title and the breadcrumb (REQ-177) |
+| Home | `design/inicio.png` | `after/home.png` | The next step as a sentence, four counters, the route, modules, activity, the actions (REQ-173); the fonts and the block shadow (REQ-171); no empty panel or tab strip, the menu bar, the gate pill, a primary Build (REQ-172) |
+| Changes | `design/cambios.png` | `after/changes.png` | Grouped in the side panel, the chosen change beside it (REQ-175) |
+| Questions | `design/preguntas.png` | `after/questions.png` | Open, to confirm and from the agent in the side panel; the chosen question large; the status bar's count (REQ-175, REQ-172) |
+| Build | `design/construir.png` | `after/build.png` | Ready and waiting in the side panel with checkboxes and "Build N requirements"; the plan's five steps beside it (REQ-175) |
+| Live | `design/envivo.png` | `after/live.png` | Modules and queue, the requirement with its tabs and output, what needs attention — three columns (REQ-175) |
+| Palette | `design/paleta.png` | `after/palette.png` | Grouped by area, "›", Esc, the chosen feature's "[ UNDER THE HOOD ]", the footer keys (REQ-176) |
+| "?" | `design/cambios.png` (popover) | `after/help-popover.png` | A popover beside its "?", not a centred dialog (REQ-176) |
+| States | `design/estados.png` | `after/states-offline.png` | Reconnecting banner and grey status bar; loading shape; "could not read" with file and line; failures that stay with Retry (REQ-178) |
+| New project | `design/nuevo.png` | `after/nuevo.png` | The five questions as cards on Home, "Already have code?", recent projects (REQ-174) |
+| Help | — | `after/help.png` | The catalogue of every "?", searchable, in English and Spanish (REQ-179) |
+
+Still different, on purpose or for lack of data:
+
+- The agent panel of the shell board is a draft of its own (design-conformance Q1).
+- The desktop app's menu is the operating system's (Q2): only the browser draws the bar.
+- The empty folder asks the architecture, as REQ-111 does, not the board's quality level (A10).
+- Traceability, Report and Settings wait for phase 3's drafts.
+- Cards keep 4 px corners as REQ-171 says; the boards draw some at 6 px.

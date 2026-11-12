@@ -15,6 +15,8 @@ export interface GitPort {
   changes?(root: string): Promise<Record<string, string> | null>;
   /** Of these paths (relative, `/`), those git ignores — wildcards and `!` included (A18). */
   ignored?(root: string, paths: readonly string[]): Promise<Set<string>>;
+  /** The last `n` commits, newest first: when (epoch seconds) and their subject (REQ-173, A9). */
+  log?(root: string, n: number): Promise<Array<{ at: number; subject: string }> | null>;
 }
 
 /**

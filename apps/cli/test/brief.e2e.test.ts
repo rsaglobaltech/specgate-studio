@@ -113,7 +113,11 @@ test('REQ-072 SCN-213: on the desktop, "Shipping is free above some amount" save
     assert.match(text, /Give the number and its unit/);
     assert.match(text, new RegExp(`docs/brief\\.md:${line}`));
     assert.equal(s.disk["docs/brief.md"], vague, "the file is saved as written");
-    assert.deepEqual(s.calls, [["propose", "--from-brief", "--check", "--brief", "docs/brief.md"]]);
+    // The brief's own reads (Home reads the changes and the agent's cost beside it).
+    assert.deepEqual(
+      s.calls.filter((c) => c[0] === "propose"),
+      [["propose", "--from-brief", "--check", "--brief", "docs/brief.md"]],
+    );
     // And underlined in the editor at that line (draft-editor REQ-043).
     await page.waitForFunction(
       (l) =>
@@ -147,7 +151,7 @@ test('REQ-072 SCN-214: in the browser, the rule rewritten as "Shipping is free a
     );
     await page.waitForSelector('[data-panel="problems"] [data-empty]');
     assert.equal(await page.$('[data-panel="problems"] [data-code="B6_unmeasured"]'), null);
-    assert.equal(s.calls.length, 2, "one check per save");
+    assert.equal(s.calls.filter((c) => c[0] === "propose").length, 2, "one check per save");
   } finally {
     await close(s, page);
   }

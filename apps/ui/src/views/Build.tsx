@@ -44,6 +44,8 @@ export function Build(p: BuildProps) {
   const [confirm, setConfirm] = useState<"commit" | "stash" | null>(null);
   const [started, setStarted] = useState<{ req: string; queued: boolean } | null>(null);
   const [refused, setRefused] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [chosen, setChosen] = useState<ReadonlySet<string>>(new Set());
 
   useEffect(() => {
     let live = true;
@@ -90,14 +92,35 @@ export function Build(p: BuildProps) {
       { action: "build", feature: t("build.req", { req }), vars: { req } },
     ]);
 
+  const chosenReady = list.ready.filter((r) => chosen.has(r.id));
+  const shown =
+    list.ready.find((r) => r.id === (selected ?? p.focus)) ??
+    list.waiting.find((w) => w.id === (selected ?? p.focus)) ??
+    list.ready[0] ??
+    list.waiting[0] ??
+    null;
+  const buildChosen = () => {
+    // One after the other: the host queues them in this order (REQ-101).
+    for (const r of chosenReady) start(r.id);
+    setChosen(new Set());
+  };
+
   return (
-    <div class="build" data-agent={list.agent ?? ""}>
-      <p class="muted">{t("build.intro")}</p>
-      <div class="cards">
-        <div class="card" data-testid="build-agent">
+    <div class="split build" data-view="build" data-agent={list.agent ?? ""}>
+      <aside class="side" aria-label={t("build.side")}>
+        <div class="shead">
+          <h1 class="shead-h">{t("build.side")}</h1>
+          <HelpButton
+            label={t("build.help")}
+            onOpen={() =>
+              p.onHelp(t("build.feature"), [{ action: "build", feature: t("build.feature") }])
+            }
+          />
+        </div>
+        <div class="bwho" data-testid="build-agent">
           <div class="k">{t("build.agent")}</div>
           {list.agent ? (
-            <div class="v mono" title={list.agentCommand ?? ""}>
+            <div class="field mono" title={list.agentCommand ?? ""}>
               {list.agent}
             </div>
           ) : (
@@ -116,84 +139,137 @@ export function Build(p: BuildProps) {
             </div>
           )}
         </div>
-        <div class="card" data-testid="build-estimate">
-          <div class="k">{t("build.estimate")}</div>
-          <div class="v" style="font-size:16px">
-            <EstimateText estimate={list.estimate} t={t} />
-          </div>
-          {list.estimate && list.estimate.runs > 0 && (
-            <div class="muted" style="font-size:12px">
-              {t("build.estimateFrom", { runs: list.estimate.runs })}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {started && (
-        <div
-          class="card bstarted"
-          role="status"
-          data-req={started.req}
-          data-queued={started.queued ? "1" : undefined}
-        >
-          {t(started.queued ? "build.queued" : "build.started", { req: started.req })}{" "}
-          <button type="button" class="btn" onClick={p.onLive}>
-            {t("build.openLive")}
+        <div class="sgroup">{t("build.readyGroup")}</div>
+        {list.ready.length === 0 && <p class="muted side-empty">{t("build.noneReady")}</p>}
+        <ul class="breqs" data-group="ready">
+          {list.ready.map((r) => (
+            <ReadyRow
+              key={r.id}
+              r={r}
+              focus={p.focus === r.id}
+              current={shown?.id === r.id}
+              chosen={chosen.has(r.id)}
+              estimate={list.estimate}
+              agent={list.agent}
+              t={t}
+              onSelect={() => setSelected(r.id)}
+              onChoose={(on) =>
+                setChosen((c) => {
+                  const next = new Set(c);
+                  if (on) next.add(r.id);
+                  else next.delete(r.id);
+                  return next;
+                })
+              }
+              onBuild={() => start(r.id)}
+              onHelp={() => help(r.id)}
+            />
+          ))}
+        </ul>
+        <div class="sgroup">{t("build.waitingGroup")}</div>
+        <ul class="breqs" data-group="waiting">
+          {list.waiting.map((w) => (
+            <WaitingRow
+              key={w.id}
+              w={w}
+              t={t}
+              current={shown?.id === w.id}
+              onSelect={() => setSelected(w.id)}
+            />
+          ))}
+        </ul>
+        <div class="grow" />
+        <div class="bfoot">
+          <button
+            type="button"
+            class="btn pri wide"
+            data-act="build-chosen"
+            disabled={chosenReady.length === 0 || !list.agent}
+            onClick={buildChosen}
+          >
+            {t(chosenReady.length === 1 ? "build.chosenOne" : "build.chosen", {
+              n: chosenReady.length,
+            })}
           </button>
+          {!list.agent && <p class="warn-text">{t("build.noAgent")}</p>}
         </div>
-      )}
-      {refused && (
-        <p class="setup-problem" role="alert">
-          {refused}
-        </p>
-      )}
-      {waits && (
-        <WaitsPanel
-          waits={waits}
-          t={t}
-          onChoose={setConfirm}
-          onHelp={(action, feature) =>
-            p.onHelp(feature, [{ action, feature, vars: { req: waits.req } }])
-          }
-        />
-      )}
-      {waits && confirm && (
-        <Confirm
-          kind={confirm}
-          waits={waits}
-          t={t}
-          onCancel={() => setConfirm(null)}
-          onConfirm={(message) => resolve(confirm, message)}
-        />
-      )}
+      </aside>
 
-      <h2 class="qhead">{t("build.ready", { n: list.ready.length })}</h2>
-      {list.ready.length === 0 && <p class="muted">{t("build.noneReady")}</p>}
-      <ul class="breqs" data-group="ready">
-        {list.ready.map((r) => (
-          <ReadyRow
-            key={r.id}
-            r={r}
-            focus={p.focus === r.id}
-            estimate={list.estimate}
-            agent={list.agent}
+      <div class="detail">
+        {started && (
+          <div
+            class="card bstarted"
+            role="status"
+            data-req={started.req}
+            data-queued={started.queued ? "1" : undefined}
+          >
+            {t(started.queued ? "build.queued" : "build.started", { req: started.req })}{" "}
+            <button type="button" class="btn" onClick={p.onLive}>
+              {t("build.openLive")}
+            </button>
+          </div>
+        )}
+        {refused && (
+          <p class="setup-problem" role="alert">
+            {refused}
+          </p>
+        )}
+        {waits && (
+          <WaitsPanel
+            waits={waits}
             t={t}
-            onBuild={() => start(r.id)}
-            onHelp={() => help(r.id)}
+            onChoose={setConfirm}
+            onHelp={(action, feature) =>
+              p.onHelp(feature, [{ action, feature, vars: { req: waits.req } }])
+            }
           />
-        ))}
-      </ul>
-
-      {list.waiting.length > 0 && (
-        <>
-          <h2 class="qhead">{t("build.waiting", { n: list.waiting.length })}</h2>
-          <ul class="breqs" data-group="waiting">
-            {list.waiting.map((w) => (
-              <WaitingRow key={w.id} w={w} t={t} />
-            ))}
-          </ul>
-        </>
-      )}
+        )}
+        {waits && confirm && (
+          <Confirm
+            kind={confirm}
+            waits={waits}
+            t={t}
+            onCancel={() => setConfirm(null)}
+            onConfirm={(message) => resolve(confirm, message)}
+          />
+        )}
+        {shown && (
+          <section class="card bplan" data-req={shown.id}>
+            <div class="detail-head">
+              <h2 class="syne">
+                {shown.id} · {shown.title}
+              </h2>
+              <span class="muted">{t("build.planSub")}</span>
+            </div>
+            {"why" in shown ? (
+              <p class="muted">
+                {(shown as WaitingItem).why === "question"
+                  ? t("build.why.question", { q: (shown as WaitingItem).question ?? "?" })
+                  : (shown as WaitingItem).why === "review"
+                    ? t("build.why.review", { change: shown.change ?? "" })
+                    : t("build.why.scenario")}
+              </p>
+            ) : (
+              <div class="bsteps">
+                {(["branch", "agent", "gate", "apply", "commit"] as const).map((k, i) => (
+                  <div class="bstep" key={k} data-step={k}>
+                    <div class="mono bstep-k">
+                      {i + 1} · {t(`build.step.${k}`)}
+                    </div>
+                    <div>{t(`build.step.${k}.what`, { req: shown.id })}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div class="muted best-line" data-testid="build-estimate">
+              {t("build.estimate")}: <EstimateText estimate={list.estimate} t={t} />
+              {list.estimate && list.estimate.runs > 0 && (
+                <span> · {t("build.estimateFrom", { runs: list.estimate.runs })}</span>
+              )}
+            </div>
+          </section>
+        )}
+      </div>
     </div>
   );
 }
@@ -214,43 +290,70 @@ function EstimateText(props: { estimate: Estimate | null; t: T }) {
 function ReadyRow(props: {
   r: BuildItem;
   focus: boolean;
+  current: boolean;
+  chosen: boolean;
   estimate: Estimate | null;
   agent: string | null;
   t: T;
+  onSelect: () => void;
+  onChoose: (on: boolean) => void;
   onBuild: () => void;
   onHelp: () => void;
 }) {
   const { r, t } = props;
+  const minutes = props.estimate?.minutes;
   return (
-    <li class="card breq" data-req={r.id} data-focus={props.focus ? "1" : undefined}>
-      <div class="bline">
-        <b class="mono">{r.id}</b>
-        <span>{r.title}</span>
-        {r.change && <span class="muted mono">{r.change}</span>}
-      </div>
-      <div class="bline muted">
-        <span class="best">
+    <li
+      class="tr breq"
+      data-req={r.id}
+      data-focus={props.focus ? "1" : undefined}
+      aria-current={props.current ? "true" : undefined}
+      onClick={props.onSelect}
+    >
+      <input
+        type="checkbox"
+        aria-label={t("build.choose", { req: r.id })}
+        checked={props.chosen}
+        onClick={(e) => e.stopPropagation()}
+        onChange={(e) => props.onChoose((e.target as HTMLInputElement).checked)}
+      />
+      <span class="rid">
+        <span class="sr">REQ-</span>
+        {r.id.replace(/^REQ-/, "")}
+      </span>
+      <span class="name">{r.title}</span>
+      <span class="right best">
+        {minutes != null ? (
+          <>
+            <span aria-hidden="true">~{minutes} min</span>
+            <span class="sr">
+              <EstimateText estimate={props.estimate} t={t} />
+            </span>
+          </>
+        ) : (
           <EstimateText estimate={props.estimate} t={t} />
-        </span>
-        <span class="bagent mono" data-agent={props.agent ?? ""}>
-          {props.agent ?? "—"}
-        </span>
-        <button
-          type="button"
-          class="btn pri"
-          data-act="build"
-          disabled={!props.agent}
-          onClick={props.onBuild}
-        >
-          {t("build.button")}
-        </button>
-        <HelpButton label={`? ${t("build.req", { req: r.id })}`} onOpen={props.onHelp} />
-      </div>
+        )}
+      </span>
+      <span class="bagent mono" data-agent={props.agent ?? ""} hidden>
+        {props.agent ?? "—"}
+      </span>
+      <button
+        type="button"
+        class="play"
+        data-act="build"
+        title={t("build.req", { req: r.id })}
+        aria-label={t("build.req", { req: r.id })}
+        disabled={!props.agent}
+        onClick={(e) => (e.stopPropagation(), props.onBuild())}
+      >
+        ▶
+      </button>
+      <HelpButton label={`? ${t("build.req", { req: r.id })}`} onOpen={props.onHelp} />
     </li>
   );
 }
 
-function WaitingRow(props: { w: WaitingItem; t: T }) {
+function WaitingRow(props: { w: WaitingItem; t: T; current: boolean; onSelect: () => void }) {
   const { w, t } = props;
   const why =
     w.why === "question"
@@ -259,12 +362,25 @@ function WaitingRow(props: { w: WaitingItem; t: T }) {
         ? t("build.why.review", { change: w.change ?? "" })
         : t("build.why.scenario");
   return (
-    <li class="card breq" data-req={w.id} data-why={w.why} data-question={w.question ?? undefined}>
-      <div class="bline">
-        <b class="mono">{w.id}</b>
-        <span>{w.title}</span>
-      </div>
-      <div class="muted">{why}</div>
+    <li
+      class="tr breq"
+      data-req={w.id}
+      data-why={w.why}
+      data-question={w.question ?? undefined}
+      aria-current={props.current ? "true" : undefined}
+      title={why}
+      onClick={props.onSelect}
+    >
+      <span class="dot waiting" />
+      <span class="rid">
+        <span class="sr">REQ-</span>
+        {w.id.replace(/^REQ-/, "")}
+      </span>
+      <span class="name">{w.title}</span>
+      <span class="right">
+        {w.why === "question" ? (w.question ?? "?") : t(`build.short.${w.why}`)}
+      </span>
+      <span class="sr">{why}</span>
     </li>
   );
 }

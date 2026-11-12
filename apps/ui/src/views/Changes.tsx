@@ -42,6 +42,7 @@ export function Changes(p: ChangesProps) {
   const [unreadable, setUnreadable] = useState(false);
   const [archive, setArchive] = useState<{ command: string; preview: ArchivePreview } | null>(null);
   const [ticketOpen, setTicketOpen] = useState(p.ticketPanel);
+  const [selected, setSelected] = useState<string | null>(null);
 
   useEffect(() => setTicketOpen((o) => o || p.ticketPanel), [p.ticketPanel]);
   useEffect(() => {
@@ -161,109 +162,146 @@ export function Changes(p: ChangesProps) {
     </div>
   );
 
+  // The change shown beside the list: the one chosen, else the first to review (REQ-175).
+  const all = view ? GROUPS.flatMap((g) => view.groups[g]) : [];
+  const shown = all.find((c) => c.id === selected) ?? all[0] ?? null;
+
   return (
-    <>
-      <div class="actions" style="margin-bottom:12px">
-        <button
-          type="button"
-          class="btn"
-          data-action="from-ticket"
-          onClick={() => setTicketOpen(true)}
-        >
-          {t("ticket.open")}
-        </button>
-      </div>
-      {ticketOpen && (
-        <TicketPanel
-          rpc={p.rpc}
-          lang={p.lang}
-          run={p.run}
-          onHelp={p.onHelp}
-          onClose={() => setTicketOpen(false)}
-        />
-      )}
-      {unreadable && <p class="muted">{t("changes.unreadable")}</p>}
-      {view &&
-        GROUPS.map((g) => (
-          <section key={g} class="cgroup" data-group={g} style="margin-bottom:16px">
-            <h2 style="font-size:14px;margin:0 0 8px">
-              {t(`group.${g}`, { n: view.groups[g].length })}
-            </h2>
-            {view.groups[g].length === 0 ? (
-              <p class="muted" style="margin:0">
-                {t("group.none")}
-              </p>
-            ) : (
-              view.groups[g].map(card)
-            )}
-          </section>
-        ))}
-      {archive && (
-        <div class="scrim" onClick={() => setArchive(null)}>
-          <div
-            class="help archive-preview"
-            role="dialog"
-            aria-label={t("archive.title", { change: archive.preview.change })}
-            onClick={(e) => e.stopPropagation()}
+    <div class="split" data-view="changes">
+      <aside class="side" aria-label={t("side.title")}>
+        <div class="shead">
+          <h1 class="shead-h">{t("side.title")}</h1>
+          <button
+            type="button"
+            class="btn small"
+            data-action="from-ticket"
+            onClick={() => setTicketOpen(true)}
           >
-            <h2>{t("archive.title", { change: archive.preview.change })}</h2>
-            <p>{t("archive.body", { command: archive.command })}</p>
-            {[...KINDS, "other" as const].map((kind) => {
-              const files = archive.preview.writes.filter((w) =>
-                kind === "other" ? !(KINDS as readonly string[]).includes(w.kind) : w.kind === kind,
-              );
-              return files.length === 0 ? null : (
-                <section key={kind} data-kind={kind}>
-                  <h3>{t(`archive.kind.${kind}`)}</h3>
+            {t("side.new")}
+          </button>
+        </div>
+        {unreadable && <p class="muted side-note">{t("changes.unreadable")}</p>}
+        {view &&
+          GROUPS.map((g) => (
+            <section key={g} class="cgroup" data-group={g}>
+              <h2 class="sgroup">{t(`group.${g}`, { n: view.groups[g].length })}</h2>
+              {view.groups[g].length === 0 ? (
+                <p class="muted side-empty">{t("group.none")}</p>
+              ) : (
+                view.groups[g].map((c) => {
+                  const applied = c.requirements.filter((r) => r.applied).length;
+                  return (
+                    <button
+                      type="button"
+                      class="tr crow change"
+                      key={c.id}
+                      data-change={c.id}
+                      aria-current={shown?.id === c.id ? "true" : undefined}
+                      onClick={() => setSelected(c.id)}
+                    >
+                      <span class={`dot ${g}`} />
+                      <span class="name">{c.id}</span>
+                      <span class={`right ${g === "ready" ? "ok" : g === "review" ? "warn" : ""}`}>
+                        {g === "review" ? t("side.draft") : `${applied}/${c.requirements.length}`}
+                      </span>
+                    </button>
+                  );
+                })
+              )}
+            </section>
+          ))}
+        <p class="side-note dashed">{t("side.note")}</p>
+      </aside>
+      <div class="detail">
+        {ticketOpen && (
+          <TicketPanel
+            rpc={p.rpc}
+            lang={p.lang}
+            run={p.run}
+            onHelp={p.onHelp}
+            onClose={() => setTicketOpen(false)}
+          />
+        )}
+        {shown ? (
+          <>
+            <div class="detail-head">
+              <h2 class="syne">{shown.id}</h2>
+              <span class="muted">{t(`side.${shown.group}`)}</span>
+            </div>
+            {card(shown)}
+          </>
+        ) : (
+          view && <p class="muted">{t("side.none")}</p>
+        )}
+        {archive && (
+          <div class="scrim" onClick={() => setArchive(null)}>
+            <div
+              class="help archive-preview"
+              role="dialog"
+              aria-label={t("archive.title", { change: archive.preview.change })}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2>{t("archive.title", { change: archive.preview.change })}</h2>
+              <p>{t("archive.body", { command: archive.command })}</p>
+              {[...KINDS, "other" as const].map((kind) => {
+                const files = archive.preview.writes.filter((w) =>
+                  kind === "other"
+                    ? !(KINDS as readonly string[]).includes(w.kind)
+                    : w.kind === kind,
+                );
+                return files.length === 0 ? null : (
+                  <section key={kind} data-kind={kind}>
+                    <h3>{t(`archive.kind.${kind}`)}</h3>
+                    <ul>
+                      {files.map((w) => (
+                        <li key={w.file} class="mono">
+                          {w.file}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                );
+              })}
+              {archive.preview.deletes.length > 0 && (
+                <section data-kind="deletes">
+                  <h3>{t("archive.deletes")}</h3>
                   <ul>
-                    {files.map((w) => (
-                      <li key={w.file} class="mono">
-                        {w.file}
+                    {archive.preview.deletes.map((f) => (
+                      <li key={f} class="mono">
+                        {f}
                       </li>
                     ))}
                   </ul>
                 </section>
-              );
-            })}
-            {archive.preview.deletes.length > 0 && (
-              <section data-kind="deletes">
-                <h3>{t("archive.deletes")}</h3>
-                <ul>
-                  {archive.preview.deletes.map((f) => (
-                    <li key={f} class="mono">
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-            {archive.preview.warnings.map((w) => (
-              <p key={w.code} class="muted" data-finding={w.code}>
-                {w.code}: {w.message}
-                {w.fix ? ` ${t("fix")}: ${w.fix}` : ""}
-              </p>
-            ))}
-            <div class="actions">
-              <button
-                type="button"
-                class="btn pri"
-                data-action="confirm-archive"
-                onClick={() => {
-                  const change = archive.preview.change;
-                  setArchive(null);
-                  void p.run(t("archive.label", { change }), { name: "archive", change });
-                }}
-              >
-                {t("archive.confirm")}
-              </button>
-              <button type="button" class="btn" onClick={() => setArchive(null)}>
-                {t("archive.cancel")}
-              </button>
+              )}
+              {archive.preview.warnings.map((w) => (
+                <p key={w.code} class="muted" data-finding={w.code}>
+                  {w.code}: {w.message}
+                  {w.fix ? ` ${t("fix")}: ${w.fix}` : ""}
+                </p>
+              ))}
+              <div class="actions">
+                <button
+                  type="button"
+                  class="btn pri"
+                  data-action="confirm-archive"
+                  onClick={() => {
+                    const change = archive.preview.change;
+                    setArchive(null);
+                    void p.run(t("archive.label", { change }), { name: "archive", change });
+                  }}
+                >
+                  {t("archive.confirm")}
+                </button>
+                <button type="button" class="btn" onClick={() => setArchive(null)}>
+                  {t("archive.cancel")}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </>
+        )}
+      </div>
+    </div>
   );
 }
 

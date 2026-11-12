@@ -105,7 +105,7 @@ test('REQ-053 SCN-155: the panel closed, Check pressed — the terminal opens wi
     await ready(page);
     await hidePanel(page);
     assert.equal(await page.$eval(".panel", (e) => (e as HTMLElement).hidden), true);
-    await page.click(".actions .btn.pri");
+    await page.click('.actions [data-act="check"]');
     await untilTerm(
       page,
       "specgate",
@@ -129,7 +129,7 @@ test("REQ-053 SCN-156: a terminal busy with a running command, Check pressed —
     const id = await newTerminal(page);
     await type(page, id, tick);
     await untilTerm(page, id, /^tick$/m);
-    await page.click(".actions .btn.pri");
+    await page.click('.actions [data-act="check"]');
     await untilTerm(page, "specgate", /specgate check[\s\S]*exit 0/);
     const before = ticks(await termText(page, id));
     await page.waitForTimeout(800);
@@ -147,7 +147,7 @@ test("REQ-054 SCN-158: typing `ls` into the studio's terminal runs nothing — a
   const page = await open(s);
   try {
     await ready(page);
-    await page.click(".actions .btn.pri");
+    await page.click('.actions [data-act="check"]');
     await untilTerm(page, "specgate", /exit 0/);
     const shown = await termText(page, "specgate");
     await type(page, "specgate", "ls");

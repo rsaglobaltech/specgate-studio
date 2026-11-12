@@ -88,6 +88,10 @@ export interface StudioOptions {
   /** Empty folders of the project, and links to folders outside it (draft-explorer-tree). */
   folders?: string[];
   links?: string[];
+  /** Sections read slowly, in ms (draft-design-conformance REQ-178). */
+  slow?: Partial<Record<Section, number>>;
+  /** The port to serve on; a free one by default. */
+  port?: number;
 }
 
 export async function studio(opts: StudioOptions = {}) {
@@ -118,7 +122,14 @@ export async function studio(opts: StudioOptions = {}) {
     ...opts.sections,
   };
   const reader: SectionReader = {
-    read: async (s) => (reads.push(s), structuredClone(data[s])),
+    read: async (s) => {
+      reads.push(s);
+      const wait = opts.slow?.[s];
+      if (wait) await new Promise((ok) => setTimeout(ok, wait));
+      // A section given as an Error cannot be read (draft-design-conformance REQ-178).
+      if (data[s] instanceof Error) throw data[s];
+      return structuredClone(data[s]);
+    },
   };
   const runs: string[][] = [];
   const runner: ProcessRunner = {
@@ -246,7 +257,7 @@ export async function studio(opts: StudioOptions = {}) {
   };
   const host = await serve({
     projectDir,
-    port: 0,
+    port: opts.port ?? 0,
     reader,
     runner,
     files,
@@ -271,6 +282,7 @@ export async function studio(opts: StudioOptions = {}) {
     events,
     projectDir,
     url: host.url.replace(/^ws/, "http"),
+    newPage: () => browser.newPage({ locale: "en-US" }),
   };
 }
 

@@ -1,4 +1,10 @@
-export { SECTIONS, type Section, type SectionData } from "./domain/section.js";
+export {
+  SECTIONS,
+  unreadableOf,
+  type Section,
+  type SectionData,
+  type Unreadable,
+} from "./domain/section.js";
 export { sectionsFedBy } from "./domain/fedBy.js";
 export type { SectionReader } from "./ports/SectionReader.js";
 export { ProjectState, type ChangeListener } from "./application/ProjectState.js";
@@ -224,3 +230,16 @@ export {
   type OpenFolders,
   type TreeEntry,
 } from "./domain/explorer.js";
+export {
+  ROUTE,
+  activityOf,
+  agentCostOf,
+  briefModuleNames,
+  nextStep,
+  routeOf,
+  type Activity,
+  type HomeView,
+  type NextStep,
+  type RouteState,
+  type RouteStep,
+} from "./domain/home.js";

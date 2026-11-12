@@ -47,7 +47,7 @@ export interface ExplorerProps {
   /** Bumped when the workspace changed: git's letters are read again (REQ-163). */
   workspaceStamp: unknown;
   filterRef: { current: HTMLInputElement | null };
-  openFile: (path: string, line?: number) => void;
+  openFile: (path: string, line?: number, req?: { id: string; title: string }) => void;
   onHelp: (title: string, requests: HelpRequest[]) => void;
   onNotice: (notice: Record<Lang, Notice>) => void;
   onOpenTerminal: (cwd: string) => void;
@@ -355,7 +355,8 @@ export function Explorer(p: ExplorerProps) {
   const openRequirement = async (id: string) => {
     setCurrentReq(id);
     const at = await rpc.ask("requirement.locate", { req: id }).catch(() => null);
-    if (at) p.openFile(at.path, at.line);
+    const title = p.requirements.find((r) => r.id === id)?.title ?? "";
+    if (at) p.openFile(at.path, at.line, { id, title });
   };
 
   const specRow = (
@@ -480,7 +481,10 @@ export function Explorer(p: ExplorerProps) {
                     onClick={() => void openRequirement(r.id)}
                   >
                     <span class={`rdot ${r.state}`} />
-                    <span class="rid">{r.id.replace(/^REQ-/, "")}</span>
+                    <span class="rid">
+                      <span class="sr">REQ-</span>
+                      {r.id.replace(/^REQ-/, "")}
+                    </span>
                     <span class="name">{r.title}</span>
                   </button>
                 ))}

@@ -35,6 +35,7 @@ export const ACTIONS = [
   "build-stop-now",
   "brief-check",
   "draft-modules",
+  "doctor",
   "explorer",
   "file-new",
   "folder-new",
@@ -63,6 +64,8 @@ interface NoticeText {
   next: string;
   /** Said after what was written, when it passed. */
   after?: string;
+  /** What did not happen, when it was refused or failed: the notice's headline (REQ-178, A19). */
+  failed?: string;
 }
 
 export type Catalog = Record<ActionId, Partial<Record<Lang, Explanation & { notice: NoticeText }>>>;
@@ -174,6 +177,7 @@ export const HELP: Catalog = {
         "It does not commit or push, and it is refused while a requirement of the change is not applied.",
       next: "Then commit the archive and open its pull request.",
       notice: {
+        failed: "{change} was not archived",
         ranOk: "`{command}` merged {change} into the specification.",
         next: "specgate status",
       },
@@ -187,6 +191,7 @@ export const HELP: Catalog = {
         "No hace commit ni push, y se rechaza mientras algún requisito del cambio no esté aplicado.",
       next: "Después, haz commit del archivo y abre su pull request.",
       notice: {
+        failed: "{change} no se archivó",
         ranOk: "`{command}` fusionó {change} con la especificación.",
         next: "specgate status",
       },
@@ -201,6 +206,7 @@ export const HELP: Catalog = {
         "It does not archive: the change is archived only when you confirm the preview, and never while a requirement of it is not applied.",
       next: "Confirm the preview to run `specgate archive {change}`.",
       notice: {
+        failed: "{change} was not archived",
         ranOk: "`{command}` previewed the archive of {change}.",
         next: "specgate archive {change}",
       },
@@ -213,6 +219,7 @@ export const HELP: Catalog = {
         "No archiva: el cambio se archiva solo cuando confirmas la vista previa, y nunca mientras alguno de sus requisitos no esté aplicado.",
       next: "Confirma la vista previa para ejecutar `specgate archive {change}`.",
       notice: {
+        failed: "{change} no se archivó",
         ranOk: "`{command}` mostró la vista previa del archivo de {change}.",
         next: "specgate archive {change}",
       },
@@ -682,6 +689,33 @@ export const HELP: Catalog = {
       },
     },
   },
+  // Home's "Doctor" (draft-design-conformance REQ-173, A9).
+  doctor: {
+    en: {
+      does: "Runs every diagnostic of the project — its environment, its structure, traceability both ways, placeholders left, the specops lockfile — and prints a fix for each finding.",
+      command: "specgate doctor",
+      files: "None: no file is changed.",
+      doesNot:
+        "It fixes nothing, commits nothing and runs no test: it only says what is wrong and how to fix it.",
+      next: "Fix what it lists, then check the gate: `specgate check`.",
+      notice: {
+        ranOk: "`{command}` ran every diagnostic: what it found is in the terminal.",
+        next: "specgate check",
+      },
+    },
+    es: {
+      does: "Ejecuta todos los diagnósticos del proyecto — su entorno, su estructura, la trazabilidad en los dos sentidos, los marcadores pendientes, el lockfile de specops — y da una solución para cada hallazgo.",
+      command: "specgate doctor",
+      files: "Ninguno: no cambia ningún archivo.",
+      doesNot:
+        "No arregla nada, no hace commit y no ejecuta tests: solo dice qué falla y cómo arreglarlo.",
+      next: "Arregla lo que liste y comprueba el gate: `specgate check`.",
+      notice: {
+        ranOk: "`{command}` ejecutó todos los diagnósticos: lo que encontró está en el terminal.",
+        next: "specgate check",
+      },
+    },
+  },
   // draft-explorer-tree: the tree and its menu (REQ-168, A19). No specgate command:
   // the host writes through its file port, inside the project only.
   explorer: {
@@ -919,6 +953,8 @@ export interface Outcome {
 
 export interface Notice {
   tone: "ok" | "refused" | "failed";
+  /** For a refusal or a failure, what did not happen: "draft-pedidos was not archived" (A19). */
+  title?: string;
   /** The command, and what it did or why it stopped. */
   ran: string;
   /** What it wrote, or that it wrote nothing. */
@@ -962,8 +998,10 @@ export function notice(action: ActionId, lang: Lang, vars: HelpVars, outcome: Ou
   const all = { ...vars, command };
   const say = SAY[lang];
   const refusal = outcome.findings.find((f) => f.severity === "error");
+  const title = e.notice.failed ? { title: fill(e.notice.failed, all) } : {};
   if (refusal) {
     return {
+      ...title,
       tone: "refused",
       ran: fill(say.refused, { ...all, code: refusal.code, message: refusal.message }),
       wrote: say.nothing,
@@ -976,6 +1014,7 @@ export function notice(action: ActionId, lang: Lang, vars: HelpVars, outcome: Ou
     : say.none;
   if (outcome.ended) {
     return {
+      ...title,
       tone: "failed",
       ran: fill(say.ended, { ...all, code: outcome.ended.code, message: outcome.ended.message }),
       wrote,
@@ -985,6 +1024,7 @@ export function notice(action: ActionId, lang: Lang, vars: HelpVars, outcome: Ou
   }
   if (outcome.exitCode !== 0) {
     return {
+      ...title,
       tone: "failed",
       ran: fill(say.failed, { ...all, code: String(outcome.exitCode) }),
       wrote,

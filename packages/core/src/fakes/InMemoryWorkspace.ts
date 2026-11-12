@@ -81,6 +81,17 @@ export class InMemoryGit implements GitPort, GitWriter {
     return Object.fromEntries(repo.uncommitted.map((f) => [f, status[f] ?? " M"]));
   }
 
+  /** The commits made here, newest first (draft-design-conformance A9). */
+  async log(root: string, n: number): Promise<Array<{ at: number; subject: string }> | null> {
+    if (!this.repos[toPosix(root)]) return null;
+    return [...this.history, ...this.commits.map((c) => ({ at: 0, subject: c.message }))]
+      .reverse()
+      .slice(0, n);
+  }
+
+  /** Commits made before the test started, oldest first. */
+  readonly history: Array<{ at: number; subject: string }> = [];
+
   /** The two letters of some uncommitted files (`"??"` untracked, `"A "` added). */
   setStatus(root: string, status: Record<string, string>): void {
     this.status[toPosix(root)] = { ...this.status[toPosix(root)], ...status };

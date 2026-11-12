@@ -98,6 +98,20 @@ export class NodeGit implements GitPort, GitWriter {
     return new Set(r.out.split("\0").filter(Boolean));
   }
 
+  /** The last `n` commits, newest first (draft-design-conformance A9). */
+  async log(root: string, n: number): Promise<Array<{ at: number; subject: string }> | null> {
+    const r = await git(root, ["log", `-n${Math.max(1, Math.floor(n))}`, "--format=%ct%x1f%s%x1e"]);
+    if (r.code !== 0) return null;
+    return r.out
+      .split("\x1e")
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .map((l) => {
+        const [at, subject] = l.split("\x1f");
+        return { at: Number(at) || 0, subject: subject ?? "" };
+      });
+  }
+
   async commit(
     root: string,
     files: readonly string[],
