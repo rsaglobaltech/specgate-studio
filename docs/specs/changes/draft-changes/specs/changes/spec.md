@@ -24,7 +24,7 @@ The system SHALL list every open change of the project in the Changes view in th
 
 ### Requirement: REQ-082 — A draft's requests for change, open or addressed, and its requirements before and after
 
-<!-- specgate:trace actor=Reviewer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Reviewer kind=functional -->
 
 The system SHALL show, in a draft under review, each request for change written to its `review.md` as open or addressed, and, for each requirement a redraft changed, its text before and after the redraft side by side.
 
@@ -44,7 +44,7 @@ The system SHALL show, in a draft under review, each request for change written 
 
 ### Requirement: REQ-083 — "Draft again with N requested changes" hands the open notes to the agent
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL offer, on a draft with open requests for change, the action "Draft again with N requested changes" — N the number of open requests — which runs `specgate propose --from-brief <module>` with the agent and hands it those open requests, and none that are addressed.
 
