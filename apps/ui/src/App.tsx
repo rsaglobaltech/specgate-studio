@@ -1244,6 +1244,7 @@ export function App({ rpc }: { rpc: Rpc }) {
                       areas={areas}
                       run={runCommand}
                       announce={announce}
+                      onNotice={setEnded}
                       requirements={requirements}
                       changes={changes}
                       questionsSection={questionsSection}
@@ -1779,6 +1780,8 @@ interface ViewProps {
   areas: Requests["setup.areas"]["result"] | null;
   run: (label: string, command: SpecgateCommand) => Promise<RunResult>;
   announce: (label: string) => void;
+  /** A notice in both languages, as a command's end has it (draft-report REQ-133). */
+  onNotice: (n: Record<NoticeLang, Notice>) => void;
   tr: (k: string, v?: Record<string, string | number>) => string;
   lang: Lang;
   theme: Theme;
@@ -1938,6 +1941,7 @@ function View(p: ViewProps) {
           onCheck={p.onCheck}
           checking={p.checking}
           onHelp={p.onHelp}
+          onNotice={p.onNotice}
         />
       );
     case "help":

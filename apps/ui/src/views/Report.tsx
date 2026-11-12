@@ -5,6 +5,7 @@ import type {
   GateStage,
   GateView,
   Lang,
+  Notice,
   ReportCost,
   ReportMissing,
   ReportUsage,
@@ -12,6 +13,7 @@ import type {
 } from "@specgate-studio/protocol";
 import type { Rpc } from "../rpc.js";
 import { HelpButton, type HelpRequest } from "../Help.js";
+import { reportFile, reportPage } from "../reportPage.js";
 
 type Tr = (k: string, v?: Record<string, string | number>) => string;
 
@@ -269,6 +271,52 @@ export interface ReportProps {
   /** A gate running: Report reads the last one again when it ends (REQ-132). */
   checking: boolean;
   onHelp: (r: HelpRequest) => void;
+  /** The download's notice, in both languages (REQ-133). */
+  onNotice: (n: Record<Lang, Notice>) => void;
+}
+
+/** The system's save dialog, where the webview offers it (Chromium, WebView2). */
+type SavePicker = (o: {
+  suggestedName: string;
+  types?: Array<{ description: string; accept: Record<string, string[]> }>;
+}) => Promise<{
+  name: string;
+  createWritable(): Promise<{ write(d: Blob | string): Promise<void>; close(): Promise<void> }>;
+}>;
+
+/**
+ * The page saved (REQ-133, A10): in the desktop app, with the system's save
+ * dialog its webview offers; in the browser — or a webview with none — as the
+ * browser's download. The name it was saved as, or null when cancelled.
+ */
+async function savePage(html: string, file: string): Promise<string | null> {
+  const w = window as unknown as { showSaveFilePicker?: SavePicker };
+  const desktop = "__TAURI_INTERNALS__" in window || "__TAURI__" in window;
+  const picker = desktop ? w.showSaveFilePicker?.bind(window) : undefined;
+  if (picker) {
+    try {
+      const handle = await picker({
+        suggestedName: file,
+        types: [{ description: "HTML", accept: { "text/html": [".html"] } }],
+      });
+      const out = await handle.createWritable();
+      await out.write(new Blob([html], { type: "text/html" }));
+      await out.close();
+      return handle.name;
+    } catch (e) {
+      if ((e as { name?: string } | null)?.name === "AbortError") return null;
+      throw e;
+    }
+  }
+  const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = file;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  return file;
 }
 
 /**
@@ -290,6 +338,15 @@ export function Report(p: ReportProps) {
     );
   }, [p.rpc, module, p.total, p.checking]);
 
+  /** One HTML page of what Report shows, saved where the Developer chooses (REQ-133). */
+  const download = async () => {
+    if (!view) return;
+    const html = reportPage(view, { project: p.project, lang: p.lang, tr: p.tr, at: new Date() });
+    const saved = await savePage(html, reportFile(p.project, view.module));
+    if (!saved) return;
+    const r = await p.rpc.ask("report.saved", { file: saved, module: view.module });
+    p.onNotice(r.notice);
+  };
   const of = (n: number, total: number) => (
     <>
       {n} <small class="muted">{p.tr("report.ofTotal", { total })}</small>
@@ -314,6 +371,43 @@ export function Report(p: ReportProps) {
               {module} ×
             </button>
           )}
+        </div>
+        <div class="ractions">
+          <button
+            type="button"
+            class="btn"
+            data-testid="report-print"
+            disabled={!view}
+            onClick={() => window.print()}
+          >
+            {p.tr("report.print")}
+          </button>
+          <HelpButton
+            label={p.tr("help.button", { feature: p.tr("report.print") })}
+            onOpen={() => p.onHelp({ action: "report-print", feature: p.tr("report.print") })}
+          />
+          <button
+            type="button"
+            class="btn pri"
+            data-testid="report-download"
+            disabled={!view}
+            onClick={() => void download()}
+          >
+            {p.tr("report.download")}
+          </button>
+          <HelpButton
+            label={p.tr("help.button", { feature: p.tr("report.download") })}
+            onOpen={() =>
+              p.onHelp({
+                action: "report-download",
+                feature: p.tr("report.download"),
+                vars: {
+                  path: reportFile(p.project, module),
+                  module: module ?? p.tr("report.project"),
+                },
+              })
+            }
+          />
         </div>
       </header>
       {view && (

@@ -196,6 +196,11 @@ export interface Requests {
   "home.get": { params: Record<string, never>; result: HomeView };
   /** Report's figures for the project, or one module (draft-report REQ-131). */
   "report.get": { params: { module: string | null }; result: ReportView };
+  /** The notice of a report saved as one page by the UI: it names the file (draft-report REQ-133). */
+  "report.saved": {
+    params: { file: string; module: string | null };
+    result: { notice: Record<Lang, Notice> };
+  };
   /** One folder's entries, folders first, nothing ignored (draft-explorer-tree REQ-161). */
   "files.children": { params: { path: string }; result: { entries: TreeEntry[] } };
   /** Git's letter of each changed file (REQ-163). */

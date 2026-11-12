@@ -4056,3 +4056,53 @@ ul.notes > li:first-child {
   max-height: 40%;
   overflow-y: auto;
 }
+
+/* Print to PDF (draft-report REQ-133): the report alone, laid out for paper, in the light colours. */
+@media print {
+  :root:has(.report),
+  :root[data-theme]:has(.report) {
+    color-scheme: light;
+    --bg: #ffffff;
+    --bg-raised: #ffffff;
+    --line: #e0dad0;
+    --line-strong: #cfc8bc;
+    --text: #1d1b18;
+    --muted: #6b665e;
+    --accent: #d9480f;
+    --accent-soft: #b93d0b;
+    --ok: #1f8a57;
+    --ok-text: #1f8a57;
+    --bad: #c62828;
+    --amber: #9a6b00;
+  }
+  body:has(.report) .activity,
+  body:has(.report) .menubar,
+  body:has(.report) .wb > .top,
+  body:has(.report) .banner,
+  body:has(.report) .panel,
+  body:has(.report) .status,
+  body:has(.report) .agent,
+  body:has(.report) .middle > .side,
+  body:has(.report) .notice,
+  body:has(.report) [class*="sash"],
+  .report .ractions,
+  .report .rchip,
+  .report [data-testid="report-check"] {
+    display: none !important;
+  }
+  body:has(.report),
+  body:has(.report) .wb,
+  body:has(.report) .middle,
+  body:has(.report) .main,
+  body:has(.report) .content {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+    color: #1d1b18 !important;
+  }
+  .report .card {
+    break-inside: avoid;
+    background: #fff;
+  }
+}

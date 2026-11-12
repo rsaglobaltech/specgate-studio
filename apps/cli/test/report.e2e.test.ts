@@ -11,7 +11,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { SpecgateAnswer } from "@specgate-studio/core";
-import { close, open, studio, type Page, type StudioOptions } from "./support.js";
+import { browser, close, open, studio, type Page, type StudioOptions } from "./support.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const fixture = (name: string): unknown =>
@@ -374,6 +374,148 @@ test("REQ-132 SCN-398: the last gate after a restart, on the desktop — that ga
     assert.deepEqual(s.runs, [], "no gate run");
     assert.ok(s.calls.some((c) => c.join(" ") === "check --last"));
     assert.ok(!s.calls.some((c) => c[0] === "check" && c[1] !== "--last"));
+  } finally {
+    await close(s, page);
+  }
+});
+
+// ── REQ-133 ─────────────────────────────────────────────────────────────
+
+/** pagos as SCN-391 has it: 2 of 6, the harness's diff coverage 74 %. */
+const PAGOS_74 = {
+  "harness report --capability pagos": harness({
+    totalMs: 1_800_000,
+    quality: { measured: 2, coverage: 74, mutation: 61.5 },
+  }),
+};
+
+test("REQ-133 SCN-395: Download on the desktop, the folder Downloads chosen — one file sprich-report-pagos.html, opening offline with pagos 2 of 6 and coverage 74 %, the notice naming it", async () => {
+  const s = await studio(sprich(PAGOS_74));
+  const page = await open(s);
+  // The desktop app's webview, and its system save dialog: the Developer chooses Downloads.
+  await page.evaluate(() => {
+    (window as never as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+    const w = window as never as {
+      showSaveFilePicker: (o: { suggestedName: string }) => Promise<unknown>;
+      __saved: Array<{ folder: string; name: string; text: string }>;
+    };
+    w.__saved = [];
+    w.showSaveFilePicker = async (o) => ({
+      name: o.suggestedName,
+      createWritable: async () => {
+        let text = "";
+        return {
+          write: async (b: Blob | string) => {
+            text += typeof b === "string" ? b : await b.text();
+          },
+          close: async () => {
+            w.__saved.push({ folder: "Downloads", name: o.suggestedName, text });
+          },
+        };
+      },
+    });
+  });
+  try {
+    await openReport(page);
+    await page.click('[data-module-row="pagos"]');
+    await page.waitForSelector('.report[data-module="pagos"]');
+    await page.click('[data-testid="report-download"]');
+    await page.waitForSelector('.notice[data-tone="ok"]');
+    const saved = await page.evaluate(
+      () =>
+        (window as never as { __saved: Array<{ folder: string; name: string; text: string }> })
+          .__saved,
+    );
+    assert.equal(saved.length, 1, "one file");
+    assert.equal(saved[0]!.folder, "Downloads");
+    assert.equal(saved[0]!.name, "sprich-report-pagos.html");
+    const html = saved[0]!.text;
+    // One self-contained page: its styles inside, no script, no address to ask.
+    assert.match(html, /^<!doctype html>/i);
+    assert.match(html, /<style>/);
+    assert.doesNotMatch(html, /<script|<link|<img|<iframe|https?:\/\/|url\(|@import|src=/i);
+    // It opens offline: nothing is requested, and it shows pagos 2 of 6 and coverage 74 %.
+    const offline = await browser.newPage();
+    const asked: string[] = [];
+    await offline.route("**/*", (r) => (asked.push(r.request().url()), r.abort()));
+    await offline.setContent(html);
+    const shown = ((await offline.textContent("body")) ?? "").replace(/\s+/g, " ");
+    assert.match(shown, /pagos/);
+    assert.match(shown, /Built 2 of 6/);
+    assert.match(shown, /74 %/);
+    assert.deepEqual(asked, []);
+    await offline.close();
+    // The notice names the file; the studio wrote nothing in sprich, ran nothing.
+    const notice = ((await page.textContent('.notice[data-tone="ok"]')) ?? "").replace(/\s+/g, " ");
+    assert.match(notice, /sprich-report-pagos\.html/);
+    assert.deepEqual(s.writes, []);
+    assert.deepEqual(s.runs, []);
+  } finally {
+    await close(s, page);
+  }
+});
+
+test("REQ-133: Download in the browser — a browser download of sprich-report.html, the whole project", async () => {
+  const s = await studio(sprich());
+  const page = await open(s);
+  try {
+    await openReport(page);
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      page.click('[data-testid="report-download"]'),
+    ]);
+    assert.equal(download.suggestedFilename(), "sprich-report.html");
+    const file = await download.path();
+    const html = fs.readFileSync(file!, "utf8");
+    assert.match(html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " "), /Built 3 of 7/);
+    assert.doesNotMatch(html, /<script|https?:\/\//i);
+    await page.waitForSelector('.notice[data-tone="ok"]');
+    assert.match((await page.textContent('.notice[data-tone="ok"]')) ?? "", /sprich-report\.html/);
+    assert.deepEqual(s.writes, []);
+  } finally {
+    await close(s, page);
+  }
+});
+
+test("REQ-133 SCN-396: Print to PDF in the browser — the print dialog opens on the report alone, without the activity bar, the panels or the status bar; nothing written", async () => {
+  const s = await studio(sprich());
+  const page = await open(s);
+  await page.evaluate(() => {
+    const w = window as never as { print: () => void; __printed: number };
+    w.__printed = 0;
+    w.print = () => {
+      w.__printed++;
+    };
+  });
+  try {
+    await openReport(page);
+    await page.click('[data-testid="report-print"]');
+    assert.equal(
+      await page.evaluate(() => (window as never as { __printed: number }).__printed),
+      1,
+    );
+    // As the print dialog lays it out.
+    await page.emulateMedia({ media: "print" });
+    const shown = await page.evaluate(() =>
+      [".activity", ".menubar", ".panel", ".status", ".agent", ".report", ".ractions"].map(
+        (sel) => {
+          const el = document.querySelector(sel);
+          return `${sel}:${el ? getComputedStyle(el).display !== "none" && (el as HTMLElement).offsetParent !== null : "absent"}`;
+        },
+      ),
+    );
+    assert.deepEqual(shown, [
+      ".activity:false",
+      ".menubar:false",
+      ".panel:false",
+      ".status:false",
+      ".agent:false",
+      ".report:true",
+      ".ractions:false",
+    ]);
+    await page.emulateMedia({ media: "screen" });
+    assert.deepEqual(s.writes, []);
+    assert.deepEqual(s.runs, []);
   } finally {
     await close(s, page);
   }

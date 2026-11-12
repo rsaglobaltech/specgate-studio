@@ -1,5 +1,9 @@
 import {
+  LANGS,
+  fileNotice,
   reportOf,
+  type Lang,
+  type Notice,
   type Finding,
   type ProjectState,
   type ReportView,
@@ -54,6 +58,28 @@ export function attachReport(wiring: ReportWiring): {
         harnessModule: harnessModule?.data ?? null,
         lastCheck: last?.data ?? null,
       });
+    },
+    // The page is the UI's, saved where the Developer chose: the host only words the notice (REQ-133, A11).
+    "report.saved": async (params) => {
+      const p = (params ?? {}) as { file?: unknown; module?: unknown };
+      const file =
+        typeof p.file === "string" && /^[^/\\]{1,200}$/.test(p.file) ? p.file : "report.html";
+      const module = typeof p.module === "string" && MODULE.test(p.module) ? p.module : "";
+      const notice = Object.fromEntries(
+        LANGS.map((l) => [
+          l,
+          fileNotice(
+            "report-download",
+            l,
+            {
+              path: file,
+              module: module || (l === "es" ? "todo el proyecto" : "the whole project"),
+            },
+            { ok: true },
+          ),
+        ]),
+      ) as Record<Lang, Notice>;
+      return { notice };
     },
   };
   return { handlers };

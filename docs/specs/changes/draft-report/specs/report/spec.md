@@ -56,7 +56,7 @@ The system SHALL show in Report the last gate run on the project, as specgate re
 
 ### Requirement: REQ-133 — Download as one HTML page; print to PDF
 
-<!-- specgate:trace actor=Reviewer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Reviewer kind=functional -->
 
 The system SHALL download the report as one self-contained HTML page — its styles inside it, no script and no request to any address — and SHALL print it with a print layout through the system's print dialog, from which it can be saved as PDF; the download's notice SHALL name the file written.
 
