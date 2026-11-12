@@ -303,7 +303,6 @@ export async function open(
   await page.goto(host.url);
   await page.waitForSelector("body[data-ready] .activity .sga");
   // Settled: the terminals' chunk too, which asks the host for its terminals once.
-  // The panel is hidden until it holds something (draft-design-conformance REQ-172).
   await page.waitForSelector(".term-tabs", { state: "attached" });
   return page;
 }
@@ -337,19 +336,19 @@ export async function untilTerm(page: Page, id: string, re: RegExp, ms = 20_000)
   }
 }
 
-/** The bottom panel shown: hidden until it holds something (draft-design-conformance REQ-172). */
+/** The bottom panel's body shown: Ctrl/Cmd+J folds it to its tabs (draft-workbench-v2 REQ-184). */
 export async function showPanel(page: Page): Promise<void> {
-  if (await page.$eval(".panel", (e) => (e as HTMLElement).hidden)) {
+  if (await page.$(".panel[data-collapsed]")) {
     await page.keyboard.press(`${MOD}+J`);
-    await page.waitForSelector(".panel:not([hidden])");
+    await page.waitForSelector(".panel:not([data-collapsed])");
   }
 }
 
-/** The bottom panel hidden. */
+/** The bottom panel folded to its tabs: always there, never removed (REQ-184). */
 export async function hidePanel(page: Page): Promise<void> {
-  if (!(await page.$eval(".panel", (e) => (e as HTMLElement).hidden))) {
+  if (!(await page.$(".panel[data-collapsed]"))) {
     await page.keyboard.press(`${MOD}+J`);
-    await page.waitForSelector(".panel[hidden]", { state: "attached" });
+    await page.waitForSelector(".panel[data-collapsed]");
   }
 }
 

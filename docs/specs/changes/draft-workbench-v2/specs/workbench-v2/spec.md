@@ -70,7 +70,7 @@ The system SHALL take a request from an input labelled "Pide algo sobre la spec;
 
 ### Requirement: REQ-184 — The bottom panel always there: TERMINAL, GATE, PROBLEMAS, SALIDA DEL AGENTE, TRAZABILIDAD
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL show the bottom panel on every view, always, with the tabs TERMINAL — a real terminal of the Developer's shell — GATE, PROBLEMAS, SALIDA DEL AGENTE and TRAZABILIDAD, and on its right the shell's name, the folder it runs in and "+", which opens a new terminal; the panel MAY be resized, never removed.
 

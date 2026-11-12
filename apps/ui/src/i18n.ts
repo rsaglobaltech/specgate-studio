@@ -83,6 +83,7 @@ const en = {
   "build.soon":
     "The agent builds it with `specgate harness run --req {req}` once the Build module comes (phase 2).",
   "term.new": "New terminal",
+  "term.empty": 'No terminal open. "+" or the button opens your shell in {project}.',
   "term.close": "Close",
   "term.readonly":
     "This terminal shows what the studio runs; commands are typed in a terminal of your own.",
@@ -436,6 +437,7 @@ const es: Record<MessageKey, string> = {
   "build.soon":
     "El agente lo construye con `specgate harness run --req {req}` cuando llegue el módulo Construir (fase 2).",
   "term.new": "Nueva terminal",
+  "term.empty": "No hay ninguna terminal abierta. «+» o el botón abre tu shell en {project}.",
   "term.close": "Cerrar",
   "term.readonly":
     "Esta terminal muestra lo que ejecuta el studio; los comandos se escriben en una terminal propia.",

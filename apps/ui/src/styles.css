@@ -460,14 +460,52 @@ pre.file {
   display: flex;
   flex-direction: column;
 }
-.panel[hidden] {
+/* Folded to its tabs by Ctrl/Cmd+J, never removed (draft-workbench-v2 REQ-184). */
+.panel[data-collapsed] {
+  height: auto;
+}
+.panel[data-collapsed] > .pbody {
   display: none;
+}
+.ptabs-bar {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
 }
 .ptabs {
   display: flex;
   gap: 4px;
   padding: 0 8px;
-  border-bottom: 1px solid var(--line);
+  min-width: 0;
+  overflow: hidden;
+}
+.pend {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+  min-width: 0;
+}
+.pshell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pnew {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+.pnew:hover {
+  color: var(--text);
+  background: var(--bg-input);
 }
 .ptab {
   height: 30px;
@@ -845,17 +883,37 @@ textarea.ask {
 }
 .terms {
   display: flex;
-  flex-direction: column;
   flex: 1;
   min-height: 0;
   width: 100%;
 }
+.term-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+/* The terminals' list on the right, once there are two (draft-workbench-v2 REQ-184). */
 .term-tabs {
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  width: 160px;
+  padding: 4px;
+  border-left: 1px solid var(--line);
+  overflow: auto;
+}
+.terms[data-many] > .term-tabs,
+.terms[data-one] > .term-tabs {
+  display: flex;
+}
+.term-empty {
+  padding: 10px 12px;
+  color: var(--muted);
+  font-size: 12px;
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 2px 6px;
-  border-bottom: 1px solid var(--line);
+  gap: 10px;
 }
 .term-tab {
   display: flex;
@@ -878,14 +936,6 @@ textarea.ask {
 }
 .term-tab .x {
   opacity: 0.6;
-}
-.term-new {
-  height: 24px;
-  width: 24px;
-  border: 0;
-  background: transparent;
-  color: var(--muted);
-  font-size: 16px;
 }
 .term-note {
   padding: 6px 10px;

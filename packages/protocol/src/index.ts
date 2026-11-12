@@ -165,6 +165,8 @@ export interface Requests {
     result: Record<string, never>;
   };
   "terminal.close": { params: { id: string }; result: Record<string, never> };
+  /** The shell new terminals run and their folder, as the panel shows them (draft-workbench-v2 REQ-184). */
+  "terminal.shell": { params: Record<string, never>; result: { name: string; folder: string } };
   "terminal.list": { params: Record<string, never>; result: Array<{ id: string; name: string }> };
   /** What a terminal printed, its last 10,000 lines (REQ-056). */
   "terminal.scrollback": { params: { id: string }; result: { data: string } };

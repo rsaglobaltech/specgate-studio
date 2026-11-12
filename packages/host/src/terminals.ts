@@ -1,4 +1,4 @@
-import { Terminals, type PtyPort, type Shell } from "@specgate-studio/core";
+import { Terminals, folderLabel, type PtyPort, type Shell } from "@specgate-studio/core";
 import type { Notifications } from "@specgate-studio/protocol";
 import { insideProject } from "./files.js";
 
@@ -9,6 +9,8 @@ type Refuse = (message: string) => Error;
 export interface TerminalWiring {
   pty: PtyPort;
   shell: Shell;
+  /** The Developer's home folder, shown as `~` (draft-workbench-v2 REQ-184). */
+  home?: string;
 }
 
 const isSize = (n: unknown): n is number =>
@@ -66,6 +68,11 @@ export function attachTerminals(
       return {};
     },
     "terminal.list": async () => terminals.list(),
+    // The shell and the folder the panel names beside "+" (draft-workbench-v2 REQ-184).
+    "terminal.shell": async () => ({
+      name: wiring.shell.name,
+      folder: folderLabel(projectDir, wiring.home ?? ""),
+    }),
     "terminal.scrollback": async (params) => {
       const id = (params as { id?: unknown } | null)?.id;
       if (!known(id)) throw refuse("no such terminal");

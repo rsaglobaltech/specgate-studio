@@ -1,3 +1,4 @@
+import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -61,6 +62,7 @@ export async function serve(options: ServeOptions): Promise<Host> {
   const terminals = options.terminals ?? {
     pty: new NodePty(),
     shell: shellFor(process.platform, process.env, hasProgram),
+    home: os.homedir(),
   };
   const cliFor = (dir: string) =>
     new SpecgateCli({ program: process.execPath, prefix: [specgateBin()], projectDir: dir });

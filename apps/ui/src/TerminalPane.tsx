@@ -19,7 +19,14 @@ export interface TerminalPaneProps {
   openShell: number;
   /** A terminal to open in a folder of the project: "Open in terminal" (draft-explorer-tree A15). */
   openShellIn?: { n: number; cwd: string } | null;
-  labels: { newTerminal: string; close: string; readonly: string; openTerminal: string };
+  labels: {
+    newTerminal: string;
+    close: string;
+    readonly: string;
+    openTerminal: string;
+    /** What the panel says while no terminal is open (draft-workbench-v2 REQ-184). */
+    empty: string;
+  };
 }
 
 interface Entry {
@@ -210,9 +217,34 @@ export default function TerminalPane(p: TerminalPaneProps) {
     return () => ro.disconnect();
   }, [selected]);
 
+  // The panel's "+" opens a terminal (draft-workbench-v2 REQ-184); the list of
+  // terminals sits on the right once there are two, as VS Code shows it.
   return (
-    <div class="terms">
-      <div class="term-tabs" role="tablist" aria-label="Terminals">
+    <div
+      class="terms"
+      data-many={list.length > 1 ? "1" : undefined}
+      data-one={list.length === 1 ? "1" : undefined}
+    >
+      <div class="term-main">
+        {note && selected === STUDIO && (
+          <div class="term-note" role="note">
+            {p.labels.readonly}{" "}
+            <button type="button" class="btn" onClick={() => void openShell()}>
+              {p.labels.openTerminal}
+            </button>
+          </div>
+        )}
+        {list.length === 0 && (
+          <div class="term-empty" data-testid="term-empty">
+            {p.labels.empty}{" "}
+            <button type="button" class="btn" onClick={() => void openShell()}>
+              {p.labels.openTerminal}
+            </button>
+          </div>
+        )}
+        <div class="term-box" ref={box} />
+      </div>
+      <div class="term-tabs" role="tablist" aria-label="Terminals" aria-orientation="vertical">
         {list.map((t) => (
           <button
             type="button"
@@ -239,25 +271,7 @@ export default function TerminalPane(p: TerminalPaneProps) {
             )}
           </button>
         ))}
-        <button
-          type="button"
-          class="term-new"
-          aria-label={p.labels.newTerminal}
-          title={p.labels.newTerminal}
-          onClick={() => void openShell()}
-        >
-          +
-        </button>
       </div>
-      {note && selected === STUDIO && (
-        <div class="term-note" role="note">
-          {p.labels.readonly}{" "}
-          <button type="button" class="btn" onClick={() => void openShell()}>
-            {p.labels.openTerminal}
-          </button>
-        </div>
-      )}
-      <div class="term-box" ref={box} />
     </div>
   );
 }

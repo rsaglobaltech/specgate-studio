@@ -91,12 +91,17 @@ export function App({ rpc }: { rpc: Rpc }) {
   const [ticketPanel, setTicketPanel] = useState(false);
   const [tabs, setTabs] = useState<Tabs>({ open: [], active: null });
   const [texts, setTexts] = useState<Record<string, string>>({});
-  // Hidden until it holds something: a terminal, a command's echo, or the Developer's
-  // Ctrl/Cmd+J (draft-design-conformance REQ-172, A4).
+  // Always there (draft-workbench-v2 REQ-184): Ctrl/Cmd+J folds it to its tabs and back,
+  // never removes it; `open` is whether its body shows.
   const [panel, setPanel] = useState<{ open: boolean; tab: PanelTab }>({
-    open: false,
+    open: true,
     tab: "terminal",
   });
+  /** The shell new terminals run and their folder, beside "+" (REQ-184). */
+  const [shell, setShell] = useState<{ name: string; folder: string } | null>(null);
+  useEffect(() => {
+    void rpc.ask("terminal.shell", {}).then(setShell, () => undefined);
+  }, [rpc]);
   const [sidebar, setSidebar] = useState(false);
   const [palette, setPalette] = useState<null | "features" | "files">(null);
   const [project, setProject] = useState<string>("");
@@ -974,25 +979,52 @@ export function App({ rpc }: { rpc: Rpc }) {
         </section>
       </div>
 
-      <section class="panel" hidden={!panel.open} aria-label="Panel">
-        <div
-          class="ptabs"
-          role="tablist"
-          aria-label={lang === "es" ? "Panel inferior" : "Bottom panel"}
-        >
-          {PANEL_TABS.map((p) => (
+      <section
+        class="panel"
+        data-collapsed={panel.open ? undefined : "1"}
+        aria-label={lang === "es" ? "Panel inferior" : "Bottom panel"}
+      >
+        <div class="ptabs-bar">
+          <div
+            class="ptabs"
+            role="tablist"
+            aria-label={lang === "es" ? "Panel inferior" : "Bottom panel"}
+          >
+            {PANEL_TABS.map((p) => (
+              <button
+                type="button"
+                role="tab"
+                class="ptab"
+                data-tab={p}
+                key={p}
+                aria-selected={panel.tab === p}
+                onClick={() => setPanel({ open: true, tab: p })}
+              >
+                {tr(`panel.${p}`)}
+                {p === "problems" && problems.length > 0 && ` (${problems.length})`}
+              </button>
+            ))}
+          </div>
+          <span class="pend">
+            {shell && (
+              <span class="pshell mono" data-testid="panel-shell" title={shell.folder}>
+                {shell.name} · {shell.folder}
+              </span>
+            )}
             <button
               type="button"
-              role="tab"
-              class="ptab"
-              key={p}
-              aria-selected={panel.tab === p}
-              onClick={() => setPanel({ open: true, tab: p })}
+              class="pnew"
+              data-testid="panel-new"
+              aria-label={tr("term.new")}
+              title={tr("term.new")}
+              onClick={() => {
+                setPanel({ open: true, tab: "terminal" });
+                setOpenShell((n) => n + 1);
+              }}
             >
-              {tr(`panel.${p}`)}
-              {p === "problems" && problems.length > 0 && ` (${problems.length})`}
+              +
             </button>
-          ))}
+          </span>
         </div>
         <div class={`pbody mono ${panel.tab === "terminal" ? "flush" : ""}`} data-panel={panel.tab}>
           {TerminalPane && (
@@ -1010,6 +1042,7 @@ export function App({ rpc }: { rpc: Rpc }) {
                   close: tr("term.close"),
                   readonly: tr("term.readonly"),
                   openTerminal: tr("term.open"),
+                  empty: tr("term.empty", { project: project || workspace?.name || "" }),
                 }}
               />
             </div>
