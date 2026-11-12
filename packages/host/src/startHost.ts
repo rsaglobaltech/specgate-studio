@@ -36,6 +36,7 @@ import { attachChanges, type ChangesWiring } from "./changes.js";
 import { attachSetup, type SetupWiring } from "./setup.js";
 import { attachBuilds, type BuildsWiring } from "./builds.js";
 import { attachBrief, type BriefWiring } from "./brief.js";
+import { attachAgent, type AgentWiring } from "./agent.js";
 import { attachExplorer } from "./explorer.js";
 import { attachHome } from "./home.js";
 import { attachFolders, type FoldersWiring } from "./folders.js";
@@ -73,6 +74,8 @@ export interface HostOptions {
   store?: StorePort;
   /** Open Folder and Clone Repository; `none` when no folder is open (draft-workbench-v2 REQ-185). */
   folders?: FoldersWiring;
+  /** specgate's `agent ask|apply|discard --json` for the agent panel (draft-workbench-v2 REQ-181 … REQ-183). */
+  agent?: AgentWiring;
 }
 
 export type { ProjectFiles, FileRefusal } from "./files.js";
@@ -140,11 +143,16 @@ export async function startHost(given: HostOptions): Promise<Host> {
   // The requirement Home says to apply next, for the notices (REQ-063).
   let nextReq: string | undefined;
   const changes = options.changes
-    ? attachChanges(options.projectDir, options.changes, state, options.workspace?.git, (m) =>
-        rpcError(RPC_ERRORS.params, m),
+    ? attachChanges(
+        options.projectDir,
+        options.changes,
+        state,
+        options.workspace?.git,
+        (m) => rpcError(RPC_ERRORS.params, m),
+        (): Pick<Commands, "run"> => commands,
       )
     : null;
-  const commands = new Commands(options.runner, {
+  const commands: Commands = new Commands(options.runner, {
     helpVars: () => (nextReq ? { req: nextReq } : {}),
     ...(options.brief ? { json: options.brief.specgate } : {}),
     ...changes?.commands,
@@ -221,7 +229,21 @@ export async function startHost(given: HostOptions): Promise<Host> {
       )
     : null;
 
-  const brief = options.brief ? attachBrief(options.brief, commands, broadcast) : null;
+  const brief = options.brief
+    ? attachBrief(options.brief, commands, broadcast, (p) => state.fileChanged(p))
+    : null;
+  // The agent panel: plans specgate makes and writes, never the studio (REQ-181 … REQ-183).
+  const agent = options.agent
+    ? attachAgent(
+        options.projectDir,
+        options.agent,
+        commands,
+        state,
+        broadcast,
+        async () => (options.files ? options.files.list() : []),
+        options.store,
+      )
+    : null;
 
   // Home's next step, route, cost and activity (draft-design-conformance REQ-173).
   const homeSpecgate =
@@ -336,9 +358,21 @@ export async function startHost(given: HostOptions): Promise<Host> {
       const vars = Object.fromEntries(
         Object.entries((p.vars ?? {}) as Record<string, unknown>).filter(
           ([k, v]) =>
-            ["req", "change", "module", "key", "q", "agent", "path", "to", "repo", "side"].includes(
-              k,
-            ) && typeof v === "string",
+            [
+              "req",
+              "change",
+              "module",
+              "key",
+              "q",
+              "agent",
+              "path",
+              "to",
+              "repo",
+              "side",
+              "id",
+              "then",
+              "count",
+            ].includes(k) && typeof v === "string",
         ),
       ) as HelpVars;
       return { labels: PART_LABELS[lang], explanation: explain(p.action as ActionId, lang, vars) };
@@ -410,6 +444,7 @@ export async function startHost(given: HostOptions): Promise<Host> {
     ...setup?.handlers,
     ...builds?.handlers,
     ...brief?.handlers,
+    ...agent?.handlers,
     ...explorer?.handlers,
     ...home.handlers,
     ...(options.folders

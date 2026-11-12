@@ -100,6 +100,11 @@ function answered(c: SpecgateCommand): {
       return { action: "brief-check", vars: {}, outcome: briefCheckOutcome };
     case "draft-module":
       return { action: "draft-modules", vars: { module: c.module, agent: c.agent } };
+    case "redraft":
+      return {
+        action: "redraft",
+        vars: { module: c.module, agent: c.agent, count: String(c.open) },
+      };
     case "apply":
       return { action: "apply", vars: { req: c.req } };
     case "archive":
@@ -116,7 +121,7 @@ function answered(c: SpecgateCommand): {
 /** What a `--json` command wrote, from its answer. */
 function writtenIn(c: SpecgateCommand, data: unknown): string[] {
   if (c.name === "archive") return archiveWritten(data);
-  if (c.name === "draft-module") return draftWritten(data);
+  if (c.name === "draft-module" || c.name === "redraft") return draftWritten(data);
   if (c.name === "propose-ticket") {
     const created = (data as { created?: unknown } | null)?.created;
     return Array.isArray(created)

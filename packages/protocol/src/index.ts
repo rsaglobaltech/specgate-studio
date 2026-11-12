@@ -9,6 +9,11 @@ import type {
   ChangeCard,
   ChangeGroup,
   ChangesView,
+  ChangeReview,
+  ReviewChangeView,
+  ReviewNoteView,
+  RedraftResult,
+  Segment,
   Finding,
   TicketReview,
   CommandEvent,
@@ -36,6 +41,7 @@ import type {
   FileGroup,
   Uncommitted,
   Estimate,
+  ReqEstimate,
   WaitReason,
   WaitingItem,
   LiveLine,
@@ -48,6 +54,11 @@ import type {
   Usage,
   BriefModule,
   BriefView,
+  BriefForm,
+  BriefFormActor,
+  BriefFormModule,
+  BriefFormResult,
+  BriefFormView,
   DraftResult,
   GitLetter,
   TreeEntry,
@@ -56,6 +67,14 @@ import type {
   NextStep,
   RouteState,
   Activity,
+  AgentEntry,
+  AgentEntryState,
+  AgentPlan,
+  AgentPlanFile,
+  AgentResult,
+  AgentView,
+  AppliedPlan,
+  Mention,
 } from "@specgate-studio/core";
 
 export type { CommandEvent, RunResult, Section, SectionData, SpecgateCommand };
@@ -80,6 +99,8 @@ export interface FileWriteResult {
 export type { ActionId, Explanation, HelpVars, Lang, Notice };
 /** The Changes view (draft-changes). */
 export type { ArchivePreview, ChangeCard, ChangeGroup, ChangesView, Finding, TicketReview };
+/** A draft's requests for change, and drafting it again with them (draft-changes REQ-082, REQ-083). */
+export type { ChangeReview, RedraftResult, ReviewChangeView, ReviewNoteView, Segment };
 /** Setting up a folder that is no project yet (draft-project-setup). */
 export type { AdoptPreview, Area, InitAnswers, ReadyItem };
 /** Build and Live (draft-build-live). */
@@ -89,6 +110,7 @@ export type {
   BuildStart,
   StopResult,
   Estimate,
+  ReqEstimate,
   FileGroup,
   Uncommitted,
   WaitReason,
@@ -102,8 +124,21 @@ export type {
   StepResult,
   Usage,
 };
+/** The agent panel (draft-workbench-v2 REQ-181 … REQ-183). */
+export type {
+  AgentEntry,
+  AgentEntryState,
+  AgentPlan,
+  AgentPlanFile,
+  AgentResult,
+  AgentView,
+  AppliedPlan,
+  Mention,
+};
 /** The Brief view (draft-brief). */
 export type { BriefModule, BriefView, DraftResult };
+/** The brief as a form, and the client's text proposing one (draft-brief REQ-071, REQ-074). */
+export type { BriefForm, BriefFormActor, BriefFormModule, BriefFormResult, BriefFormView };
 
 /** What the UI may ask, and what it gets back. */
 export interface Requests {
@@ -194,6 +229,8 @@ export interface Requests {
   "changes.get": { params: Record<string, never>; result: ChangesView };
   /** A ticket's review and what its confirmation runs; runs nothing that writes (REQ-084). */
   "changes.ticket": { params: { key: string }; result: TicketReview };
+  /** "Draft again with N requested changes": the agent, handed the open notes (REQ-083). */
+  "changes.redraft": { params: { change: string }; result: RedraftResult };
   /** What the five questions offer, and the folder's name (draft-project-setup REQ-111). */
   "setup.options": {
     params: Record<string, never>;
@@ -242,6 +279,31 @@ export interface Requests {
   "brief.get": { params: Record<string, never>; result: BriefView };
   /** "Draft the modules": each module not drafted yet with the agent, one at a time (REQ-073). */
   "brief.draft": { params: Record<string, never>; result: DraftResult };
+  /** docs/brief.md as a form, read by specgate; the proposal waiting, if any (REQ-071). */
+  "brief.form": { params: Record<string, never>; result: BriefFormView };
+  /** `propose --from-brief --form <file>`: only what changed, every other line kept (REQ-071). */
+  "brief.form.save": { params: { form: BriefForm }; result: BriefFormResult };
+  /** The client's text: the agent proposes a form; nothing is written (REQ-074). */
+  "brief.propose": { params: { text: string }; result: BriefFormResult };
+  /** The proposal accepted: written as a save of the form is (REQ-074). */
+  "brief.accept": { params: Record<string, never>; result: BriefFormResult };
+  /** The proposal discarded: nothing runs, nothing is written (REQ-074). */
+  "brief.discard": {
+    params: Record<string, never>;
+    result: BriefFormResult & { notice?: Record<Lang, Notice> };
+  };
+  /** The agent panel: its agent, mode and this session's requests (REQ-181). */
+  "agent.get": { params: Record<string, never>; result: AgentView };
+  /** `specgate agent ask "<request>" --plan --json`: a plan, nothing written (REQ-183). */
+  "agent.ask": { params: { request: string }; result: AgentResult };
+  /** `specgate agent apply <id> --json`, sent once the diff was seen and confirmed (REQ-182). */
+  "agent.apply": { params: { n: number }; result: AgentResult };
+  /** `specgate agent discard <id> --json`: nothing of the project written (REQ-182). */
+  "agent.discard": { params: { n: number }; result: AgentResult };
+  /** The applied plans' diffs, the newest first, for Changes (REQ-182). */
+  "agent.applied": { params: Record<string, never>; result: AppliedPlan[] };
+  /** What "@" offers: requirements with their titles, then files (REQ-183). */
+  "agent.mentions": { params: { query: string }; result: Mention[] };
 }
 
 /** What the host tells every connected UI, unasked. */
@@ -259,6 +321,8 @@ export interface Notifications {
   "problems.changed": { findings: Finding[] };
   /** The tree wrote these paths (draft-explorer-tree REQ-166): read their folders again. */
   "files.changed": { paths: string[] };
+  /** What the agent panel shows changed: every open UI sees the same (REQ-181). */
+  "agent.changed": AgentView;
 }
 
 export interface ProjectOpened {

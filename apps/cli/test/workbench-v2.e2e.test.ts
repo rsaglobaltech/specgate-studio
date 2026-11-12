@@ -638,6 +638,10 @@ test("REQ-190 SCN-567: the agent panel hidden, the side bar dragged to 400 px â€
   const page = await open(s);
   try {
     await page.click('.sga[data-view="explorer"]');
+    // Shown by default, as the board draws it (REQ-181); Ctrl/Cmd+Alt+B hides and shows it.
+    await page.waitForSelector('[data-testid="agent-panel"]');
+    await page.keyboard.press(`${MOD}+Alt+B`);
+    await page.waitForSelector('[data-testid="agent-panel"]', { state: "detached" });
     await page.keyboard.press(`${MOD}+Alt+B`);
     await page.waitForSelector('[data-testid="agent-panel"]');
     const main = (await box(page, ".ecol > .main"))!;
@@ -706,7 +710,8 @@ test("REQ-191 SCN-569: narrowed to 800 px â€” one group with both files, the sid
   try {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.click('.sga[data-view="explorer"]');
-    await page.keyboard.press(`${MOD}+Alt+B`);
+    // The agent panel shows by default (REQ-181).
+    await page.waitForSelector('[data-testid="agent-panel"]');
     await quickOpen(page, SPEC);
     await quickOpen(page, FEATURE);
     await page.click(`.egroup .tab[title="${FEATURE}"]`, { button: "right" });
