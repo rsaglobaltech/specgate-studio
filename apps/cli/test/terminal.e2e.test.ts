@@ -26,7 +26,7 @@ const WIN = process.platform === "win32";
 async function newTerminal(page: Page): Promise<string> {
   await showPanel(page);
   const before = await page.$$eval(".term-tab", (els) => els.length);
-  await page.click(".term-new");
+  await page.click('[data-testid="panel-new"]');
   await page.waitForFunction((n) => document.querySelectorAll(".term-tab").length > n, before);
   const id = (await page.getAttribute('.term-tab[aria-selected="true"]', "data-terminal"))!;
   return id;
@@ -104,14 +104,14 @@ test('REQ-053 SCN-155: the panel closed, Check pressed — the terminal opens wi
   try {
     await ready(page);
     await hidePanel(page);
-    assert.equal(await page.$eval(".panel", (e) => (e as HTMLElement).hidden), true);
+    assert.equal(await page.$eval(".panel", (e) => e.hasAttribute("data-collapsed")), true);
     await page.click('.actions [data-act="check"]');
     await untilTerm(
       page,
       "specgate",
       /▶ "Check the gate" · specgate check\n✔ Specification\n✔ Tests\nexit 0/,
     );
-    assert.equal(await page.$eval(".panel", (e) => (e as HTMLElement).hidden), false);
+    assert.equal(await page.$eval(".panel", (e) => e.hasAttribute("data-collapsed")), false);
     assert.equal(
       await page.getAttribute('.term-tab[aria-selected="true"]', "data-terminal"),
       "specgate",

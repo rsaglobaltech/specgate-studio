@@ -13,118 +13,9 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { withClaude } from "@specgate-studio/adapter-specgate-cli/testing";
 import { serve } from "../src/index.js";
-import { MOD, close, open, studio, type Page } from "./support.js";
+import { MOD, close, hidePanel, open, studio, type Page } from "./support.js";
 
-type Opts = Parameters<typeof studio>[0];
-
-const R = (id: string, title: string, category: string, change?: string) => ({
-  id,
-  title,
-  category,
-  needs: category === "DONE" ? null : "a test and code",
-  ...(change ? { change } : {}),
-});
-
-/** sprich as the boards show it (A1): 24 requirements, 15 built, draft-pedidos with Q1 and Q2. */
-export const SPRICH_REQS = [
-  ...Array.from({ length: 15 }, (_, i) => R(`REQ-0${10 + i}`, `Built ${i}`, "DONE")),
-  R("REQ-025", "Pay by card", "NEEDS_EVERYTHING"),
-  R("REQ-026", "Invoice", "NEEDS_EVERYTHING"),
-  R("REQ-027", "Refund", "NEEDS_EVERYTHING"),
-  R("REQ-028", "Receipt", "NEEDS_TEST"),
-  R("REQ-031", "Cancel an order", "WAITING_FOR_ANSWER", "draft-pedidos"),
-  R("REQ-032", "Order state", "NEEDS_EVERYTHING", "draft-pedidos"),
-  R("REQ-033", "Repeat an order", "NEEDS_EVERYTHING", "draft-pedidos"),
-  R("REQ-034", "Free shipping from an amount", "WAITING_FOR_ANSWER", "draft-pedidos"),
-  R("REQ-035", "Track the parcel", "NEEDS_EVERYTHING", "draft-pedidos"),
-];
-const Q1 = {
-  id: "Q1",
-  change: "draft-pedidos",
-  text: "From what amount is shipping free?",
-  blocks: ["REQ-034"],
-  options: ["40 €", "50 €", "60 €"],
-  asked: "brief",
-};
-const Q2 = {
-  id: "Q2",
-  change: "draft-pedidos",
-  text: "Until when can an order be cancelled?",
-  blocks: ["REQ-031"],
-  options: ["Until it ships", "24 h before it ships"],
-  asked: "draft",
-};
-const Q4 = {
-  id: "Q4",
-  change: "draft-pagos",
-  text: "Pay in instalments?",
-  blocks: ["REQ-022"],
-  answer: "No",
-  asked: "draft",
-};
-
-/** `change show <id> --json`. */
-const shown = (id: string, config: Record<string, unknown>) => ({
-  data: { change: { id, config: { specgate_change_version: 1, ...config }, deltas: [] } },
-  findings: [],
-  exitCode: 0,
-});
-
-export function sprich(opts: Opts = {}) {
-  return studio({
-    homeRequirements: SPRICH_REQS as never,
-    next: 'specgate answer Q1 "…" --change draft-pedidos',
-    questions: { open: [Q1, Q2], answered: [Q4] },
-    ...opts,
-    sections: {
-      changes: {
-        changes: [{ id: "draft-pedidos" }, { id: "add-coupons" }, { id: "auth-reset" }],
-      },
-      home: {
-        total: 24,
-        pending: 9,
-        requirements: SPRICH_REQS,
-        nextCommand: 'specgate answer Q1 "…" --change draft-pedidos',
-      },
-      // 12 of the 15 built have a test that passes (A1).
-      report: {
-        total: 19,
-        requirements: SPRICH_REQS.slice(0, 15).map((r, i) => ({
-          requirement: r.id,
-          featureFile: `\`features/${i < 6 ? "auth" : i < 13 ? "catalogo" : "pagos"}/${r.id}.feature\``,
-          testExists: i < 12,
-        })),
-      },
-      ...opts.sections,
-    },
-    specgate: {
-      "change show draft-pedidos": shown("draft-pedidos", { brief: "docs/brief.md" }),
-      "change show add-coupons": shown("add-coupons", { approved: "2026-11-09" }),
-      "change show auth-reset": shown("auth-reset", { approved: "2026-11-09" }),
-      "harness report": {
-        data: {
-          report: { runs: 18, passed: 15, msPerDelivered: 520_000, estimatedCost: { total: 4.8 } },
-        },
-        findings: [],
-        exitCode: 0,
-      },
-      "config list": { data: { config: { agent: "claude -p" } }, findings: [], exitCode: 0 },
-      "propose --from-brief": {
-        data: {
-          draft: {
-            modules: ["auth", "catalogo", "pagos", "pedidos"].map((m) => ({
-              module: m,
-              state: m === "pedidos" ? "ready" : "archived",
-            })),
-          },
-        },
-        findings: [],
-        exitCode: 0,
-      },
-      ...opts.specgate,
-    },
-  });
-}
+import { R, sprich, SPRICH_REQS, Q1, Q2, Q4, shown, type Opts } from "./sprich.js";
 
 /** sprich served again on a port: the host back after it stopped (REQ-178). */
 async function sprichOn(port: number) {
@@ -191,14 +82,21 @@ test("REQ-171 SCN-512: Questions in the browser — the boards' ground, bars, si
 
 // ── REQ-172 ─────────────────────────────────────────────────────────────
 
-test("REQ-172 SCN-513: Questions with nothing open — no tab strip, no bottom panel; the status bar says 2 open · 1 to confirm", async () => {
+test("REQ-172 SCN-513: Questions with nothing open — no tab strip, the bottom panel with its five tabs; the status bar says 2 open · 1 to confirm", async () => {
   const s = await sprich();
   const page = await open(s);
   try {
     await page.click('.sga[data-view="questions"]');
     await page.waitForSelector('[data-testid="status-view"]');
     assert.equal(await page.$(".tabs"), null, "no tab strip");
-    assert.equal(await page.$eval(".panel", (e) => (e as HTMLElement).hidden), true);
+    assert.equal(await page.$eval(".panel", (e) => (e as HTMLElement).hidden), false);
+    assert.deepEqual(await page.$$eval(".panel .ptab", (els) => els.map((e) => e.textContent)), [
+      "Terminal",
+      "Gate",
+      "Problems",
+      "Agent output",
+      "Traceability",
+    ]);
     assert.equal(await page.textContent('[data-testid="status-view"]'), "2 open · 1 to confirm");
   } finally {
     await close(s, page);
@@ -225,7 +123,7 @@ test('REQ-172 SCN-514: a green gate — the menu bar, "Gate green" in green, a p
     );
     await page.click('.menubar [data-menu="terminal"]');
     await page.click('.menu-list [data-feature="terminal.new"]');
-    await page.waitForSelector('.panel:not([hidden]) .term-tab[data-terminal^="t"]');
+    await page.waitForSelector('.panel .term-tab[data-terminal^="t"]');
   } finally {
     await close(s, page);
   }
@@ -865,6 +763,8 @@ test("REQ-171 SCN-511: the editor's theme — titles bold near-white, the marker
   const s = await sprich({ files: { [DELTA]: SPEC_WITH_Q, "spec.md": "# spec\n" } });
   const page = await open(s);
   try {
+    // The panel folded to its tabs: the whole requirement in view, its trace too.
+    await hidePanel(page);
     await page.keyboard.press(`${MOD}+P`);
     await page.keyboard.type("pedidos/spec.md");
     await page.keyboard.press("Enter");
@@ -875,6 +775,15 @@ test("REQ-171 SCN-511: the editor's theme — titles bold near-white, the marker
         (x) => x.textContent?.replace(/\u00a0/g, " ").trim() === "### Requirement:",
       ),
     );
+    // Every line the test reads drawn first: the inline question may push them down a moment later.
+    await page.waitForFunction(() => {
+      const spans = [...document.querySelectorAll(".monaco-editor .view-line span span")].map(
+        (x) => x.textContent?.replace(/\u00a0/g, " ").trim() ?? "",
+      );
+      return ["REQ-031 — Cancel an order", "SHALL", "GIVEN", "<!--"].every((t) =>
+        spans.some((x) => x.startsWith(t)),
+      );
+    });
     assert.deepEqual(await color(page, "REQ-031 — Cancel an order"), ["rgb(236, 231, 222)", "700"]);
     assert.equal((await color(page, "###"))?.[0], "rgb(255, 138, 92)");
     assert.equal((await color(page, "SHALL"))?.[0], "rgb(108, 182, 255)");

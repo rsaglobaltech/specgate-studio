@@ -125,6 +125,10 @@ export interface Requests {
   /** Git's letter of each changed file (REQ-163). */
   "files.status": { params: Record<string, never>; result: { changes: Record<string, GitLetter> } };
   /** The folders left open in this project, and keeping them (REQ-161). */
+  /** This project's layout as last saved, or null (draft-workbench-v2 REQ-191, A24). */
+  "layout.get": { params: Record<string, never>; result: { layout: unknown } };
+  /** Saves this project's layout in the Developer's store, never in the project (REQ-191). */
+  "layout.set": { params: { layout: unknown }; result: Record<string, never> };
   "explorer.open.get": { params: Record<string, never>; result: { open: string[] } };
   "explorer.open.set": { params: { open: string[] }; result: Record<string, never> };
   /** The tree's writes, through the host's file port, inside the project only (REQ-166). */
@@ -165,6 +169,22 @@ export interface Requests {
     result: Record<string, never>;
   };
   "terminal.close": { params: { id: string }; result: Record<string, never> };
+  /** Whether a folder is open, and the Developer's home (draft-workbench-v2 REQ-185). */
+  "folder.get": { params: Record<string, never>; result: { open: boolean; home: string } };
+  /** The folders inside one, for Open Folder and Clone Repository's chooser (REQ-185). */
+  "folder.browse": {
+    params: { path?: string };
+    result: { path: string; parent: string | null; folders: string[] };
+  };
+  /** Open a folder as the project, in a host of its own: its page's URL (REQ-185). */
+  "folder.open": { params: { path: string }; result: { url: string } };
+  /** Clone a repository into a chosen folder with gh or git, shown in the terminal, then open it (REQ-185). */
+  "folder.clone": {
+    params: { repo: string; parent: string };
+    result: { ok: boolean; path: string; url?: string; notice: Record<Lang, Notice> };
+  };
+  /** The shell new terminals run and their folder, as the panel shows them (draft-workbench-v2 REQ-184). */
+  "terminal.shell": { params: Record<string, never>; result: { name: string; folder: string } };
   "terminal.list": { params: Record<string, never>; result: Array<{ id: string; name: string }> };
   /** What a terminal printed, its last 10,000 lines (REQ-056). */
   "terminal.scrollback": { params: { id: string }; result: { data: string } };

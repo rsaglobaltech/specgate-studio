@@ -6,7 +6,7 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { InMemoryPty, Scrollback, Terminals, shellFor, shown } from "../src/index.js";
+import { InMemoryPty, Scrollback, Terminals, folderLabel, shellFor, shown } from "../src/index.js";
 
 test("REQ-051 SCN-151 SCN-152, REQ-052 SCN-153: the Developer's shell — $SHELL on macOS and Linux, PowerShell on Windows", () => {
   assert.deepEqual(
@@ -157,4 +157,13 @@ test("REQ-055: a shell that never exits does not keep the studio from closing", 
   t.open(80, 24);
   await t.closeAll();
   assert.equal(port.spawned[0]!.pty.killed, true);
+});
+
+test("REQ-184: the panel names the terminals' folder under the home with ~, on macOS, Linux and Windows", () => {
+  assert.equal(folderLabel("/Users/ana/mvp/sprich", "/Users/ana"), "~/mvp/sprich");
+  assert.equal(folderLabel("/Users/ana", "/Users/ana/"), "~");
+  assert.equal(folderLabel("/Users/anabel/sprich", "/Users/ana"), "/Users/anabel/sprich");
+  assert.equal(folderLabel("/srv/sprich", "/home/ana"), "/srv/sprich");
+  assert.equal(folderLabel("C:\\Users\\Ana\\mvp\\sprich", "c:\\users\\ana"), "~\\mvp\\sprich");
+  assert.equal(folderLabel("/tmp/sprich", ""), "/tmp/sprich");
 });

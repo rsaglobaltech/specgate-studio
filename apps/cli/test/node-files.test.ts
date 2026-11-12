@@ -49,7 +49,7 @@ const put = (dir: string, rel: string, text = "x") => {
   fs.writeFileSync(path.join(dir, rel), text);
 };
 
-test("REQ-161 REQ-167 SCN-498: one folder's entries — the ignored left out, .gitignore's wildcards by git", async () => {
+test("REQ-161 REQ-167 REQ-186 SCN-498: one folder's entries — the ignored marked, never left out; .gitignore's wildcards by git; the list without them", async () => {
   const dir = project(true);
   try {
     fs.writeFileSync(path.join(dir, ".gitignore"), ".idea/\n*.log\n!keep.log\n");
@@ -65,9 +65,23 @@ test("REQ-161 REQ-167 SCN-498: one folder's entries — the ignored left out, .g
       put(dir, f);
     const files = nodeFiles(dir, { git: new NodeGit() });
     const names = async (rel: string) =>
-      (await files.children!(rel)).map((e) => `${e.name}${e.dir ? "/" : ""}`).sort();
-    assert.deepEqual(await names(""), [".gitignore", "apps/", "keep.log", "spec.md"]);
-    assert.deepEqual(await names("apps/web"), ["src/"]);
+      (await files.children!(rel))
+        .map((e) => `${e.name}${e.dir ? "/" : ""}${e.ignored ? " (ignored)" : ""}`)
+        .sort();
+    assert.deepEqual(await names(""), [
+      ".gitignore",
+      ".idea/ (ignored)",
+      "apps/",
+      "debug.log (ignored)",
+      "keep.log",
+      "node_modules/ (ignored)",
+      "spec.md",
+    ]);
+    assert.deepEqual(await names("apps/web"), ["dist/ (ignored)", "src/"]);
+    // .git is left out, as VS Code's files.exclude does by default (A11).
+    assert.ok(fs.existsSync(path.join(dir, ".git")), "a git repository");
+    // Inside an ignored folder, everything is ignored too (REQ-186 SCN-553).
+    assert.deepEqual(await names("node_modules"), ["x/ (ignored)"]);
     assert.ok(!(await files.list()).some((f) => /node_modules|dist|\.idea|debug\.log/.test(f)));
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });

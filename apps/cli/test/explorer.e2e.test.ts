@@ -500,7 +500,7 @@ test("REQ-167 SCN-497: REQ-031 filtered — its two files in their opened folder
   }
 });
 
-test("REQ-167 SCN-498: node_modules, apps/web/dist and .idea — never shown, never matched", async () => {
+test("REQ-167 SCN-498: node_modules and .idea dimmed in the tree; node_modules, apps/web/dist, .idea and a .log never matched", async () => {
   const s = await studio({
     files: {
       ".gitignore": ".idea/\n*.log\n",
@@ -516,7 +516,13 @@ test("REQ-167 SCN-498: node_modules, apps/web/dist and .idea — never shown, ne
   try {
     await explorer(page);
     const top = await rows(page);
-    for (const p of ["node_modules", ".idea"]) assert.ok(!top.includes(p), p);
+    for (const p of ["node_modules", ".idea"]) {
+      assert.ok(top.includes(p), p);
+      assert.equal(await page.getAttribute(row(p), "data-ignored"), "1", p);
+      assert.equal(await page.$eval(row(p), (e) => getComputedStyle(e).opacity), "0.5", p);
+    }
+    for (const p of ["src", "index.ts"])
+      assert.equal(await page.getAttribute(row(p), "data-ignored"), null, p);
     await page.fill(".explorer .filter", "index");
     await page.waitForSelector(row("src/index.ts"));
     const all = await rows(page);
@@ -613,7 +619,8 @@ test("REQ-169 SCN-502: SPEC EXPLORER above, draft-pedidos with 2 questions, capa
     const heads = await page.$$eval(".explorer .shead > span:first-child", (els) =>
       els.map((e) => (e as HTMLElement).innerText),
     );
-    assert.deepEqual(heads, ["EXPLORER", "SPEC EXPLORER", "MODULES · REQUIREMENTS", "FILES"]);
+    // The project's tree under its root, named after it (draft-workbench-v2 REQ-186).
+    assert.deepEqual(heads, ["EXPLORER", "SPEC EXPLORER", "MODULES · REQUIREMENTS", "SPRICH"]);
     const spec = await page.locator('.explorer [data-section="spec"]').innerText();
     assert.match(spec, /spec\.md/);
     assert.match(spec, /docs\/brief\.md/);

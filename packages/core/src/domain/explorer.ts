@@ -12,6 +12,8 @@ export interface TreeEntry {
   name: string;
   path: string;
   dir: boolean;
+  /** Named by `.gitignore` or the studio's ignore rules: shown dimmed, never hidden (draft-workbench-v2 REQ-186). */
+  ignored?: true;
 }
 
 /** Git's letter on a changed file (REQ-163, A8): modified, untracked, added. */
@@ -89,6 +91,15 @@ export type OpenFolders = Record<string, string[]>;
 
 /** The store's key for the folders left open. */
 export const OPEN_FOLDERS_KEY = "explorer-open";
+
+/**
+ * What the tree never shows, as VS Code's `files.exclude` default (draft-workbench-v2
+ * REQ-186, A11): `.git`. Everything else ignored is shown dimmed.
+ */
+export const EXCLUDED_NAMES: ReadonlySet<string> = new Set([".git"]);
+
+/** The store's key for each project's layout (draft-workbench-v2 REQ-191, A24). */
+export const LAYOUTS_KEY = "workbench-layouts";
 
 /** How many open folders are kept per project, at most. */
 export const OPEN_FOLDERS_LIMIT = 500;

@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { IgnoreRules, type GitPort } from "@specgate-studio/core";
+import { EXCLUDED_NAMES, IgnoreRules, type GitPort } from "@specgate-studio/core";
 import type { ProjectFiles } from "@specgate-studio/host";
 import { systemTrash, type Trash } from "@specgate-studio/adapter-node";
 
@@ -12,8 +12,9 @@ function refusal(code: "outside" | "exists" | "missing", message: string): Error
 }
 
 /**
- * The project's files on disk for Explorer and the tabs: not dependencies, git,
- * build output or what the project's .gitignore names — the workspace's
+ * The project's files on disk for Explorer and the tabs; `list()` leaves out
+ * dependencies, git, build output and what the project's .gitignore names,
+ * which `children()` marks as ignored instead (draft-workbench-v2 REQ-186) — the workspace's
  * ignore rules (draft-workspace REQ-022), and git's own reading of
  * .gitignore, wildcards and `!` included, when git is given
  * (draft-explorer-tree A18).
@@ -92,10 +93,11 @@ export function nodeFiles(
       if (rel) await inProject(path.join(dir, "x"));
       const ignore = await rules();
       const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
-      const out: Array<{ name: string; dir: boolean; rel: string }> = [];
+      const out: Array<{ name: string; dir: boolean; rel: string; ignored: boolean }> = [];
       for (const e of entries) {
+        // `.git` is never shown (REQ-186, A11): VS Code's files.exclude default.
+        if (EXCLUDED_NAMES.has(e.name)) continue;
         const r = rel ? `${rel}/${e.name}` : e.name;
-        if (ignore.ignores(r)) continue;
         let isDir = e.isDirectory();
         if (e.isSymbolicLink())
           isDir = await fs.stat(path.join(dir, e.name)).then(
@@ -103,13 +105,18 @@ export function nodeFiles(
             () => false,
           );
         else if (!isDir && !e.isFile()) continue;
-        out.push({ name: e.name, dir: isDir, rel: r });
+        out.push({ name: e.name, dir: isDir, rel: r, ignored: ignore.ignores(r) });
       }
-      // git answers for a folder with its trailing `/`.
-      const git = await gitIgnored(out.map((e) => (e.dir ? `${e.rel}/` : e.rel)));
-      return out
-        .filter((e) => !git.has(e.rel) && !git.has(`${e.rel}/`))
-        .map(({ name, dir }) => ({ name, dir }));
+      // git answers for a folder with its trailing `/`; only for what the rules let through.
+      const git = await gitIgnored(
+        out.filter((e) => !e.ignored).map((e) => (e.dir ? `${e.rel}/` : e.rel)),
+      );
+      // What is ignored is marked, never left out (draft-workbench-v2 REQ-186).
+      return out.map(({ name, dir, rel: r, ignored }) => ({
+        name,
+        dir,
+        ...(ignored || git.has(r) || git.has(`${r}/`) ? { ignored: true } : {}),
+      }));
     },
     async create(rel, dir) {
       const target = inside(root, rel);

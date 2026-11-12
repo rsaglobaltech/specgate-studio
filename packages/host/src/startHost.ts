@@ -38,6 +38,7 @@ import { attachBuilds, type BuildsWiring } from "./builds.js";
 import { attachBrief, type BriefWiring } from "./brief.js";
 import { attachExplorer } from "./explorer.js";
 import { attachHome } from "./home.js";
+import { attachFolders, type FoldersWiring } from "./folders.js";
 import type { ProjectFiles } from "./files.js";
 
 export interface HostOptions {
@@ -70,6 +71,8 @@ export interface HostOptions {
   brief?: BriefWiring;
   /** Where the Explorer keeps the folders left open per project (draft-explorer-tree A4). */
   store?: StorePort;
+  /** Open Folder and Clone Repository; `none` when no folder is open (draft-workbench-v2 REQ-185). */
+  folders?: FoldersWiring;
 }
 
 export type { ProjectFiles, FileRefusal } from "./files.js";
@@ -333,8 +336,9 @@ export async function startHost(given: HostOptions): Promise<Host> {
       const vars = Object.fromEntries(
         Object.entries((p.vars ?? {}) as Record<string, unknown>).filter(
           ([k, v]) =>
-            ["req", "change", "module", "key", "q", "agent", "path", "to"].includes(k) &&
-            typeof v === "string",
+            ["req", "change", "module", "key", "q", "agent", "path", "to", "repo", "side"].includes(
+              k,
+            ) && typeof v === "string",
         ),
       ) as HelpVars;
       return { labels: PART_LABELS[lang], explanation: explain(p.action as ActionId, lang, vars) };
@@ -408,6 +412,9 @@ export async function startHost(given: HostOptions): Promise<Host> {
     ...brief?.handlers,
     ...explorer?.handlers,
     ...home.handlers,
+    ...(options.folders
+      ? attachFolders(options.folders, broadcast, (m) => rpcError(RPC_ERRORS.params, m)).handlers
+      : {}),
   };
 
   server.on("connection", (ws: WebSocket) => {

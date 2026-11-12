@@ -176,7 +176,7 @@ test("REQ-032 SCN-103: the panel hidden, two tabs — Mod+J shows the panel, Ctr
   try {
     await hidePanel(page);
     assert.equal(
-      await page.$eval(".panel", (e) => (e as HTMLElement).hidden),
+      await page.$eval(".panel", (e) => e.hasAttribute("data-collapsed")),
       true,
       "hidden first",
     );
@@ -184,7 +184,7 @@ test("REQ-032 SCN-103: the panel hidden, two tabs — Mod+J shows the panel, Ctr
     await openFromExplorer(page, "docs/specs/changes/draft-workbench/proposal.md");
     await page.keyboard.press(`${MOD}+J`);
     await page.keyboard.press("Control+Shift+Tab");
-    assert.equal(await page.$eval(".panel", (e) => (e as HTMLElement).hidden), false);
+    assert.equal(await page.$eval(".panel", (e) => e.hasAttribute("data-collapsed")), false);
     assert.equal(
       await page.$eval('.tab[aria-selected="true"]', (e) => e.firstChild?.textContent),
       "brief.md",

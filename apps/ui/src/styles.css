@@ -85,7 +85,8 @@ button {
 }
 .wb {
   display: grid;
-  grid-template-rows: 42px 1fr auto 26px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 42px minmax(0, 1fr) auto 26px;
   height: 100%;
 }
 .wb > .top {
@@ -460,14 +461,52 @@ pre.file {
   display: flex;
   flex-direction: column;
 }
-.panel[hidden] {
+/* Folded to its tabs by Ctrl/Cmd+J, never removed (draft-workbench-v2 REQ-184). */
+.panel[data-collapsed] {
+  height: auto;
+}
+.panel[data-collapsed] > .pbody {
   display: none;
+}
+.ptabs-bar {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
 }
 .ptabs {
   display: flex;
   gap: 4px;
   padding: 0 8px;
-  border-bottom: 1px solid var(--line);
+  min-width: 0;
+  overflow: hidden;
+}
+.pend {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+  min-width: 0;
+}
+.pshell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pnew {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+.pnew:hover {
+  color: var(--text);
+  background: var(--bg-input);
 }
 .ptab {
   height: 30px;
@@ -845,17 +884,37 @@ textarea.ask {
 }
 .terms {
   display: flex;
-  flex-direction: column;
   flex: 1;
   min-height: 0;
   width: 100%;
 }
+.term-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+/* The terminals' list on the right, once there are two (draft-workbench-v2 REQ-184). */
 .term-tabs {
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  width: 160px;
+  padding: 4px;
+  border-left: 1px solid var(--line);
+  overflow: auto;
+}
+.terms[data-many] > .term-tabs,
+.terms[data-one] > .term-tabs {
+  display: flex;
+}
+.term-empty {
+  padding: 10px 12px;
+  color: var(--muted);
+  font-size: 12px;
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 2px 6px;
-  border-bottom: 1px solid var(--line);
+  gap: 10px;
 }
 .term-tab {
   display: flex;
@@ -878,14 +937,6 @@ textarea.ask {
 }
 .term-tab .x {
   opacity: 0.6;
-}
-.term-new {
-  height: 24px;
-  width: 24px;
-  border: 0;
-  background: transparent;
-  color: var(--muted);
-  font-size: 16px;
 }
 .term-note {
   padding: 6px 10px;
@@ -1164,18 +1215,37 @@ textarea.ask {
 .tr .right.warn {
   color: var(--amber);
 }
+/* Like VS Code's view panes (draft-workbench-v2 REQ-186): whole rows, each scrolls, a sash resizes. */
 .ssec {
-  flex: 0 1 auto;
+  flex: none;
   min-height: 0;
   overflow: auto;
-  padding: 0 0 6px;
+  padding: 0;
 }
 .side.explorer {
   overflow: hidden;
 }
-.ssec.modules {
-  max-height: 34%;
-  overflow: auto;
+.ssec .tr .name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ssec .tr .right {
+  flex: none;
+}
+.vsash {
+  flex: none;
+  height: 4px;
+  margin-top: -2px;
+  position: relative;
+  z-index: 2;
+  cursor: row-resize;
+}
+.vsash:hover,
+.vsash:focus-visible {
+  background: var(--accent);
+  outline: none;
 }
 .explorer .filter {
   flex: none;
@@ -1210,6 +1280,21 @@ textarea.ask {
 }
 .ft.plain {
   color: var(--faint);
+}
+/* The studio's own icons (draft-workbench-v2 REQ-187), in each kind's token. */
+.ficon {
+  display: inline-flex;
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+.tree .ft {
+  min-width: 16px;
+  display: inline-flex;
+}
+/* What .gitignore or the studio's rules name: dimmed, never hidden (REQ-186). */
+.explorer .row[data-ignored] {
+  opacity: 0.5;
 }
 .spec-mark {
   flex: none;
@@ -2393,4 +2478,388 @@ textarea.ask {
 }
 .monaco-editor .codelens-decoration > a:nth-of-type(-n + 4)::before {
   margin-right: 4px;
+}
+
+/* No folder open (draft-workbench-v2 REQ-185). */
+.nofolder {
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--row-text);
+}
+.nofolder p {
+  margin: 0 0 10px;
+  line-height: 1.5;
+}
+.nf-act {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.nf-act .btn {
+  flex: 1;
+  justify-content: center;
+}
+.nofolder-main {
+  max-width: 460px;
+  margin: 12vh auto 0;
+}
+.nofolder-main h1 {
+  font-family: Syne, "IBM Plex Sans", sans-serif;
+  font-size: 28px;
+  margin: 0 0 8px 14px;
+}
+.chooser-dialog {
+  width: min(560px, calc(100vw - 32px));
+}
+.chooser-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.chooser-path {
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chooser-list {
+  height: 240px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg-input);
+}
+.chooser-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font-size: 13px;
+}
+.chooser-row:hover,
+.chooser-row:focus-visible {
+  background: var(--row-current);
+}
+.ficon-dir {
+  color: var(--muted);
+  font-size: 11px;
+}
+.clone-label {
+  display: block;
+  margin: 8px 0 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.clone-label .filter {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 6px 0 0;
+}
+.chooser-bar .btn {
+  flex: none;
+  white-space: nowrap;
+}
+.clone-dest {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+/* Editor groups in their grid (draft-workbench-v2 REQ-188, REQ-189, A17, A19). */
+.middle > .side {
+  flex: 0 0 var(--side-w, 270px);
+  min-width: 180px;
+}
+.side-sash {
+  position: relative;
+  flex: 0 0 0px;
+  width: 0;
+  z-index: 6;
+}
+.side-sash::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -3px;
+  width: 6px;
+  cursor: col-resize;
+}
+.ecol {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ecol[data-pos="right"],
+.ecol[data-pos="left"] {
+  flex-direction: row;
+}
+.ecol[data-pos="left"] > .panel {
+  order: -1;
+}
+.ecol > .main {
+  min-height: 0;
+}
+.main[hidden] {
+  display: none !important;
+}
+.ecol > .panel {
+  position: relative;
+  flex: none;
+}
+.panel[data-position="right"],
+.panel[data-position="left"] {
+  height: auto;
+  border-top: 0;
+}
+.panel[data-position="right"] {
+  border-left: 1px solid var(--line);
+}
+.panel[data-position="left"] {
+  border-right: 1px solid var(--line);
+}
+.ecol > .panel[data-maximized] {
+  flex: 1 1 auto;
+  height: auto;
+  width: auto;
+}
+.psash {
+  position: absolute;
+  z-index: 6;
+}
+.panel[data-position="bottom"] > .psash {
+  top: -3px;
+  left: 0;
+  right: 0;
+  height: 6px;
+  cursor: row-resize;
+}
+.panel[data-position="right"] > .psash,
+.panel[data-position="left"] > .psash {
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+}
+.panel[data-position="right"] > .psash {
+  left: -3px;
+}
+.panel[data-position="left"] > .psash {
+  right: -3px;
+}
+.egrid {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+}
+.esplit {
+  flex: 1 1 auto;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+.esplit[data-dir="row"] {
+  flex-direction: row;
+}
+.esplit[data-dir="col"] {
+  flex-direction: column;
+}
+.ecell {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.splitter {
+  flex: 0 0 4px;
+  position: relative;
+  background: transparent;
+}
+.splitter::after {
+  content: "";
+  position: absolute;
+  background: var(--line);
+}
+.esplit[data-dir="row"] > .splitter {
+  cursor: col-resize;
+}
+.esplit[data-dir="row"] > .splitter::after {
+  top: 0;
+  bottom: 0;
+  left: 1.5px;
+  width: 1px;
+}
+.esplit[data-dir="col"] > .splitter {
+  cursor: row-resize;
+}
+.esplit[data-dir="col"] > .splitter::after {
+  left: 0;
+  right: 0;
+  top: 1.5px;
+  height: 1px;
+}
+.splitter:hover::after,
+.splitter:focus-visible::after {
+  background: var(--accent);
+}
+.splitter:focus-visible {
+  outline: none;
+}
+.egroup {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+/* Only the active group's tab carries the orange inset (A17). */
+.egroup:not([data-active]) .tab[aria-selected="true"] {
+  box-shadow: none;
+}
+.ebody {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.drop-catcher {
+  display: none;
+}
+body[data-tab-drag] .drop-catcher {
+  display: block;
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+}
+.drop-overlay {
+  position: absolute;
+  z-index: 21;
+  pointer-events: none;
+  background: rgba(255, 91, 31, 0.15);
+  outline: 1px solid rgba(255, 91, 31, 0.5);
+  outline-offset: -1px;
+}
+.drop-overlay[data-zone="center"] {
+  inset: 0;
+}
+.drop-overlay[data-zone="left"] {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 50%;
+}
+.drop-overlay[data-zone="right"] {
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 50%;
+}
+.drop-overlay[data-zone="up"] {
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 50%;
+}
+.drop-overlay[data-zone="down"] {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 50%;
+}
+.split-btn {
+  margin-left: auto;
+  flex: none;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+}
+.split-btn:hover {
+  color: var(--text);
+}
+/* The agent panel's frame (REQ-190); its plans come with REQ-181–183. */
+.agent {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-left: 1px solid var(--line);
+  background: var(--bg-side);
+}
+.agent-body {
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--row-text);
+  overflow: auto;
+}
+.agent-body p {
+  margin: 0 0 10px;
+}
+.agent-cmd {
+  font-size: 12px;
+  color: var(--muted);
+}
+.agent-bar {
+  flex: 0 0 28px;
+  border-left: 1px solid var(--line);
+  background: var(--bg-side);
+}
+
+/* Nothing in the panel's bar widens the window: the folder's path is cut (REQ-184). */
+.ecol > .panel,
+.ptabs-bar {
+  min-width: 0;
+}
+.pend {
+  flex-shrink: 1;
+  overflow: hidden;
+}
+.ptabs {
+  flex: none;
+}
+.ptab {
+  white-space: nowrap;
+}
+.pshell {
+  min-width: 0;
+  white-space: nowrap;
+}
+.ecol > .panel {
+  overflow: hidden;
+}
+.panel[data-position="right"] .ptabs-bar,
+.panel[data-position="left"] .ptabs-bar,
+.panel[data-position="right"] .ptabs,
+.panel[data-position="left"] .ptabs {
+  flex-wrap: wrap;
+}
+.panel[data-position="right"] .terms[data-one] > .term-tabs,
+.panel[data-position="left"] .terms[data-one] > .term-tabs {
+  display: none;
+}
+.panel[data-position="right"] .ptabs,
+.panel[data-position="left"] .ptabs {
+  flex: 1 1 100%;
+}
+/* A narrow window keeps the header on one line (REQ-191). */
+.top .pill,
+.top .search span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

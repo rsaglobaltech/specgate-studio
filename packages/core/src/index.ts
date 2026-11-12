@@ -122,7 +122,7 @@ export {
   type PortCheck,
 } from "./contracts/workspaceContracts.js";
 export type { Pty, PtyOptions, PtyPort, Shell } from "./ports/PtyPort.js";
-export { Scrollback, shellFor } from "./domain/terminal.js";
+export { Scrollback, folderLabel, shellFor } from "./domain/terminal.js";
 export { SCROLLBACK_LINES, Terminals } from "./application/Terminals.js";
 export { FakePty, InMemoryPty } from "./fakes/InMemoryPty.js";
 export {
@@ -217,6 +217,8 @@ export { quoted } from "./domain/args.js";
 export { Brief, type CommandRunner, type DraftResult } from "./application/Brief.js";
 export {
   OPEN_FOLDERS_KEY,
+  LAYOUTS_KEY,
+  EXCLUDED_NAMES,
   OPEN_FOLDERS_LIMIT,
   childPath,
   cleanOpenFolders,
@@ -243,3 +245,6 @@ export {
   type RouteState,
   type RouteStep,
 } from "./domain/home.js";
+/** Opening a folder and cloning a repository when none is open (draft-workbench-v2 REQ-185). */
+export { clonePlan, repoName, type ClonePlan } from "./domain/clone.js";
+export type { FoldersPort, ProgramPort } from "./ports/FoldersPort.js";
