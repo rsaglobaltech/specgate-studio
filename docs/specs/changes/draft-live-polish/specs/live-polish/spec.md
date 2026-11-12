@@ -4,17 +4,23 @@
 
 ### Requirement: REQ-201 — SALIDA DEL AGENTE: one timestamped line per action, following the end
 
-<!-- specgate:trace actor=Developer kind=functional status=Draft -->
+<!-- specgate:trace actor=Developer kind=functional -->
 
-The system SHALL show in Live's SALIDA DEL AGENTE, while the agent works, one line per action of the agent — its time, then `read <file>`, `edit <file> +N`, `run <command>` with `✓ N passing` or `✗ N failing`, or `ask <question>` — each line one row however long its command, the full command shown on hover and when the line is expanded; and SHALL keep the end in view as lines arrive unless the Developer scrolls up, then pause, saying "sigue el final · sube para pausar", until the Developer returns to the end.
+The system SHALL show in Live's SALIDA DEL AGENTE, while the agent works, one line per action of the agent — its time, then `read <file>`, `edit <file>`, `run <command>` with ✓ or ✗, or `ask <question>`; the lines an edit added (`+N`) and the tests a run passed or failed (`✓ N passing`, `✗ N failing`) shown as soon as specgate's events give them, and left out, never guessed from the agent's text, while they do not (specgate 0.34.0) — each line one row however long its command, the full command shown on hover and when the line is expanded; and SHALL keep the end in view as lines arrive unless the Developer scrolls up, then pause, saying "sigue el final · sube para pausar", until the Developer returns to the end.
 
 > Brief: "While the agent works, SALIDA DEL AGENTE shows one timestamped line per action — read, edit with the lines added, run with the tests passing or failing, ask — with the full command on hover or when expanded, and follows the end unless the Developer scrolls up ("sigue el final · sube para pausar")."
 
 #### Scenario: SCN-601 — The agent's actions on REQ-012, on the desktop
 
-- GIVEN the desktop app building REQ-012, Live open
+- GIVEN the desktop app building REQ-012, Live open, specgate's events giving the lines each edit added and the tests each run passed or failed
 - WHEN the agent reads `features/auth/REQ-012.feature`, edits `packages/core/test/auth/SignOut.test.ts` adding 42 lines, runs `pnpm test SignOut` with 1 failing, then runs it again with 3 passing
 - THEN the Developer sees four lines under SALIDA DEL AGENTE, each with its time: `read features/auth/REQ-012.feature`, `edit packages/core/test/auth/SignOut.test.ts +42`, `run pnpm test SignOut ✗ 1 failing`, `run pnpm test SignOut ✓ 3 passing`, and no raw shell command on its own row
+
+#### Scenario: SCN-616 — specgate 0.34.0 gives no counts, on the desktop
+
+- GIVEN the desktop app building REQ-141 with specgate 0.34.0, whose events give no lines added and no test counts
+- WHEN the agent edits `packages/core/src/domain/settings.ts` and runs `npm test`
+- THEN the Developer sees `edit packages/core/src/domain/settings.ts` with no "+N" and `run npm test ✓` with no "passing" count, and the gate's own "Gate: tests" with its 4 passing
 
 #### Scenario: SCN-602 — Scrolled up, the log pauses, in the browser
 
