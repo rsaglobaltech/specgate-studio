@@ -6,6 +6,7 @@ import {
   type Finding,
   type ProcessRunner,
   type SectionReader,
+  type ScratchPort,
   type SpecgatePort,
 } from "@specgate-studio/core";
 import {
@@ -26,6 +27,7 @@ import { inProcessSpecgate } from "@specgate-studio/adapter-specgate-api";
 import {
   NodeFolders,
   NodeGit,
+  NodeScratch,
   NodePrograms,
   caseInsensitivePaths,
 } from "@specgate-studio/adapter-node";
@@ -58,6 +60,8 @@ export interface ServeOptions {
   home?: string;
   /** Build and Live's fakes over `specgate` (draft-build-live). */
   builds?: Omit<BuildsWiring, "specgate">;
+  /** Files outside the project for the brief's form; the system's temporary folder when not given. */
+  scratch?: ScratchPort;
 }
 
 /**
@@ -123,7 +127,11 @@ export async function serve(options: ServeOptions): Promise<Host> {
       ...(options.findings ? { findings: options.findings } : {}),
       ...(options.workspace ? { workspace: options.workspace } : {}),
       ...(options.specgate
-        ? { changes: { specgate: options.specgate }, brief: { specgate: options.specgate } }
+        ? {
+            changes: { specgate: options.specgate },
+            brief: { specgate: options.specgate, scratch: options.scratch ?? new NodeScratch() },
+            agent: { specgate: options.specgate },
+          }
         : {}),
       ...(options.specgate ? { builds: { ...options.builds, specgate: options.specgate } } : {}),
       terminals,

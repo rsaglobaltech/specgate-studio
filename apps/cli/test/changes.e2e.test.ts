@@ -327,8 +327,12 @@ test("REQ-084 SCN-248: the review of KAN-13 closed without confirming — no com
     await page.waitForSelector(".ticket-review", { state: "detached" });
     assert.deepEqual(s.runs, [], "no command ran");
     assert.deepEqual(
-      // Home reads the agent's cost (`harness report`, read-only) beside it (draft-design-conformance REQ-173).
-      s.calls.filter((c) => c[0] !== "change" && c.join(" ") !== "harness report"),
+      // Home reads the agent's cost (`harness report`, read-only) beside it (draft-design-conformance REQ-173),
+      // and the agent panel which agent is set (`config list`, read-only; draft-workbench-v2 REQ-181).
+      s.calls.filter(
+        (c) =>
+          c[0] !== "change" && c.join(" ") !== "harness report" && c.join(" ") !== "config list",
+      ),
       [["propose", "--from-ticket", "KAN-13", "--check"]],
       "only the review was read: no propose that opens, branches, commits or pushes",
     );

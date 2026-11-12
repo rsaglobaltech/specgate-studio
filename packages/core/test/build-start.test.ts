@@ -38,14 +38,23 @@ test("REQ-102: the specification is spec.md, docs/specs/ and features/; the rest
   );
 });
 
-test("REQ-102: a build is `harness run --req <REQ> --format json`; anything else is no requirement", () => {
+test("REQ-102: a build is `harness run --req <REQ> --format jsonl`, `--allow-dirty` to ignore; anything else is no requirement", () => {
   assert.deepEqual(harnessArgs("REQ-030"), [
     "harness",
     "run",
     "--req",
     "REQ-030",
     "--format",
-    "json",
+    "jsonl",
+  ]);
+  assert.deepEqual(harnessArgs("REQ-030", true), [
+    "harness",
+    "run",
+    "--req",
+    "REQ-030",
+    "--allow-dirty",
+    "--format",
+    "jsonl",
   ]);
   assert.equal(harnessArgs("--agent=rm -rf"), null);
 });
@@ -114,11 +123,18 @@ test("REQ-102 SCN-304: a stash not confirmed runs nothing: the files stay, and B
   assert.deepEqual(await s.git.uncommitted(ROOT), ["src/orders/cancel.ts"]);
 });
 
-test("REQ-102: ignore is refused: specgate 0.33.2's harness will not run on uncommitted files", async () => {
+test("REQ-102: ignore confirmed — `harness run --allow-dirty` builds from the last commit; the files stay as they are, uncommitted", async () => {
   const s = sprichBuilds(["src/orders/cancel.ts"]);
   const r = await s.builds.resolve("REQ-030", { choice: "ignore" });
-  assert.ok(!r.ok && r.code === "build_ignore_unsupported");
-  assert.deepEqual(s.harness.started, []);
+  assert.equal(r.ok, true);
+  assert.deepEqual(s.harness.started, [harnessArgs("REQ-030", true)]);
+  assert.deepEqual(s.git.commits, [], "nothing committed");
+  assert.equal(s.git.stashes, 0, "nothing stashed");
+  assert.deepEqual(await s.git.uncommitted(ROOT), ["src/orders/cancel.ts"]);
+  const started = s.events
+    .filter((e) => e.type === "started")
+    .map((e) => (e as { command: string }).command);
+  assert.deepEqual(started, ["specgate harness run --req REQ-030 --allow-dirty"]);
 });
 
 test("REQ-102: uncommitted specification alone does not make Build wait: it is committed first, said as a run", async () => {

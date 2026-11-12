@@ -51,6 +51,12 @@ export const ACTIONS = [
   "group-close",
   "panel-position",
   "panel-maximize",
+  "agent-ask",
+  "agent-apply",
+  "agent-discard",
+  "redraft",
+  "brief-form",
+  "brief-propose",
 ] as const;
 export type ActionId = (typeof ACTIONS)[number];
 
@@ -557,24 +563,26 @@ export const HELP: Catalog = {
   },
   "build-ignore": {
     en: {
-      does: "Would build {req} anyway, from the last commit: the agent's branch would leave the uncommitted files out, and they would stay as they are.",
-      command: "specgate harness run --req {req}",
-      files: "None of the files shown; the build's own, on its branch.",
+      does: "Builds {req} anyway, from the last commit, once you confirm: the agent's branch leaves the uncommitted files out, and they stay in your working copy as they are.",
+      command: "specgate harness run --req {req} --allow-dirty",
+      files:
+        "None of the files shown: they stay uncommitted. The build's own, on its branch; uncommitted specification is committed first.",
       doesNot:
-        "specgate 0.33.2's harness refuses to start while any file is uncommitted, so the studio cannot ignore them yet: commit or stash them.",
-      next: "Commit or stash the files shown, then build {req}.",
+        "It does not commit, stash or delete the files shown, and the agent never sees them: code that needs them fails its gate.",
+      next: "Then the gate on the branch it opens; commit the files shown when they are ready.",
       notice: {
         ranOk: "`{command}` built {req} without the uncommitted files.",
         next: "specgate check",
       },
     },
     es: {
-      does: "Construiría {req} igualmente, desde el último commit: la rama del agente dejaría fuera los archivos sin commit, que quedarían como están.",
-      command: "specgate harness run --req {req}",
-      files: "Ninguno de los archivos mostrados; los de la construcción, en su rama.",
+      does: "Construye {req} igualmente, desde el último commit, cuando lo confirmas: la rama del agente deja fuera los archivos sin commit, que quedan en tu copia de trabajo como están.",
+      command: "specgate harness run --req {req} --allow-dirty",
+      files:
+        "Ninguno de los archivos mostrados: siguen sin commit. Los de la construcción, en su rama; la especificación sin commit se commitea antes.",
       doesNot:
-        "El harness de specgate 0.33.2 se niega a empezar mientras haya archivos sin commit, así que el studio aún no puede ignorarlos: haz commit de ellos o apártalos en el stash.",
-      next: "Haz commit o stash de los archivos mostrados y después construye {req}.",
+        "No hace commit, ni stash, ni borra los archivos mostrados, y el agente no los ve: el código que los necesite no pasará su gate.",
+      next: "Después, el gate en la rama que abre; haz commit de los archivos mostrados cuando estén listos.",
       notice: {
         ranOk: "`{command}` construyó {req} sin los archivos sin commit.",
         next: "specgate check",
@@ -583,10 +591,10 @@ export const HELP: Catalog = {
   },
   "build-stop-after": {
     en: {
-      does: "Lets {req} finish — its agent, its gate and its branch — and then starts nothing else: the requirements queued after it are left unbuilt.",
-      command:
-        "None of specgate's: the studio does not start `specgate harness run` for what is queued.",
-      files: "None besides what {req}'s build writes on its branch.",
+      does: "Lets {req} finish — its agent, its gate and its branch — and then starts nothing else: specgate's harness is asked to start no other requirement, and the studio starts nothing it queued.",
+      command: "specgate harness stop --after-current",
+      files:
+        "None besides what {req}'s build writes on its branch; the stop request the harness reads, in git's own folder.",
       doesNot:
         "It does not interrupt {req}, and it asks no confirmation: nothing running is ended.",
       next: "Build the queued requirements again from Build when you want them.",
@@ -596,10 +604,10 @@ export const HELP: Catalog = {
       },
     },
     es: {
-      does: "Deja que {req} termine — su agente, su gate y su rama — y después no empieza nada más: los requisitos en cola tras él quedan sin construir.",
-      command:
-        "Ninguno de specgate: el studio no inicia `specgate harness run` para lo que está en cola.",
-      files: "Ninguno aparte de lo que la construcción de {req} escribe en su rama.",
+      does: "Deja que {req} termine — su agente, su gate y su rama — y después no empieza nada más: se pide al harness de specgate que no empiece otro requisito, y el studio no inicia nada de su cola.",
+      command: "specgate harness stop --after-current",
+      files:
+        "Ninguno aparte de lo que la construcción de {req} escribe en su rama; la petición de parada que lee el harness, en la carpeta propia de git.",
       doesNot: "No interrumpe {req} y no pide confirmación: no termina nada en marcha.",
       next: "Vuelve a construir los requisitos en cola desde Construir cuando los quieras.",
       notice: {
@@ -637,6 +645,175 @@ export const HELP: Catalog = {
         ranOk:
           "El studio terminó la construcción de {req} y todos los procesos que inició; lo que estaba en cola ({queued}) no empezó.",
         next: "git branch --list harness/{req}",
+      },
+    },
+  },
+  // The agent panel (draft-workbench-v2 REQ-181 … REQ-183).
+  "agent-ask": {
+    en: {
+      does: "Hands your request to the project's agent, which works on a scratch copy of the project and answers a plan: each file it would change (M changed, + new) and why, the specgate check it runs after, what it read and the tokens it used. @REQ-031 or @path names a requirement or a file for it to read first.",
+      command: 'specgate agent ask "<request>" --plan',
+      files:
+        "None of the project: the plan is kept in git's own folder, under `specgate/plans/`, which `git status` does not show.",
+      doesNot:
+        "It writes nothing in the project, builds no code, commits nothing: a plan changes only spec.md, docs/specs/ and features/, and only once you apply it.",
+      next: "Press “See the diff and apply” to read the diff and confirm it, or “Discard” to drop it.",
+      notice: {
+        ranOk: "`{command}` answered a plan of {count} files; nothing was written yet.",
+        next: "specgate agent apply {id}",
+      },
+    },
+    es: {
+      does: "Pasa tu petición al agente del proyecto, que trabaja sobre una copia del proyecto y responde con un plan: cada archivo que cambiaría (M cambiado, + nuevo) y por qué, la comprobación de specgate que corre después, lo que leyó y los tokens que usó. @REQ-031 o @ruta nombra un requisito o un archivo para que lo lea primero.",
+      command: 'specgate agent ask "<petición>" --plan',
+      files:
+        "Ninguno del proyecto: el plan se guarda en la carpeta propia de git, en `specgate/plans/`, que `git status` no muestra.",
+      doesNot:
+        "No escribe nada en el proyecto, no construye código ni hace commit: un plan solo cambia spec.md, docs/specs/ y features/, y solo cuando lo aplicas.",
+      next: "Pulsa «Ver el diff y aplicar» para leer el diff y confirmarlo, o «Descartar» para tirarlo.",
+      notice: {
+        ranOk: "`{command}` respondió con un plan de {count} archivos; aún no se ha escrito nada.",
+        next: "specgate agent apply {id}",
+      },
+    },
+  },
+  "agent-apply": {
+    en: {
+      does: "Writes the agent's plan after you have read its diff and confirmed it: each file exactly as the diff shows, only if none changed since the agent started, then runs the plan's specgate check.",
+      command: "specgate agent apply {id}",
+      files:
+        "The plan's files only — spec.md, docs/specs/ or features/ — as its diff shows them. The diff stays in Changes under its change.",
+      doesNot:
+        "It writes nothing before you confirm, and refuses with plan_stale if a file changed since; it never stages, commits or pushes.",
+      next: "Review with `git diff`, then commit; `{then}` checks it again.",
+      notice: {
+        ranOk: "`{command}` wrote the plan and ran `{then}`.",
+        next: "{then}",
+      },
+    },
+    es: {
+      does: "Escribe el plan del agente después de que hayas leído su diff y lo confirmes: cada archivo tal como lo muestra el diff, solo si ninguno cambió desde que el agente empezó, y después corre la comprobación de specgate del plan.",
+      command: "specgate agent apply {id}",
+      files:
+        "Solo los archivos del plan — spec.md, docs/specs/ o features/ — como los muestra su diff. El diff queda en Cambios bajo su cambio.",
+      doesNot:
+        "No escribe nada antes de que confirmes, y se niega con plan_stale si un archivo cambió desde entonces; nunca hace stage, commit ni push.",
+      next: "Revisa con `git diff` y haz commit; `{then}` lo vuelve a comprobar.",
+      notice: {
+        ranOk: "`{command}` escribió el plan y corrió `{then}`.",
+        next: "{then}",
+      },
+    },
+  },
+  "agent-discard": {
+    en: {
+      does: "Drops the agent's plan: its files are never written.",
+      command: "specgate agent discard {id}",
+      files: "None of the project: only the plan kept in git's folder is removed.",
+      doesNot: "It writes nothing in the project and does not stop you asking again.",
+      next: "Ask again, with more detail or a @REQ to read.",
+      notice: {
+        ranOk: "`{command}` dropped the plan; nothing of the project was written.",
+        next: 'specgate agent ask "<request>" --plan',
+      },
+    },
+    es: {
+      does: "Tira el plan del agente: sus archivos no se escriben nunca.",
+      command: "specgate agent discard {id}",
+      files: "Ninguno del proyecto: solo se borra el plan guardado en la carpeta de git.",
+      doesNot: "No escribe nada en el proyecto ni te impide volver a pedirlo.",
+      next: "Vuelve a pedirlo, con más detalle o con un @REQ que leer.",
+      notice: {
+        ranOk: "`{command}` tiró el plan; no se escribió nada del proyecto.",
+        next: 'specgate agent ask "<petición>" --plan',
+      },
+    },
+  },
+  // draft-changes REQ-083: the open notes handed to the agent.
+  redraft: {
+    en: {
+      does: "Has the project's agent draft {module} again, handing it every open request for change of review.md — none that is addressed. specgate marks addressed each note whose requirement the agent changed, and writes its before and after below the table.",
+      command: "specgate propose --from-brief {module} --agent {agent}",
+      files:
+        "`docs/specs/changes/draft-{module}/`: the delta the agent redrafts, and review.md, whose notes it addressed.",
+      doesNot:
+        "It does not approve, build or archive the draft, and does not commit or push; a note the agent did not address stays open.",
+      next: "Read each addressed note's before and after in Changes, then approve the draft or ask for another change.",
+      notice: {
+        ranOk: "`{command}` had the agent draft {module} again with its {count} open requests.",
+        next: "specgate change show draft-{module}",
+      },
+    },
+    es: {
+      does: "Hace que el agente del proyecto vuelva a redactar {module} y le pasa cada cambio pedido abierto de review.md — ninguno de los atendidos. specgate marca atendida cada nota cuyo requisito cambió el agente y escribe su antes y su después bajo la tabla.",
+      command: "specgate propose --from-brief {module} --agent {agent}",
+      files:
+        "`docs/specs/changes/draft-{module}/`: el delta que el agente vuelve a redactar y review.md, cuyas notas atendió.",
+      doesNot:
+        "No aprueba, construye ni archiva el borrador, ni hace commit ni push; una nota que el agente no atendió sigue abierta.",
+      next: "Lee en Cambios el antes y el después de cada nota atendida; después aprueba el borrador o pide otro cambio.",
+      notice: {
+        ranOk:
+          "`{command}` hizo que el agente volviera a redactar {module} con sus {count} cambios pedidos abiertos.",
+        next: "specgate change show draft-{module}",
+      },
+    },
+  },
+  // draft-brief REQ-071: the brief edited as a form.
+  "brief-form": {
+    en: {
+      does: "Saves the form into docs/brief.md: specgate rewrites only the fields and lists you changed — the product, the actors, the modules and each module's rules, examples and open questions — and checks the brief.",
+      command: "specgate propose --from-brief --form <form.json>",
+      files:
+        "docs/brief.md only; every line the form does not hold — notes, other sections, line endings — stays byte for byte. The form's file is a temporary one outside the project.",
+      doesNot:
+        "It does not draft a module, commit or push; markdown edits to the same file are kept.",
+      next: "Fix what Problems lists, then “Draft the modules”.",
+      notice: {
+        ranOk: "`{command}` wrote the form into docs/brief.md and checked it.",
+        next: "specgate propose --from-brief <module>",
+      },
+    },
+    es: {
+      does: "Guarda el formulario en docs/brief.md: specgate reescribe solo los campos y listas que cambiaste — el producto, los actores, los módulos y las reglas, ejemplos y preguntas abiertas de cada uno — y comprueba el brief.",
+      command: "specgate propose --from-brief --form <form.json>",
+      files:
+        "Solo docs/brief.md; cada línea que el formulario no tiene — notas, otras secciones, finales de línea — queda byte a byte. El archivo del formulario es temporal y está fuera del proyecto.",
+      doesNot:
+        "No redacta ningún módulo ni hace commit ni push; lo que edites como markdown en el mismo archivo se conserva.",
+      next: "Arregla lo que lista Problemas y después «Redactar los módulos».",
+      notice: {
+        ranOk: "`{command}` escribió el formulario en docs/brief.md y lo comprobó.",
+        next: "specgate propose --from-brief <módulo>",
+      },
+    },
+  },
+  // draft-brief REQ-074: the client's text proposes the form.
+  "brief-propose": {
+    en: {
+      does: "Hands the client's text to the project's agent, which proposes the form from it — the product, who uses it and where, the modules. You review the proposal; Accept writes it, Discard drops it.",
+      command: "specgate propose --from-brief --brief <client-text> --agent {agent}",
+      files:
+        "None of the project: the client's text goes to a temporary file outside it, and docs/brief.md is written only when you press Accept.",
+      doesNot:
+        "It writes nothing in the project, drafts no module, and commits nothing; with no agent set it runs nothing.",
+      next: "Review the proposed form, then Accept or Discard.",
+      notice: {
+        ranOk: "`{command}` proposed a form; nothing was written.",
+        next: "specgate propose --from-brief --form",
+      },
+    },
+    es: {
+      does: "Pasa el texto del cliente al agente del proyecto, que propone el formulario a partir de él — el producto, quién lo usa y dónde, los módulos. Tú revisas la propuesta; Aceptar la escribe, Descartar la tira.",
+      command: "specgate propose --from-brief --brief <texto-del-cliente> --agent {agent}",
+      files:
+        "Ninguno del proyecto: el texto del cliente va a un archivo temporal fuera de él, y docs/brief.md solo se escribe cuando pulsas Aceptar.",
+      doesNot:
+        "No escribe nada en el proyecto, no redacta módulos ni hace commit; sin agente configurado no ejecuta nada.",
+      next: "Revisa el formulario propuesto y después Aceptar o Descartar.",
+      notice: {
+        ranOk: "`{command}` propuso un formulario; no se escribió nada.",
+        next: "specgate propose --from-brief --form",
       },
     },
   },
@@ -1039,6 +1216,8 @@ const UNSET: Record<string, string> = {
   to: "<new name>",
   repo: "<owner/name>",
   side: "<beside>",
+  id: "<plan-id>",
+  then: "<its checks>",
 };
 
 export type HelpVars = Partial<
@@ -1054,7 +1233,9 @@ export type HelpVars = Partial<
     | "path"
     | "to"
     | "repo"
-    | "side",
+    | "side"
+    | "id"
+    | "then",
     string
   >
 >;

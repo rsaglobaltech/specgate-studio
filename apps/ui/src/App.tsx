@@ -29,6 +29,7 @@ import type {
   Question,
   QuestionsSection,
   Requests,
+  RedraftResult,
   RunResult,
   Unreadable,
   SectionData,
@@ -496,6 +497,32 @@ export function App({ rpc }: { rpc: Rpc }) {
       lastRun.current = { label, command };
       announce(label);
       return rpc.ask("command.run", command);
+    },
+    [rpc, announce],
+  );
+
+  /**
+   * "Draft again with N requested changes" (draft-changes REQ-083): the host
+   * runs the module's draft with the project's agent, which specgate hands the
+   * open notes; the echo names the button, a refusal says why.
+   */
+  const redraft = useCallback(
+    async (label: string, change: string): Promise<RedraftResult> => {
+      announce(label);
+      try {
+        const r = await rpc.ask("changes.redraft", { change });
+        if (!r.ok) {
+          pendingLabel.current = null;
+          if (r.notice) setEnded(r.notice);
+          else setNotice(r.message);
+        }
+        return r;
+      } catch (e) {
+        pendingLabel.current = null;
+        const message = e instanceof Error ? e.message : String(e);
+        setNotice(message);
+        return { ok: false, code: "command_unknown", message };
+      }
     },
     [rpc, announce],
   );
@@ -1195,6 +1222,7 @@ export function App({ rpc }: { rpc: Rpc }) {
                           onHelp={(feature, requests) =>
                             setHelp({ title: tr("help.title", { feature }), requests })
                           }
+                          onRedraft={redraft}
                         />
                       }
                       briefView={
@@ -1207,6 +1235,8 @@ export function App({ rpc }: { rpc: Rpc }) {
                           onHelp={(feature, requests) =>
                             setHelp({ title: tr("help.title", { feature }), requests })
                           }
+                          announce={announce}
+                          onNotice={setEnded}
                         />
                       }
                       reportTotal={(sections.report as { total?: number } | undefined)?.total}
@@ -1437,7 +1467,8 @@ export function App({ rpc }: { rpc: Rpc }) {
             </div>
           </section>
         </div>
-        {frame.agent && !small && (
+        {/* No folder open, no project to ask about: the agent panel waits for one (REQ-185). */}
+        {frame.agent && !small && folderOpen && (
           <>
             <div
               class="side-sash"
@@ -1457,12 +1488,16 @@ export function App({ rpc }: { rpc: Rpc }) {
             />
             <AgentPanel
               tr={tr}
+              lang={lang}
+              rpc={rpc}
               width={frame.agentW}
               onHide={() => setFrame((f) => ({ ...f, agent: false }))}
+              onHelp={(title, requests) => setHelp({ title, requests })}
+              announce={announce}
             />
           </>
         )}
-        {frame.agent && small && (
+        {frame.agent && small && folderOpen && (
           <div
             class="agent-bar"
             data-testid="agent-bar"
@@ -2276,9 +2311,10 @@ const FRAME: Frame = {
   panelSize: 220,
   panelMax: false,
   sideW: 270,
-  // Off until the agent's commands ship in specgate (REQ-181–183, A32).
-  agent: false,
-  agentW: 320,
+  // Shown, as the board draws it: specgate 0.34.0 answers its plans (REQ-181 … REQ-183).
+  agent: true,
+  // The board's width at 1440 px (REQ-181).
+  agentW: 360,
 };
 
 /** A narrow window is under 1000 px wide, a low one under 600 px (A24). */
@@ -2308,7 +2344,7 @@ function frameOf(raw: unknown): Frame {
     panelSize: num(r.panelSize, FRAME.panelSize, 80, 2000),
     panelMax: r.panelMax === true,
     sideW: num(r.sideW, FRAME.sideW, 180, 1200),
-    agent: r.agent === true,
+    agent: typeof r.agent === "boolean" ? r.agent : FRAME.agent,
     agentW: num(r.agentW, FRAME.agentW, 220, 1200),
   };
 }

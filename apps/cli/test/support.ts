@@ -92,6 +92,12 @@ export interface StudioOptions {
   slow?: Partial<Record<Section, number>>;
   /** The port to serve on; a free one by default. */
   port?: number;
+  /**
+   * Files the host writes outside the project for specgate to read — the
+   * brief's form, the client's text (draft-brief REQ-071, REQ-074) — by path:
+   * `/scratch/<name>`, so specgate's answers can be recorded for them.
+   */
+  scratch?: Map<string, string>;
 }
 
 export async function studio(opts: StudioOptions = {}) {
@@ -251,6 +257,7 @@ export async function studio(opts: StudioOptions = {}) {
     watcher,
   };
   const calls: string[][] = [];
+  const scratchFiles = opts.scratch ?? new Map<string, string>();
   const answers = opts.specgate;
   const specgate = answers && {
     call: async (args: readonly string[]): Promise<SpecgateAnswer> => {
@@ -270,6 +277,14 @@ export async function studio(opts: StudioOptions = {}) {
     workspace,
     ...(specgate ? { specgate } : {}),
     builds: { git, harness, events, pollMs: 50 },
+    scratch: {
+      write: async (name: string, text: string) => {
+        const at = `/scratch/${name}`;
+        scratchFiles.set(at, text);
+        return at;
+      },
+      remove: async () => undefined,
+    },
   });
   return {
     host,
@@ -285,6 +300,7 @@ export async function studio(opts: StudioOptions = {}) {
     folders,
     harness,
     events,
+    scratch: scratchFiles,
     projectDir,
     url: host.url.replace(/^ws/, "http"),
     newPage: () => browser.newPage({ locale: "en-US" }),

@@ -11,6 +11,7 @@ import {
   NodeFileSystem,
   NodeGit,
   NodeHarnessEvents,
+  NodeScratch,
   NodeStore,
   NodeWatcher,
   caseInsensitivePaths,
@@ -130,7 +131,9 @@ export async function startProjectHost(
     },
     setup: { port: new SpecgateSetup(cli), fs, onPath: options.onPath ?? (() => false) },
     // The brief's checks and drafts, with --json through the CLI (draft-brief).
-    brief: { specgate: cli },
+    brief: { specgate: cli, scratch: new NodeScratch() },
+    // The agent panel's plans, through the CLI (draft-workbench-v2 REQ-181 … REQ-183).
+    agent: { specgate: cli },
   });
   await recent.opened(projectDir);
   registry.add(projectDir, host);

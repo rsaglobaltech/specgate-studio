@@ -55,7 +55,7 @@ jobs:
       # Remove: never — this is the gate. Drop `--base …` to skip the id check.
       - name: The gate — specification, links, architecture, tests
         run: |
-          npx @rsaglobaltech/specgate@0.33.2 check . --base origin/${{ github.base_ref || github.event.repository.default_branch }}
+          npx @rsaglobaltech/specgate@0.34.0 check . --base origin/${{ github.base_ref || github.event.repository.default_branch }}
       # The quality and security checks of harness.config.yaml (coverage,
       # mutation, dependencies, secrets — `specgate quality list`). They run in
       # Docker, so on Ubuntu only. Not configured yet: says how, and passes.
@@ -64,7 +64,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           if grep -q '^quality:' harness.config.yaml 2>/dev/null; then
-            npx @rsaglobaltech/specgate@0.33.2 quality run --stage ci --base origin/${{ github.base_ref || github.event.repository.default_branch }}
+            npx @rsaglobaltech/specgate@0.34.0 quality run --stage ci --base origin/${{ github.base_ref || github.event.repository.default_branch }}
           else
             echo "Quality checks not configured — run: specgate quality init"
           fi
@@ -82,7 +82,7 @@ jobs:
             git config --global url."https://x-access-token:${SPECOPS_TOKEN}@github.com/".insteadOf "https://github.com/"
           fi
           if [ -f .specops.lock ]; then
-            npx @rsaglobaltech/specgate@0.33.2 validate . --against-lock
+            npx @rsaglobaltech/specgate@0.34.0 validate . --against-lock
           else
             echo "No .specops.lock — no packs installed, nothing to check."
           fi
@@ -91,7 +91,7 @@ jobs:
       # Remove: delete this step and the next.
       - name: Export pending-work plan
         if: always() && matrix.os == 'ubuntu-latest'
-        run: npx @rsaglobaltech/specgate@0.33.2 plan --project-dir . --format json > spec-plan.json
+        run: npx @rsaglobaltech/specgate@0.34.0 plan --project-dir . --format json > spec-plan.json
       # The plan above, kept with the run.
       # Remove: delete this step and the one above.
       - name: Upload plan artifact

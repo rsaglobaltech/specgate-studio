@@ -26,13 +26,19 @@ export {
   groupChanges,
   ticketOfBranch,
   ticketReview,
+  reviewOf,
+  wordDiff,
+  type ChangeReview,
+  type ReviewChangeView,
+  type ReviewNoteView,
+  type Segment,
   type ChangeCard,
   type ChangeGroup,
   type ChangeRequirement,
   type ChangesView,
   type TicketReview,
 } from "./domain/changes.js";
-export { Changes, type SectionSource } from "./application/Changes.js";
+export { Changes, type RedraftResult, type SectionSource } from "./application/Changes.js";
 export type { ProcessRunner } from "./ports/ProcessRunner.js";
 export {
   Commands,
@@ -162,6 +168,7 @@ export {
   agentProgram,
   buildList,
   estimateOf,
+  estimatesOf,
   harnessArgs,
   harnessReport,
   saveSpecification,
@@ -172,6 +179,7 @@ export {
   type Estimate,
   type FileGroup,
   type HarnessResult,
+  type ReqEstimate,
   type Resolution,
   type StopResult,
   type Uncommitted,
@@ -190,6 +198,7 @@ export {
   liveQuestions,
   parseEvents,
   queueStarted,
+  streamByRequirement,
   type HarnessEvent,
   type LiveLine,
   type LiveQuestion,
@@ -214,7 +223,24 @@ export {
   type BriefView,
 } from "./domain/brief.js";
 export { quoted } from "./domain/args.js";
-export { Brief, type CommandRunner, type DraftResult } from "./application/Brief.js";
+export {
+  Brief,
+  type BriefFormResult,
+  type BriefFormView,
+  type CommandRunner,
+  type DraftResult,
+} from "./application/Brief.js";
+/** The brief as a form, and the client's text proposing one (draft-brief REQ-071, REQ-074). */
+export {
+  acceptProposal,
+  briefFormInput,
+  briefFormOf,
+  formFromWire,
+  type BriefForm,
+  type BriefFormActor,
+  type BriefFormModule,
+} from "./domain/briefForm.js";
+export type { ScratchPort } from "./ports/ScratchPort.js";
 export {
   OPEN_FOLDERS_KEY,
   LAYOUTS_KEY,
@@ -248,3 +274,21 @@ export {
 /** Opening a folder and cloning a repository when none is open (draft-workbench-v2 REQ-185). */
 export { clonePlan, repoName, type ClonePlan } from "./domain/clone.js";
 export type { FoldersPort, ProgramPort } from "./ports/FoldersPort.js";
+/** The agent panel: a plan, its diff, applied or discarded (draft-workbench-v2 REQ-181 … REQ-183). */
+export {
+  PLAN_ID,
+  agentPlanOf,
+  appliedOf,
+  mentions,
+  shownPath,
+  validRequest,
+  type AgentEntry,
+  type AgentEntryState,
+  type AgentPlan,
+  type AgentPlanFile,
+  type AgentView,
+  type AppliedPlan,
+  type Mention,
+  type PlanChange,
+} from "./domain/agent.js";
+export { Agent, type AgentOptions, type AgentResult } from "./application/Agent.js";

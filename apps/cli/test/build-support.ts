@@ -41,6 +41,14 @@ export function buildAnswers(agent: string | null): NonNullable<StudioOptions["s
       findings: [],
       exitCode: 0,
     },
+    // "Stop after this requirement" asks specgate's harness too (specgate 0.34, REQ-491).
+    "harness stop --after-current": {
+      data: {
+        stop: { requested: true, run: { pid: 4242, requirements: ["REQ-030"], startedAt: 0 } },
+      },
+      findings: [],
+      exitCode: 0,
+    },
     "change show draft-pedidos": {
       data: {
         change: {

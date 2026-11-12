@@ -16,6 +16,39 @@ export interface BuildItem {
   id: string;
   title: string | null;
   change: string | null;
+  /** specgate's own estimate for this requirement (`plan --json`'s `estimates`, REQ-493), when it gave one. */
+  estimate?: ReqEstimate;
+}
+
+/** What one requirement is estimated to take, and what the estimate rests on (specgate REQ-493). */
+export interface ReqEstimate {
+  /** Wall-clock minutes, failed attempts included; null when nothing supports one. */
+  minutes: number | null;
+  /** `history`, `size`, `average` or `none`, strongest first. */
+  basis: string;
+  /** The runs or delivered requirements it rests on. */
+  samples: number;
+  /** In the unit of `cost_per_run_hint`; null when no profile declares one. */
+  cost: number | null;
+}
+
+/** `plan --json`'s `estimates`, by requirement (specgate REQ-493). */
+export function estimatesOf(plan: unknown): Record<string, ReqEstimate> {
+  const list = (plan as { estimates?: unknown } | null)?.estimates;
+  const out: Record<string, ReqEstimate> = {};
+  for (const e of Array.isArray(list) ? (list as Array<Record<string, unknown>>) : []) {
+    const id = str(e.requirement);
+    const time = (e.time ?? {}) as Record<string, unknown>;
+    if (!id) continue;
+    const ms = num(time.ms);
+    out[id] = {
+      minutes: ms === null ? null : Math.max(1, Math.round(ms / 60_000)),
+      basis: str(time.basis) ?? "none",
+      samples: num(time.samples) ?? 0,
+      cost: num((e.cost as { amount?: unknown } | null | undefined)?.amount),
+    };
+  }
+  return out;
 }
 
 /** Why a requirement is not ready: an open question, a draft not approved, no scenario. */
@@ -93,6 +126,7 @@ export function buildList(
   report: unknown,
   config: Readonly<Record<string, string>>,
   questions: unknown = null,
+  estimates: Readonly<Record<string, ReqEstimate>> = {},
 ): BuildList {
   const all = (status as { requirements?: unknown } | null)?.requirements;
   // `status --json` does not always say a question blocks a requirement:
@@ -112,7 +146,12 @@ export function buildList(
     const id = str(r.id);
     const category = str(r.category);
     if (!id || !category || BUILT.has(category)) continue;
-    const item: BuildItem = { id, title: str(r.title), change: str(r.change) };
+    const item: BuildItem = {
+      id,
+      title: str(r.title),
+      change: str(r.change),
+      ...(estimates[id] ? { estimate: estimates[id] } : {}),
+    };
     if (category === "WAITING_FOR_ANSWER" || blockedBy.has(id))
       waiting.push({
         ...item,
@@ -173,9 +212,24 @@ export function uncommittedWork(files: readonly string[]): {
   };
 }
 
-/** A build (A5): `harness run` on one requirement, its report as JSON; null for anything else. */
-export function harnessArgs(req: string): string[] | null {
-  return REQ_ID.test(req) ? ["harness", "run", "--req", req, "--format", "json"] : null;
+/**
+ * A build (A5): `harness run` on one requirement, streaming one JSON event a
+ * line (`--format jsonl`, specgate REQ-496) whose last line holds the report;
+ * with `allowDirty`, the uncommitted files left as they are (REQ-490, "Ignore").
+ * Null for anything else.
+ */
+export function harnessArgs(req: string, allowDirty = false): string[] | null {
+  return REQ_ID.test(req)
+    ? [
+        "harness",
+        "run",
+        "--req",
+        req,
+        ...(allowDirty ? ["--allow-dirty"] : []),
+        "--format",
+        "jsonl",
+      ]
+    : null;
 }
 
 /** The commit Build makes of the specification before it starts (A6). */
@@ -200,7 +254,6 @@ export type BuildStart =
         | "build_no_agent"
         | "build_no_git"
         | "build_no_message"
-        | "build_ignore_unsupported"
         | "build_git_failed"
         | "write_busy";
       req: string;
@@ -232,7 +285,20 @@ export function harnessReport(stdout: string): {
   try {
     parsed = JSON.parse(stdout);
   } catch {
-    return null;
+    // `--format jsonl`: the last line, `run-end`, holds the report and the findings (REQ-497).
+    const end = stdout
+      .split(/\r?\n/)
+      .reverse()
+      .map((l) => {
+        try {
+          return JSON.parse(l) as { type?: unknown; report?: unknown; status?: unknown };
+        } catch {
+          return null;
+        }
+      })
+      .find((e) => e?.type === "run-end");
+    if (!end) return null;
+    parsed = { ...((end.report as object | null) ?? {}), status: end.status };
   }
   const doc = (parsed ?? {}) as { results?: unknown; status?: unknown };
   const results = (Array.isArray(doc.results) ? doc.results : []).map(

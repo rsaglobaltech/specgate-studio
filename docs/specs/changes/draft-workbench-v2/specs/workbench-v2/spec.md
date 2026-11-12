@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-181 — The agent panel on the right: a plan before anything is written
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL show, on the right of the workbench as the board "IDE · Banco de trabajo" draws it, the agent panel — its header "AGENTE" with the agent and its mode and a "?" — and SHALL show for each request, before anything is written, a card "[ PLAN · NADA ESCRITO AÚN ]" naming each file the agent will change, marked M for changed and + for new, and the specgate command it will run after.
 
@@ -24,7 +24,7 @@ The system SHALL show, on the right of the workbench as the board "IDE · Banco 
 
 ### Requirement: REQ-182 — The plan applied only after its diff and a confirmation; discarded; the diff kept in Changes
 
-<!-- specgate:trace actor=Developer kind=business-rule -->
+<!-- specgate:trace status=Implemented actor=Developer kind=business-rule -->
 
 The system SHALL apply an agent's plan only after the Developer presses "Ver el diff y aplicar", sees the diff of every file, and confirms; "Descartar" SHALL drop the plan and write nothing; an applied plan's diff SHALL stay in Changes under its change; and the panel SHALL say, for every plan, what the agent read and the tokens it used.
 
@@ -50,7 +50,7 @@ The system SHALL apply an agent's plan only after the Developer presses "Ver el 
 
 ### Requirement: REQ-183 — Ask the project's agent, @ naming a requirement or a file
 
-<!-- specgate:trace actor=Reviewer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Reviewer kind=functional -->
 
 The system SHALL take a request from an input labelled "Pide algo sobre la spec; @ nombra un requisito o un archivo", offer the requirements and files of the project when "@" is typed, and send the request to the project's agent through `specgate agent ask "<request>" --plan --json`, its command shown in the terminal as every command the studio runs; the studio SHALL only show the plan and its diff and confirm it — specgate writes it with `specgate agent apply <plan-id> --json` and checks it.
 

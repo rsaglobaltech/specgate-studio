@@ -49,7 +49,8 @@ export interface LiveRequirement {
 export interface LiveLine {
   t: number;
   req: string;
-  kind: "message" | "step" | "gate" | "question";
+  /** `output`: the agent's own output, as `harness run --format jsonl` streams it (specgate REQ-496). */
+  kind: "message" | "step" | "gate" | "question" | "output";
   text: string;
 }
 
@@ -229,7 +230,31 @@ function lineOf(req: string, e: HarnessEvent): LiveLine | null {
     };
   if (e.type === "gate")
     return { t, req, kind: "gate", text: `gate ${text(e.stage)}: ${text(e.result)}` };
+  if (e.type === "output" && text(e.text).trim())
+    return { t, req, kind: "output", text: text(e.text).trimEnd() };
   return null;
+}
+
+/**
+ * `harness run --format jsonl`'s lines (specgate REQ-496, REQ-497), by
+ * requirement, as the events files hold them: what Live folds while the run
+ * goes on, as it comes, with the agent's output the files do not hold. The
+ * run's own lines (`run-start`, `run-end`) name no requirement and are left out.
+ */
+export function streamByRequirement(lines: readonly string[]): Record<string, string> {
+  const out: Record<string, string[]> = {};
+  for (const line of lines) {
+    let e: unknown;
+    try {
+      e = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    const req = (e as { req?: unknown } | null)?.req;
+    if (typeof req !== "string" || !req) continue;
+    (out[req] ??= []).push(line);
+  }
+  return Object.fromEntries(Object.entries(out).map(([r, l]) => [r, `${l.join("\n")}\n`]));
 }
 
 /**

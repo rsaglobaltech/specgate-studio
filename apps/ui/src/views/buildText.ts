@@ -72,8 +72,13 @@ const en = {
   "build.commit": "Commit",
   "build.stash": "Stash",
   "build.ignore": "Ignore",
-  "build.ignore.unsupported":
-    "Not possible yet: specgate 0.33.2's harness refuses to start while any file is uncommitted.",
+  "build.ignore.title":
+    "Build from the last commit with `--allow-dirty`: the agent's branch leaves these files out, and they stay as they are.",
+  "build.confirm.ignore": "Build anyway and leave these {n} files out?",
+  "build.confirm.ignoreBody":
+    "The build of {req} starts from the last commit (`specgate harness run --req {req} --allow-dirty`): these files stay as they are, uncommitted, and the agent's branch does not have them.",
+  "build.estimateOwn": "specgate's estimate for this requirement: {basis}, over {n}",
+  "build.noEstimateOwn": "no estimate yet",
   "build.confirm.commit": "Commit these {n} files?",
   "build.confirm.stash": "Stash these {n} files?",
   "build.confirm.commitBody":
@@ -84,7 +89,7 @@ const en = {
   "build.confirm": "Confirm",
   "build.cancel": "Cancel",
   "live.intro":
-    "What the agent does while it builds: each requirement's steps with their time, its output as it writes it, what is queued, and what it has cost. Read from the harness's events in .harness/events/; every open tab sees the same.",
+    "What the agent does while it builds: each requirement's steps with their time, its output as it writes it, what is queued, and what it has cost. Read as it streams from `specgate harness run --format jsonl`, and from the harness's events in .harness/events/ for a run the studio did not start; every open tab sees the same.",
   "live.building": "Building {req}",
   "live.idle": "No build is running.",
   "live.queue": "Queued",
@@ -191,8 +196,13 @@ const es: Record<keyof typeof en, string> = {
   "build.commit": "Commit",
   "build.stash": "Stash",
   "build.ignore": "Ignorar",
-  "build.ignore.unsupported":
-    "Aún no es posible: el harness de specgate 0.33.2 se niega a empezar mientras haya archivos sin commit.",
+  "build.ignore.title":
+    "Construir desde el último commit con `--allow-dirty`: la rama del agente deja fuera estos archivos, que quedan como están.",
+  "build.confirm.ignore": "¿Construir igualmente y dejar fuera estos {n} archivos?",
+  "build.confirm.ignoreBody":
+    "La construcción de {req} empieza desde el último commit (`specgate harness run --req {req} --allow-dirty`): estos archivos quedan como están, sin commit, y la rama del agente no los tiene.",
+  "build.estimateOwn": "Estimación de specgate para este requisito: {basis}, sobre {n}",
+  "build.noEstimateOwn": "sin estimación aún",
   "build.confirm.commit": "¿Hacer commit de estos {n} archivos?",
   "build.confirm.stash": "¿Guardar estos {n} archivos en el stash?",
   "build.confirm.commitBody":
@@ -203,7 +213,7 @@ const es: Record<keyof typeof en, string> = {
   "build.confirm": "Confirmar",
   "build.cancel": "Cancelar",
   "live.intro":
-    "Lo que hace el agente mientras construye: los pasos de cada requisito con su tiempo, su salida según la escribe, lo que está en cola y lo que ha costado. Se lee de los eventos del harness en .harness/events/; todas las pestañas abiertas ven lo mismo.",
+    "Lo que hace el agente mientras construye: los pasos de cada requisito con su tiempo, su salida según la escribe, lo que está en cola y lo que ha costado. Se lee según llega de `specgate harness run --format jsonl`, y de los eventos del harness en .harness/events/ para una ejecución que no lanzó el studio; todas las pestañas abiertas ven lo mismo.",
   "live.building": "Construyendo {req}",
   "live.idle": "No hay ninguna construcción en marcha.",
   "live.queue": "En cola",

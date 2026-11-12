@@ -1,9 +1,13 @@
-import { commandLine, type SpecgateCommand } from "../domain/command.js";
+import { commandLine, type RunResult, type SpecgateCommand } from "../domain/command.js";
+import { agentOf, SET_AGENT } from "../domain/brief.js";
+import type { Finding } from "../domain/finding.js";
+import type { Lang, Notice } from "../domain/help.js";
 import {
   deltaFilesOf,
   groupChanges,
   changeIds,
   ticketReview,
+  reviewOf,
   type ChangesView,
   type TicketReview,
 } from "../domain/changes.js";
@@ -22,11 +26,77 @@ export interface SectionSource {
  * sections; each change and the ticket from specgate's `--json`, through
  * commands on the allow-list that write nothing.
  */
+/** How "Draft again with N requested changes" ended (REQ-083). */
+export type RedraftResult =
+  | { ok: true; module: string; open: number; exitCode: number; findings: Finding[] }
+  | {
+      ok: false;
+      code: "no_open_request" | "no_agent" | "write_busy" | "command_unknown";
+      message: string;
+      notice?: Record<Lang, Notice>;
+    };
+
+const NO_AGENT: Record<Lang, Notice> = {
+  en: {
+    tone: "refused",
+    ran: '"Draft again" ran nothing: no agent is set for the project.',
+    wrote: "Nothing was written.",
+    next: SET_AGENT,
+    fix: `\`${SET_AGENT}\` sets Claude Code as the agent; then press "Draft again" once more.`,
+  },
+  es: {
+    tone: "refused",
+    ran: "«Redactar de nuevo» no ejecutó nada: el proyecto no tiene un agente configurado.",
+    wrote: "No se escribió nada.",
+    next: SET_AGENT,
+    fix: `\`${SET_AGENT}\` configura Claude Code como agente; después pulsa otra vez «Redactar de nuevo».`,
+  },
+};
+
 export class Changes {
   constructor(
     private readonly specgate: Pick<SpecgatePort, "call">,
     private readonly sections: SectionSource,
+    /** Runs a command told in the terminal with its notice: the redraft (REQ-083). */
+    private readonly commands?: { run(command: SpecgateCommand): Promise<RunResult> },
   ) {}
+
+  /**
+   * "Draft again with N requested changes" (REQ-083): the draft's module
+   * drafted again by the project's agent — `propose --from-brief <module>
+   * --agent <agent>`, which hands the agent the open requests of review.md and
+   * none that is addressed (specgate REQ-485). Nothing runs for a draft with
+   * no open request, or with no agent set.
+   */
+  async redraft(change: string): Promise<RedraftResult> {
+    const shown = await this.read({ name: "change-show", change }).catch(() => null);
+    const review = reviewOf(shown?.data);
+    const module = /^draft-[a-z0-9][a-z0-9-]*$/.test(change) ? change.slice("draft-".length) : null;
+    if (!module || !review || review.open === 0)
+      return {
+        ok: false,
+        code: "no_open_request",
+        message: `${change} has no open request for change: nothing to draft again.`,
+      };
+    const agent = agentOf((await this.read({ name: "config-list" }).catch(() => null))?.data);
+    if (!agent)
+      return {
+        ok: false,
+        code: "no_agent",
+        message: "No agent is set for the project.",
+        notice: NO_AGENT,
+      };
+    if (!this.commands) throw new Error("Changes is not wired to run commands in this host.");
+    const r = await this.commands.run({ name: "redraft", module, agent, open: review.open });
+    if (!r.ok) return { ok: false, code: r.code, message: r.message };
+    return {
+      ok: true,
+      module,
+      open: review.open,
+      exitCode: r.exitCode,
+      findings: r.findings ?? [],
+    };
+  }
 
   async view(): Promise<ChangesView> {
     const [list, status] = await Promise.all([

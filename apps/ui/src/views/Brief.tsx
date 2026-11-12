@@ -1,9 +1,10 @@
 import { useEffect, useState } from "preact/hooks";
-import type { BriefView } from "@specgate-studio/protocol";
+import type { BriefView, Notice } from "@specgate-studio/protocol";
 import type { Rpc } from "../rpc.js";
 import type { Lang } from "../i18n.js";
 import { HelpButton, type HelpRequest } from "../Help.js";
 import { bt } from "./briefText.js";
+import { BriefFormPanel } from "./BriefForm.js";
 
 export interface BriefProps {
   rpc: Rpc;
@@ -14,6 +15,10 @@ export interface BriefProps {
   /** "Draft the modules": the host drafts each module not drafted yet (REQ-073). */
   onDraft: (label: string) => void;
   onHelp: (feature: string, requests: HelpRequest[]) => void;
+  /** Names the button that runs a command, for the terminal's echo (REQ-053). */
+  announce: (label: string) => void;
+  /** A notice no command's end carries: a proposal discarded (REQ-074). */
+  onNotice: (notice: Record<Lang, Notice>) => void;
 }
 
 /**
@@ -42,62 +47,72 @@ export function Brief(p: BriefProps) {
   const label = t("brief.draft");
   const next = view?.modules.find((m) => !m.drafted)?.module;
   return (
-    <div class="brief">
-      <h1>Brief</h1>
-      <p class="muted">{t("brief.intro")}</p>
-      <div class="actions">
-        <button type="button" class="btn" onClick={() => p.openFile("docs/brief.md")}>
-          {t("brief.open")}
-        </button>
-      </div>
-      <h2>{t("brief.modules")}</h2>
-      {unreadable ? (
-        <p class="muted">{t("brief.unreadable")}</p>
-      ) : view && view.modules.length === 0 ? (
-        <p class="muted">{t("brief.none")}</p>
-      ) : (
-        <ul class="modules">
-          {view?.modules.map((m) => (
-            <li key={m.module} data-module={m.module} data-drafted={m.drafted ? "yes" : "no"}>
-              <b class="mono">{m.module}</b>
-              <span class="mono muted">{m.change}</span>
-              <span data-part="state">{m.state}</span>
-              <span class={m.drafted ? "state ok" : "state muted"}>
-                {m.drafted ? t("brief.drafted") : t("brief.toDraft")}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-      {view && (
-        <p class="muted" data-part="agent">
-          {view.agent ? t("brief.agent", { agent: view.agent }) : t("brief.noAgent")}
-        </p>
-      )}
-      <div class="actions">
-        <button
-          type="button"
-          class="btn pri"
-          data-action="draft-modules"
-          onClick={() => p.onDraft(label)}
-        >
-          {label}
-        </button>
-        <HelpButton
-          label={t("brief.draftHelp")}
-          onOpen={() =>
-            p.onHelp(label, [
-              {
-                action: "draft-modules",
-                feature: label,
-                vars: {
-                  ...(next ? { module: next } : {}),
-                  ...(view?.agent ? { agent: view.agent } : {}),
+    <div class="brief-split">
+      <BriefFormPanel
+        rpc={p.rpc}
+        lang={p.lang}
+        stamp={p.stamp}
+        announce={p.announce}
+        onNotice={p.onNotice}
+        onHelp={p.onHelp}
+      />
+      <div class="brief">
+        <h1>Brief</h1>
+        <p class="muted">{t("brief.intro")}</p>
+        <div class="actions">
+          <button type="button" class="btn" onClick={() => p.openFile("docs/brief.md")}>
+            {t("brief.open")}
+          </button>
+        </div>
+        <h2>{t("brief.modules")}</h2>
+        {unreadable ? (
+          <p class="muted">{t("brief.unreadable")}</p>
+        ) : view && view.modules.length === 0 ? (
+          <p class="muted">{t("brief.none")}</p>
+        ) : (
+          <ul class="modules">
+            {view?.modules.map((m) => (
+              <li key={m.module} data-module={m.module} data-drafted={m.drafted ? "yes" : "no"}>
+                <b class="mono">{m.module}</b>
+                <span class="mono muted">{m.change}</span>
+                <span data-part="state">{m.state}</span>
+                <span class={m.drafted ? "state ok" : "state muted"}>
+                  {m.drafted ? t("brief.drafted") : t("brief.toDraft")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {view && (
+          <p class="muted" data-part="agent">
+            {view.agent ? t("brief.agent", { agent: view.agent }) : t("brief.noAgent")}
+          </p>
+        )}
+        <div class="actions">
+          <button
+            type="button"
+            class="btn pri"
+            data-action="draft-modules"
+            onClick={() => p.onDraft(label)}
+          >
+            {label}
+          </button>
+          <HelpButton
+            label={t("brief.draftHelp")}
+            onOpen={() =>
+              p.onHelp(label, [
+                {
+                  action: "draft-modules",
+                  feature: label,
+                  vars: {
+                    ...(next ? { module: next } : {}),
+                    ...(view?.agent ? { agent: view.agent } : {}),
+                  },
                 },
-              },
-            ])
-          }
-        />
+              ])
+            }
+          />
+        </div>
       </div>
     </div>
   );
