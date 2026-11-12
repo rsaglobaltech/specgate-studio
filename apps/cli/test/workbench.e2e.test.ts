@@ -326,7 +326,12 @@ test("REQ-034 SCN-097: Spanish on Cambios, English chosen — the view is Change
         (window as never as { __studio: { rpc: { sent: Record<string, number> } } }).__studio.rpc
           .sent,
     );
-    assert.deepEqual(sentAfter, sentBefore, "the UI asked nothing again");
+    // The Settings editor's own: it reads the settings once and saves the language in the
+    // Developer's file (draft-settings REQ-141) — nothing of the project is asked again.
+    const ofProject = (sent: Record<string, number>) =>
+      Object.fromEntries(Object.entries(sent).filter(([m]) => !m.startsWith("settings.")));
+    assert.deepEqual(ofProject(sentAfter), ofProject(sentBefore), "the UI asked nothing again");
+    assert.equal(sentAfter["settings.get"] ?? 0, 1, "the settings were read once");
   } finally {
     await close(s, page);
   }

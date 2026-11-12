@@ -80,6 +80,10 @@ import type {
   AgentView,
   AppliedPlan,
   Mention,
+  Setting,
+  SettingScope,
+  SettingsView,
+  UserSettingResult,
 } from "@specgate-studio/core";
 
 export type { CommandEvent, RunResult, Section, SectionData, SpecgateCommand };
@@ -149,6 +153,8 @@ export type {
 export type { BriefModule, BriefView, DraftResult };
 /** The brief as a form, and the client's text proposing one (draft-brief REQ-071, REQ-074). */
 export type { BriefForm, BriefFormActor, BriefFormModule, BriefFormResult, BriefFormView };
+/** The settings editor: two scopes and its search (draft-settings REQ-141). */
+export type { Setting, SettingScope, SettingsView, UserSettingResult };
 
 /** What the UI may ask, and what it gets back. */
 export interface Requests {
@@ -314,6 +320,12 @@ export interface Requests {
   "agent.applied": { params: Record<string, never>; result: AppliedPlan[] };
   /** What "@" offers: requirements with their titles, then files (REQ-183). */
   "agent.mentions": { params: { query: string }; result: Mention[] };
+  /** The settings of both scopes a search keeps, in the studio's language (draft-settings REQ-141). */
+  "settings.get": { params: { query: string; lang: Lang }; result: SettingsView };
+  /** The user settings the Developer's own file sets: what the studio opens with (REQ-141). */
+  "settings.user.get": { params: Record<string, never>; result: Record<string, string> };
+  /** A user setting, written to the Developer's own file, never the project's (REQ-141). */
+  "settings.user.set": { params: { key: string; value: string }; result: UserSettingResult };
 }
 
 /** What the host tells every connected UI, unasked. */

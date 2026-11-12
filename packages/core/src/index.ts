@@ -304,3 +304,22 @@ export {
   type PlanChange,
 } from "./domain/agent.js";
 export { Agent, type AgentOptions, type AgentResult } from "./application/Agent.js";
+/** The settings editor: two scopes, project and user, and its search (draft-settings REQ-141). */
+export {
+  SCOPES,
+  SETTINGS,
+  searchSettings,
+  settingValue,
+  userSetting,
+  type Setting,
+  type SettingDef,
+  type SettingScope,
+  type SettingsView,
+} from "./domain/settings.js";
+export type { UserSettingsPort } from "./ports/UserSettingsPort.js";
+export { InMemoryUserSettings } from "./fakes/InMemoryUserSettings.js";
+export {
+  Settings,
+  type SettingsOptions,
+  type UserSettingResult,
+} from "./application/Settings.js";

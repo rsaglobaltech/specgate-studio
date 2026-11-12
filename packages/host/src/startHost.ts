@@ -27,7 +27,9 @@ import {
   type StorePort,
   type SpecgateAnswer,
   type CommandEvent,
+  type UserSettingsPort,
 } from "@specgate-studio/core";
+import { attachSettings } from "./settings.js";
 import { fromStudio, uiHandler } from "./serveUi.js";
 import { attachTerminals, type TerminalWiring } from "./terminals.js";
 import { RPC_ERRORS, type Notifications, type ProjectOpened } from "@specgate-studio/protocol";
@@ -76,6 +78,8 @@ export interface HostOptions {
   folders?: FoldersWiring;
   /** specgate's `agent ask|apply|discard --json` for the agent panel (draft-workbench-v2 REQ-181 … REQ-183). */
   agent?: AgentWiring;
+  /** The Developer's own settings file, the User scope of Settings (draft-settings REQ-141). */
+  userSettings?: UserSettingsPort;
 }
 
 export type { ProjectFiles, FileRefusal } from "./files.js";
@@ -269,6 +273,12 @@ export async function startHost(given: HostOptions): Promise<Host> {
       )
     : null;
 
+  // Settings: the project's read through specgate, the user's in their own file (REQ-141).
+  const settings = attachSettings({
+    ...(homeSpecgate ? { specgate: homeSpecgate } : {}),
+    ...(options.userSettings ? { user: options.userSettings } : {}),
+  });
+
   const setup = options.setup
     ? attachSetup(
         options.projectDir,
@@ -447,6 +457,7 @@ export async function startHost(given: HostOptions): Promise<Host> {
     ...agent?.handlers,
     ...explorer?.handlers,
     ...home.handlers,
+    ...settings.handlers,
     ...(options.folders
       ? attachFolders(options.folders, broadcast, (m) => rpcError(RPC_ERRORS.params, m)).handlers
       : {}),

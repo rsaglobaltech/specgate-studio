@@ -36,6 +36,15 @@ const en = {
   "settings.theme": "Theme",
   "settings.dark": "Dark",
   "settings.light": "Light",
+  "settings.search": "Search settings",
+  "settings.scopes": "Scope",
+  "settings.scope.project": "Project",
+  "settings.scope.user": "User",
+  "settings.where.project":
+    "Saved in {project}'s files by specgate, and shared with the team through git.",
+  "settings.where.user": "Saved in your own settings file, {file}: it applies to every project.",
+  "settings.notSet": "not set",
+  "settings.none": "No setting matches.",
   "home.requirements": "Requirements",
   "report.split": "{spec} in the spec · {changes} in open changes",
   "home.done": "Done",
@@ -395,6 +404,7 @@ const en = {
   "action.file-delete-permanent": "Delete for good",
   "action.copy-path": "Copy path",
   "action.open-terminal": "Open in terminal",
+  "action.settings-user": "Change a user setting",
   "crumbs.label": "Where the file is",
   "offline.title": "Reconnecting to the studio…",
   "offline.body":
@@ -462,6 +472,16 @@ const es: Record<MessageKey, string> = {
   "settings.theme": "Tema",
   "settings.dark": "Oscuro",
   "settings.light": "Claro",
+  "settings.search": "Buscar en la configuración",
+  "settings.scopes": "Ámbito",
+  "settings.scope.project": "Proyecto",
+  "settings.scope.user": "Usuario",
+  "settings.where.project":
+    "Guardada en los archivos de {project} por specgate, y compartida con el equipo por git.",
+  "settings.where.user":
+    "Guardada en tu propio archivo de configuración, {file}: vale para cada proyecto.",
+  "settings.notSet": "sin fijar",
+  "settings.none": "Ninguna preferencia coincide.",
   "home.requirements": "Requisitos",
   "report.split": "{spec} en la spec · {changes} en cambios abiertos",
   "home.done": "Hechos",
@@ -828,6 +848,7 @@ const es: Record<MessageKey, string> = {
   "action.file-delete-permanent": "Eliminar para siempre",
   "action.copy-path": "Copiar ruta",
   "action.open-terminal": "Abrir en el terminal",
+  "action.settings-user": "Cambiar una preferencia de usuario",
   "crumbs.label": "Dónde está el archivo",
   "offline.title": "Reconectando con el studio…",
   "offline.body":

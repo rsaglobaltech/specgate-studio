@@ -72,6 +72,7 @@ import { bt } from "./views/briefText.js";
 import { Explorer } from "./Explorer.js";
 import { Home } from "./views/Home.js";
 import { HelpView } from "./views/HelpView.js";
+import { SettingsEditor } from "./views/Settings.js";
 import { fileType, modulesOf } from "./tree.js";
 
 type Sections = Partial<
@@ -284,6 +285,34 @@ export function App({ rpc }: { rpc: Rpc }) {
     document.documentElement.lang = lang;
     saveSettings({ lang, theme });
   }, [lang, theme]);
+
+  // The user settings apply to every project: the Developer's own file wins over this page's memory (REQ-141).
+  useEffect(() => {
+    void rpc.ask("settings.user.get", {}).then(
+      (u) => {
+        if (u.lang === "en" || u.lang === "es") setLang(u.lang);
+        if (u.theme === "dark" || u.theme === "light") setTheme(u.theme);
+      },
+      () => undefined,
+    );
+  }, [rpc]);
+  /** A user setting: applied now, and saved by the host in the Developer's own file (REQ-141). */
+  const saveUser = useCallback(
+    (key: "lang" | "theme", value: string, quiet = false) => {
+      if (key === "lang" && (value === "en" || value === "es")) setLang(value);
+      else if (key === "theme" && (value === "dark" || value === "light")) setTheme(value);
+      else return;
+      void rpc.ask("settings.user.set", { key, value }).then(
+        (r) => {
+          if (quiet) return;
+          if (r.ok) setEnded(r.notice);
+          else setNotice(r.message);
+        },
+        () => undefined,
+      );
+    },
+    [rpc],
+  );
 
   const openProject = useCallback(
     () =>
@@ -571,8 +600,8 @@ export function App({ rpc }: { rpc: Rpc }) {
         if (r.panel === "fromTicket") setTicketPanel(true);
       } else if (r.kind === "check") {
         void runCommand(label ?? f.title[lang], { name: "check" });
-      } else if (r.kind === "language") setLang((l) => (l === "en" ? "es" : "en"));
-      else if (r.kind === "theme") setTheme((th) => (th === "dark" ? "light" : "dark"));
+      } else if (r.kind === "language") saveUser("lang", lang === "en" ? "es" : "en", true);
+      else if (r.kind === "theme") saveUser("theme", theme === "dark" ? "light" : "dark", true);
       else if (r.kind === "togglePanel") setPanel((p) => ({ ...p, open: !p.open }));
       else if (r.kind === "openFile") setPalette("files");
       else if (r.kind === "palette") setPalette("features");
@@ -598,7 +627,7 @@ export function App({ rpc }: { rpc: Rpc }) {
       else if (r.kind === "buildReq") (setBuildReq(r.req), show("build"));
       else setSidebar((s) => !s);
     },
-    [rpc, show, runCommand, lang],
+    [rpc, show, runCommand, lang, theme, saveUser],
   );
 
   const act = useCallback(
@@ -1196,8 +1225,7 @@ export function App({ rpc }: { rpc: Rpc }) {
                       tr={tr}
                       lang={lang}
                       theme={theme}
-                      setLang={setLang}
-                      setTheme={setTheme}
+                      saveUser={saveUser}
                       project={project}
                       total={total}
                       done={done}
@@ -1749,8 +1777,8 @@ interface ViewProps {
   tr: (k: string, v?: Record<string, string | number>) => string;
   lang: Lang;
   theme: Theme;
-  setLang: (l: Lang) => void;
-  setTheme: (t: Theme) => void;
+  /** A user setting chosen in Settings: applied, and saved in the Developer's file (REQ-141). */
+  saveUser: (key: "lang" | "theme", value: string) => void;
   project: string;
   total: number;
   done: number;
@@ -1914,32 +1942,16 @@ function View(p: ViewProps) {
     case "help":
       return <HelpView rpc={p.rpc} lang={p.lang} tr={p.tr} />;
     case "settings":
+      // An editor with a search and two scopes, Project and User (draft-settings REQ-141).
       return (
-        <div class="settings">
-          {title}
-          <label>
-            {p.tr("settings.language")}
-            <select
-              value={p.lang}
-              onChange={(e) => p.setLang((e.target as HTMLSelectElement).value as Lang)}
-              aria-label={p.tr("settings.language")}
-            >
-              <option value="en">English</option>
-              <option value="es">Español</option>
-            </select>
-          </label>
-          <label>
-            {p.tr("settings.theme")}
-            <select
-              value={p.theme}
-              onChange={(e) => p.setTheme((e.target as HTMLSelectElement).value as Theme)}
-              aria-label={p.tr("settings.theme")}
-            >
-              <option value="dark">{p.tr("settings.dark")}</option>
-              <option value="light">{p.tr("settings.light")}</option>
-            </select>
-          </label>
-        </div>
+        <SettingsEditor
+          rpc={p.rpc}
+          lang={p.lang}
+          theme={p.theme}
+          project={p.project}
+          tr={p.tr}
+          onUser={p.saveUser}
+        />
       );
     default:
       return (

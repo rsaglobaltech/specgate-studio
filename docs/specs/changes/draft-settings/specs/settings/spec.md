@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-141 — A settings editor with search, and two scopes: project and user
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL open Settings as an editor with a search box and two scopes, Project and User: a project setting is saved in the open project's files and shared through git; a user setting is saved in the Developer's own settings file and applies to every project; the search SHALL keep, in both scopes, the settings whose name or description matches, in the studio's language.
 

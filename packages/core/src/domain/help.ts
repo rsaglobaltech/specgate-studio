@@ -57,6 +57,7 @@ export const ACTIONS = [
   "redraft",
   "brief-form",
   "brief-propose",
+  "settings-user",
 ] as const;
 export type ActionId = (typeof ACTIONS)[number];
 
@@ -1197,6 +1198,26 @@ export const HELP: Catalog = {
         "No cierra ningún editor, no pierde cambios sin guardar y no ejecuta ningún comando.",
       next: "El mismo botón lo restaura.",
       notice: { ranOk: "Maximizado el panel", next: "El mismo botón lo restaura" },
+    },
+  },
+  // draft-settings REQ-141: a user setting, kept in the Developer's own file (A2).
+  "settings-user": {
+    en: {
+      does: "Saves {key} as {to} in your own settings file, {path}: it applies to every project you open, in the desktop app and in the browser.",
+      command: "None: the studio's host writes {path}.",
+      files: "{path}, your own settings file; no file of the project.",
+      doesNot: "It writes no file of the project, runs no specgate command and commits nothing.",
+      next: "Every project you open uses it; choose another value to change it.",
+      notice: { ranOk: "Set {key} to {to} in {path}", next: "It applies to every project" },
+    },
+    es: {
+      does: "Guarda {key} como {to} en tu propio archivo de configuración, {path}: vale para cada proyecto que abras, en la app de escritorio y en el navegador.",
+      command: "Ninguno: el host del studio escribe {path}.",
+      files: "{path}, tu propio archivo de configuración; ningún archivo del proyecto.",
+      doesNot:
+        "No escribe ningún archivo del proyecto, no ejecuta ningún comando de specgate y no hace commit.",
+      next: "Cada proyecto que abras lo usa; elige otro valor para cambiarlo.",
+      notice: { ranOk: "Fijado {key} a {to} en {path}", next: "Vale para cada proyecto" },
     },
   },
 };

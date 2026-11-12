@@ -28,6 +28,7 @@ const AREA_OF: Record<string, "spec" | "build" | "project" | "files"> = {
   "agents-init": "project",
   "ci-init": "project",
   "config-set": "project",
+  "settings-user": "project",
 };
 const AREAS = ["spec", "build", "project", "files"] as const;
 
