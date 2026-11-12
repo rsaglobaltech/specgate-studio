@@ -399,6 +399,9 @@ const en = {
   "action.file-delete-permanent": "Delete for good",
   "action.copy-path": "Copy path",
   "action.open-terminal": "Open in terminal",
+  "action.traceability": "Traceability",
+  "action.trace-fix": "Fix: propose the missing test",
+  "action.trace-ask-agent": "Ask the agent to complete a test",
   "crumbs.label": "Where the file is",
   "offline.title": "Reconnecting to the studio…",
   "offline.body":
@@ -836,6 +839,9 @@ const es: Record<MessageKey, string> = {
   "action.file-delete-permanent": "Eliminar para siempre",
   "action.copy-path": "Copiar ruta",
   "action.open-terminal": "Abrir en el terminal",
+  "action.traceability": "Trazabilidad",
+  "action.trace-fix": "Arreglar: proponer la prueba que falta",
+  "action.trace-ask-agent": "Pedir al agente que complete una prueba",
   "crumbs.label": "Dónde está el archivo",
   "offline.title": "Reconectando con el studio…",
   "offline.body":

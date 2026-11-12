@@ -61,6 +61,7 @@ export {
   fileNotice,
   missingTranslations,
   notice,
+  proposalNotice,
   type FileOutcome,
   type ActionId,
   type Catalog,
@@ -306,3 +307,35 @@ export {
   type PlanChange,
 } from "./domain/agent.js";
 export { Agent, type AgentOptions, type AgentResult } from "./application/Agent.js";
+/** Traceability: one row per scenario, its filters, and "Fix" (draft-traceability REQ-121 … REQ-123). */
+export {
+  TRACE_FILTERS,
+  addedText,
+  agentTestRequest,
+  keeps,
+  lineDiff,
+  scenarioIn,
+  testPathFor,
+  testSkeleton,
+  testStyleOf,
+  traceRowsOf,
+  traceViewOf,
+  type ScenarioStep,
+  type ScenarioText,
+  type TestProposal,
+  type TestStyle,
+  type TraceFilter,
+  type TraceLink,
+  type TraceRow,
+  type TraceView,
+} from "./domain/traceability.js";
+export {
+  Traceability,
+  type FixResult,
+  type TraceAgent,
+  type TraceAgentResult,
+  type TraceFiles,
+  type TraceRefusal,
+  type TraceWriteResult,
+  type TraceabilityOptions,
+} from "./application/Traceability.js";

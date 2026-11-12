@@ -12,10 +12,17 @@ export function sectionsFedBy(file: string): Section[] {
   return SECTIONS.filter((s) => fed.has(s));
 }
 
+/** A test file, as projects name them: under test/, tests/, __tests__/, or *.test.*, *.spec.*, *_test.*. */
+const TEST =
+  /(^|\/)(tests?|__tests__)\/.+\.[a-z]+$|\.(test|spec)\.[cm]?[jt]sx?$|(_test\.(py|go)|(^|\/)test_[^/]+\.py)$/;
+
 function rule(p: string): Section[] {
   // The system lost which file changed (the watcher's ANY_FILE): read all again.
   if (p === "*") return [...SECTIONS];
   if (/^features\/.+\.feature$/.test(p)) return ["matrix"];
+  // A test names its requirement and scenario: saved, only the matrix is read again
+  // (draft-traceability A9, REQ-123).
+  if (TEST.test(p)) return ["matrix"];
   if (p === "docs/brief.md") return ["home"];
   // The harness's settings — its agent above all — feed Build through status (draft-live-polish REQ-203).
   if (p === "harness.config.yaml") return ["home"];

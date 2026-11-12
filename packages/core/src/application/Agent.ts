@@ -1,6 +1,6 @@
 import { commandLine, shown, type SpecgateCommand } from "../domain/command.js";
 import type { Finding } from "../domain/finding.js";
-import type { Lang, Notice } from "../domain/help.js";
+import type { ActionId, HelpVars, Lang, Notice } from "../domain/help.js";
 import { findingLine } from "../domain/changes.js";
 import { agentProgram, SET_AGENT } from "../domain/build.js";
 import {
@@ -139,7 +139,7 @@ export class Agent {
    * confirmed. specgate writes the files byte for byte when none changed
    * since (`plan_stale` otherwise), runs its checks and commits nothing.
    */
-  async apply(n: unknown): Promise<AgentResult> {
+  async apply(n: unknown, as?: { action: ActionId; vars: HelpVars }): Promise<AgentResult> {
     const entry = this.entries.find((e) => e.n === n);
     if (!entry || entry.state !== "plan" || !entry.plan?.id)
       return { ok: false, code: "no_plan", message: "No plan to apply." };
@@ -167,11 +167,13 @@ export class Agent {
         }
         return {
           exitCode: refused ? answer.exitCode || 1 : 0,
-          action: "agent-apply",
+          // Traceability's "Ask the agent" says its own notice: the test written (REQ-123).
+          action: as?.action ?? "agent-apply",
           vars: {
             id,
             ...(plan.change ? { change: plan.change } : {}),
             ...(plan.then[0] ? { then: plan.then.join(", ") } : {}),
+            ...as?.vars,
           },
           findings: answer.findings.filter((f) => f.severity === "error"),
           written,
