@@ -15,6 +15,12 @@ export interface HostLock {
   url: string;
   /** The process that serves it. */
   pid: number;
+  /**
+   * A token of that host's, kept for joining it: a window or a tab that joins
+   * asks the host for a token of its own with it (draft-desktop A2). Only the
+   * Developer can read the lock's file.
+   */
+  secret?: string;
 }
 
 /** One key per project folder: `/`-separated, no trailing `/`, lower case where the file system ignores case. */

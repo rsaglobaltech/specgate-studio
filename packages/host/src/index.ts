@@ -17,4 +17,5 @@ export { attachAgent, type AgentWiring } from "./agent.js";
 export { attachTraceability } from "./traceability.js";
 export { attachSettings } from "./settings.js";
 export { attachReport, type ReportWiring } from "./report.js";
-export { HostLocks } from "./hostLocks.js";
+export { HostLocks, joinToken } from "./hostLocks.js";
+export { Session, newToken, cookieName } from "./session.js";

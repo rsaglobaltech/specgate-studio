@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { promises as fsp } from "node:fs";
 import { request } from "node:http";
+import WebSocket from "ws";
 import * as path from "node:path";
 import { hostToJoin, projectKey, type HostLock } from "@specgate-studio/core";
 import { caseInsensitivePaths, studioHome } from "@specgate-studio/adapter-node";
@@ -35,15 +36,20 @@ export class HostLocks {
   async claim(
     projectDir: string,
     url: string,
+    secret: string,
     pid: number = process.pid,
   ): Promise<{ lock: HostLock; release(): Promise<void> }> {
     const dir = path.resolve(projectDir);
-    const lock: HostLock = { projectDir: dir, key: this.key(dir), url, pid };
+    const lock: HostLock = { projectDir: dir, key: this.key(dir), url, pid, secret };
     const file = this.file(lock.key);
-    await fsp.mkdir(path.dirname(file), { recursive: true });
+    // The Developer's alone: the lock holds a token of the host (A2).
+    await fsp.mkdir(path.dirname(file), { recursive: true, mode: 0o700 });
     // Written whole, then renamed: a reader never sees half a lock.
     const tmp = `${file}.${pid}.tmp`;
-    await fsp.writeFile(tmp, JSON.stringify(lock, null, 2) + "\n", "utf8");
+    await fsp.writeFile(tmp, JSON.stringify(lock, null, 2) + "\n", {
+      encoding: "utf8",
+      mode: 0o600,
+    });
     await fsp.rename(tmp, file);
     return {
       lock,
@@ -60,7 +66,8 @@ export class HostLocks {
       return typeof lock.key === "string" &&
         typeof lock.url === "string" &&
         typeof lock.pid === "number" &&
-        typeof lock.projectDir === "string"
+        typeof lock.projectDir === "string" &&
+        typeof lock.secret === "string"
         ? (lock as HostLock)
         : null;
     } catch {
@@ -103,5 +110,38 @@ function answers(url: string): Promise<boolean> {
     req.on("timeout", () => req.destroy());
     req.on("error", () => resolve(false));
     req.end();
+  });
+}
+
+/**
+ * A token of its own for a window or a tab joining the host of `lock`: asked
+ * of that host with the lock's secret (draft-desktop A2, A11).
+ */
+export function joinToken(lock: HostLock, wait = 5_000): Promise<string> {
+  const ws = new WebSocket(lock.url.replace(/^http/, "ws"), {
+    headers: { authorization: `Bearer ${lock.secret ?? ""}` },
+  });
+  return new Promise<string>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("the studio's host did not answer")), wait);
+    const done = (e: Error | null, token?: string) => {
+      clearTimeout(timer);
+      ws.close();
+      if (e) reject(e);
+      else resolve(token!);
+    };
+    ws.once("error", (e) => done(e));
+    ws.once("unexpected-response", (_r, res) =>
+      done(new Error(`the studio's host refused to be joined (${res.statusCode})`)),
+    );
+    ws.once("open", () =>
+      ws.send(JSON.stringify({ jsonrpc: "2.0", id: 1, method: "session.issue" })),
+    );
+    ws.on("message", (raw) => {
+      const m = JSON.parse(String(raw)) as { id?: unknown; result?: { token?: unknown } };
+      if (m.id !== 1) return;
+      const t = m.result?.token;
+      if (typeof t === "string") done(null, t);
+      else done(new Error("the studio's host gave no token"));
+    });
   });
 }

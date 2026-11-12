@@ -15,6 +15,8 @@ import {
   HostRegistry,
   HostLocks,
   NodeProcessRunner,
+  joinToken,
+  newToken,
   startHost,
   startProjectHost,
   type Host,
@@ -66,6 +68,11 @@ export interface ServeOptions {
   builds?: Omit<BuildsWiring, "specgate">;
   /** Files outside the project for the brief's form; the system's temporary folder when not given. */
   scratch?: ScratchPort;
+  /**
+   * The session tokens the host answers to (draft-desktop REQ-151, A2): none
+   * asks for none. A project opened from it gets a token of its own.
+   */
+  tokens?: readonly string[];
   /** The Developer's own settings file, Settings' User scope (draft-settings REQ-141). */
   userSettings?: UserSettingsPort;
 }
@@ -90,7 +97,14 @@ export async function serve(options: ServeOptions): Promise<Host> {
   // Developer's home, and Open Folder and Clone opening a project's own host.
   if (options.noFolder) {
     const registry = new HostRegistry(
-      (dir) => serve({ ...options, noFolder: false, projectDir: dir, port: 0 }),
+      (dir) =>
+        serve({
+          ...options,
+          noFolder: false,
+          projectDir: dir,
+          port: 0,
+          ...(options.tokens?.length ? { tokens: [newToken()] } : {}),
+        }),
       caseInsensitivePaths(),
     );
     const folders: FoldersWiring = options.folders ?? {
@@ -114,6 +128,7 @@ export async function serve(options: ServeOptions): Promise<Host> {
       port,
       ui,
       folders: { ...folders, none: true },
+      ...(options.tokens ? { tokens: options.tokens } : {}),
     });
     const close = host.close.bind(host);
     host.close = async () => {
@@ -146,11 +161,13 @@ export async function serve(options: ServeOptions): Promise<Host> {
       terminals,
       port,
       ui,
+      ...(options.tokens ? { tokens: options.tokens } : {}),
     });
   }
   return startProjectHost(projectDir, {
     port,
     ui,
+    ...(options.tokens ? { tokens: options.tokens } : {}),
     terminals,
     ...(options.home ? { home: options.home } : {}),
     reader: async (dir) => (await inProcessSpecgate(cliFor(dir), dir)) ?? cliFor(dir),
@@ -165,8 +182,10 @@ export async function serve(options: ServeOptions): Promise<Host> {
 /** A host this process started for the project, its lock written. */
 export interface Served {
   joined: false;
-  /** `http://127.0.0.1:<port>/`: the UI and its JSON-RPC. */
+  /** `http://127.0.0.1:<port>/?token=<token>`: the UI and its JSON-RPC, with the window's or tab's token. */
   url: string;
+  /** The token given to this window or tab (draft-desktop A2). */
+  token: string;
   key: string;
   /** Closing it removes its lock. */
   host: Host;
@@ -175,29 +194,54 @@ export interface Served {
 /** The host another process runs for the project: a desktop window's, or another `serve`. */
 export interface Joined {
   joined: true;
+  /** That host's address, with a token of its own it issued for this window or tab. */
   url: string;
+  token: string;
   key: string;
   lock: HostLock;
+}
+
+/** `http://127.0.0.1:<port>/` with `?token=`. */
+export function withToken(url: string, token: string): string {
+  const u = new URL(url.replace(/^ws/, "http"));
+  u.search = "";
+  u.searchParams.set("token", token);
+  return u.toString();
 }
 
 /**
  * The project's one core host (draft-desktop REQ-158, A11): the one already
  * running for it — found by its lock in the studio's settings folder — or a
  * new one, whose lock this writes so the next window or `serve` finds it. A
- * desktop window and a browser tab on one project share one host.
+ * desktop window and a browser tab on one project share one host; each gets
+ * a session token of its own, and nothing without one is answered (A2):
+ * `token` is the starter's — the desktop shell's per-launch secret — or a new one.
  */
 export async function serveOrJoin(
-  options: ServeOptions & { locks?: HostLocks },
+  options: ServeOptions & { locks?: HostLocks; token?: string },
 ): Promise<Served | Joined> {
   const locks = options.locks ?? new HostLocks(options.home);
   const running = await locks.find(options.projectDir);
-  if (running) return { joined: true, url: running.url, key: running.key, lock: running };
-  const host = await serve(options);
-  const url = host.url.replace(/^ws/, "http");
-  const claimed = await locks.claim(options.projectDir, url);
+  if (running) {
+    const token = await joinToken(running);
+    return {
+      joined: true,
+      url: withToken(running.url, token),
+      token,
+      key: running.key,
+      lock: running,
+    };
+  }
+  const token = options.token || newToken();
+  // The lock's own token, never given to a window: what joiners ask with.
+  const secret = newToken();
+  const host = await serve({ ...options, tokens: [token, secret] });
+  const plain = host.url.replace(/^ws/, "http").replace(/\?.*$/, "");
+  const claimed = await locks.claim(options.projectDir, plain, secret);
   return {
     joined: false,
-    url,
+    url: withToken(plain, token),
+    token,
     key: claimed.lock.key,
     host: {
       ...host,

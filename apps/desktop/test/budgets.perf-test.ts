@@ -26,8 +26,8 @@ test("REQ-157 SCN-463: the host idle, one UI connected and untouched, stays unde
   made.push(home, sprich);
   const s = await sidecar(sprich, home);
   try {
-    await (await fetch(s.ready.url)).text();
-    const ui = new WebSocket(s.ready.url.replace(/^http/, "ws"));
+    await (await fetch(s.ready.url, { headers: s.auth })).text();
+    const ui = new WebSocket(s.page.replace(/^http/, "ws"));
     await new Promise((ok, ko) => ui.once("open", ok).once("error", ko));
     await new Promise((r) => setTimeout(r, IDLE_MS));
     ui.close();
@@ -50,7 +50,7 @@ test(
     const start = performance.now();
     const s = await sidecar(sprich, home);
     try {
-      await (await fetch(s.ready.url)).text();
+      await (await fetch(s.ready.url, { headers: s.auth })).text();
       const ms = performance.now() - start;
       process.stdout.write(`# sidecar ready and UI served in ${ms.toFixed(0)} ms\n`);
       assert.ok(ms < 800, `${ms.toFixed(0)} ms`);

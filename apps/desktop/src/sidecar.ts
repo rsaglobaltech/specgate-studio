@@ -29,11 +29,33 @@ import { serveOrJoin, type Joined, type Served } from "@specgate-studio/cli";
  *
  *   sidecar update-step --url <address> --phase <p> --from <v> --to <v> [--reason <r>]
  *     asks that host what the update does next (REQ-156) and prints its answer.
+ *
+ * The session token (draft-desktop A2) comes in the environment, never in the
+ * arguments, where every process could read it: SPECGATE_STUDIO_TOKEN, the
+ * shell's per-launch secret. The host answers nothing without it; the shell
+ * loads the window with it. It is taken out of the environment at once, so no
+ * terminal, build or agent the host starts inherits it. A sidecar that joins
+ * another process's host prints the token that host issued for this window.
  */
+
+/** Where the shell puts the window's session token. */
+export const TOKEN_ENV = "SPECGATE_STUDIO_TOKEN";
+
+/** The token the shell gave, taken out of the environment. */
+export function takeToken(env: NodeJS.ProcessEnv = process.env): string {
+  const token = env[TOKEN_ENV] ?? "";
+  delete env[TOKEN_ENV];
+  if (token.length < 32)
+    throw new Error(`the shell gives the sidecar its session token in ${TOKEN_ENV}`);
+  return token;
+}
 
 export interface Ready {
   type: "ready";
+  /** The host's address, without a token. */
   url: string;
+  /** Only when it joined another process's host: the token that host issued for this window. */
+  token?: string;
   key: string;
   projectDir: string;
   /** This sidecar started the host: closing the window ends it. */
@@ -111,6 +133,7 @@ function say(line: Ready | Choose | Record<string, unknown>): void {
 }
 
 export async function runHost(args: Args): Promise<void> {
+  const token = takeToken();
   const home = args.flags.get("home") ?? studioHome();
   const recent = await recentProjects(home);
   const projectDir = args.flags.get("project-dir") ?? recent[0]?.path;
@@ -123,11 +146,13 @@ export async function runHost(args: Args): Promise<void> {
     projectDir: path.resolve(projectDir),
     port: 0,
     home,
+    token,
     ...(ui ? { ui } : {}),
   });
   say({
     type: "ready",
-    url: served.url,
+    url: served.url.replace(/\?.*$/, ""),
+    ...(served.joined ? { token: served.token } : {}),
     key: served.key,
     projectDir: path.resolve(projectDir),
     owned: !served.joined,
@@ -154,13 +179,14 @@ export async function runHost(args: Args): Promise<void> {
 }
 
 export async function runUpdateStep(args: Args): Promise<void> {
+  const token = takeToken();
   const url = (args.flags.get("url") ?? "").replace(/^http/, "ws");
   const params: Record<string, string> = {};
   for (const k of ["phase", "from", "to", "reason"]) {
     const v = args.flags.get(k);
     if (v !== undefined) params[k] = v;
   }
-  const ws = new WebSocket(url);
+  const ws = new WebSocket(url, { headers: { authorization: `Bearer ${token}` } });
   const answer = await new Promise<unknown>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error("the host did not answer")), 5_000);
     ws.once("error", reject);

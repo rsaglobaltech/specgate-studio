@@ -1,6 +1,7 @@
 export {
   serve,
   serveOrJoin,
+  withToken,
   UI_DIST,
   type Joined,
   type Served,

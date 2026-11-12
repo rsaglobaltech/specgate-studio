@@ -4,6 +4,7 @@
 //! gets from that host; the shell holds no business rule — which host serves a
 //! project, and whether an update may install, are the host's answers.
 
+pub mod session;
 pub mod sidecar;
 pub mod update;
 pub mod windows;
@@ -29,8 +30,8 @@ struct Studio {
     /// The sidecar of each window whose host it started; a window that joined
     /// another process's host (`specgate-studio serve`) has none.
     sidecars: HashMap<String, Sidecar>,
-    /// Each window's host address, for the update's questions.
-    hosts: HashMap<String, String>,
+    /// Each window's host address and its session token, for the update's questions.
+    hosts: HashMap<String, (String, String)>,
     recent: Vec<Recent>,
     /// Windows only: an update downloaded and verified, installed as the studio quits.
     pending_update: Option<(tauri_plugin_updater::Update, Vec<u8>)>,
@@ -77,7 +78,10 @@ fn open_project(app: &AppHandle, folder: Option<PathBuf>) {
         args.push(f.clone().into_os_string());
     }
     args.push("--exit-with-stdin".into());
-    let (sidecar, line) = match Sidecar::spawn(&node_program(), &args, READY_WAIT) {
+    // A new secret for this sidecar, in its environment: the host answers only to it (A2).
+    let own_token = session::new_token();
+    let envs = [(session::TOKEN_ENV, own_token.as_str())];
+    let (sidecar, line) = match Sidecar::spawn(&node_program(), &args, &envs, READY_WAIT) {
         Ok(s) => s,
         Err(e) => return failed(app, &format!("The studio's host did not start: {e}")),
     };
@@ -93,6 +97,7 @@ fn open_project(app: &AppHandle, folder: Option<PathBuf>) {
         }
         Line::Ready {
             url,
+            token,
             key,
             project_dir,
             owned,
@@ -112,11 +117,13 @@ fn open_project(app: &AppHandle, folder: Option<PathBuf>) {
                     }
                 }
                 Opening::Create(label) => {
+                    // A host this sidecar joined issued the window a token of its own.
+                    let token = token.unwrap_or(own_token);
                     let name = Path::new(&project_dir)
                         .file_name()
                         .map(|n| n.to_string_lossy().into_owned())
                         .unwrap_or_else(|| project_dir.clone());
-                    let parsed = match url.parse::<tauri::Url>() {
+                    let parsed = match session::window_url(&url, &token).parse::<tauri::Url>() {
                         Ok(u) => u,
                         Err(e) => {
                             state.lock().unwrap().windows.closed(&label);
@@ -134,7 +141,7 @@ fn open_project(app: &AppHandle, folder: Option<PathBuf>) {
                         return failed(app, &format!("The window did not open: {e}"));
                     }
                     let mut studio = state.lock().unwrap();
-                    studio.hosts.insert(label.clone(), url);
+                    studio.hosts.insert(label.clone(), (url, token));
                     if owned {
                         studio.sidecars.insert(label, sidecar);
                     }
@@ -295,7 +302,7 @@ fn end_all(app: &AppHandle) {
 
 /// One step of the update, asked of every open project's host.
 fn ask_hosts(app: &AppHandle, step: &[String]) -> Vec<update::Decision> {
-    let hosts: Vec<String> = app
+    let hosts: Vec<(String, String)> = app
         .state::<State>()
         .lock()
         .unwrap()
@@ -304,7 +311,7 @@ fn ask_hosts(app: &AppHandle, step: &[String]) -> Vec<update::Decision> {
         .cloned()
         .collect();
     let mut answers = Vec::new();
-    for url in hosts {
+    for (url, token) in hosts {
         let mut args: Vec<OsString> = vec![
             sidecar_script(app).into_os_string(),
             "update-step".into(),
@@ -312,7 +319,7 @@ fn ask_hosts(app: &AppHandle, step: &[String]) -> Vec<update::Decision> {
             url.into(),
         ];
         args.extend(step.iter().map(OsString::from));
-        match sidecar::ask(&node_program(), &args)
+        match sidecar::ask(&node_program(), &args, &[(session::TOKEN_ENV, &token)])
             .and_then(|v| serde_json::from_value(v).map_err(std::io::Error::other))
         {
             Ok(d) => answers.push(d),

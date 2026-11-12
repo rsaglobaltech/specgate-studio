@@ -28,6 +28,9 @@ pub enum Line {
     /// The project's host answers at `url`; `owned` when this sidecar started it.
     Ready {
         url: String,
+        /// Only when it joined another process's host: the token that host issued for this window.
+        #[serde(default)]
+        token: Option<String>,
         key: String,
         #[serde(rename = "projectDir")]
         project_dir: String,
@@ -53,11 +56,18 @@ pub struct Sidecar {
 }
 
 impl Sidecar {
-    /// Starts `program args…` as a sidecar and waits for its first line.
-    pub fn spawn(program: &Path, args: &[OsString], wait: Duration) -> io::Result<(Sidecar, Line)> {
+    /// Starts `program args…` as a sidecar, with `envs` added to its
+    /// environment (its session token), and waits for its first line.
+    pub fn spawn(
+        program: &Path,
+        args: &[OsString],
+        envs: &[(&str, &str)],
+        wait: Duration,
+    ) -> io::Result<(Sidecar, Line)> {
         let mut command = Command::new(program);
         command
             .args(args)
+            .envs(envs.iter().copied())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit());
@@ -187,10 +197,15 @@ impl Drop for Sidecar {
 }
 
 /// Runs the sidecar program once for an answer — `update-step` — and parses its line.
-pub fn ask(program: &Path, args: &[OsString]) -> io::Result<serde_json::Value> {
+pub fn ask(
+    program: &Path,
+    args: &[OsString],
+    envs: &[(&str, &str)],
+) -> io::Result<serde_json::Value> {
     let mut command = Command::new(program);
     command
         .args(args)
+        .envs(envs.iter().copied())
         .stdin(Stdio::null())
         .stderr(Stdio::inherit());
     #[cfg(windows)]

@@ -9,6 +9,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
+import { newToken } from "@specgate-studio/host";
 import type { Choose, Ready } from "../src/sidecar.js";
 
 export const BIN = fileURLToPath(new URL("../src/bin.js", import.meta.url));
@@ -26,16 +27,31 @@ export interface Sidecar {
   first: Ready | Choose;
   ready: Ready;
   exited: Promise<number | null>;
+  /** The window's session token: the one the shell gave, or the one the joined host issued (A2). */
+  token: string;
+  /** The address the shell loads in the window: the host's, with the window's token. */
+  page: string;
+  /** What the shell's own requests carry. */
+  auth: { authorization: string };
 }
 
-/** The sidecar on `projectDir` (none: the most recent project), and the line it prints first. */
-export async function sidecar(projectDir: string | null, home: string): Promise<Sidecar> {
+/**
+ * The sidecar on `projectDir` (none: the most recent project), and the line it
+ * prints first; given a per-launch token in its environment, as the shell gives it.
+ */
+export async function sidecar(
+  projectDir: string | null,
+  home: string,
+  given: string | null = newToken(),
+): Promise<Sidecar> {
   const args = [BIN, ...(projectDir ? ["--project-dir", projectDir] : [])];
+  const env: NodeJS.ProcessEnv = { ...process.env, SPECGATE_STUDIO_LOGIN_PATH: "0" };
+  if (given) env.SPECGATE_STUDIO_TOKEN = given;
   const child = spawn(process.execPath, [...args, "--home", home, "--exit-with-stdin"], {
     stdio: ["pipe", "pipe", "pipe"],
     detached: !WIN,
     windowsHide: true,
-    env: { ...process.env, SPECGATE_STUDIO_LOGIN_PATH: "0" },
+    env,
   });
   const exited = new Promise<number | null>((ok) => child.once("exit", (code) => ok(code)));
   let err = "";
@@ -56,7 +72,10 @@ export async function sidecar(projectDir: string | null, home: string): Promise<
     });
     child.once("exit", (code) => reject(new Error(`the sidecar ended (${code}): ${err}`)));
   });
-  return { child, first, ready: first as Ready, exited };
+  const ready = first as Ready;
+  const token = ready.token ?? given ?? "";
+  const page = ready.url ? `${ready.url}?token=${token}` : "";
+  return { child, first, ready, exited, token, page, auth: { authorization: `Bearer ${token}` } };
 }
 
 /** Ends the sidecar as the shell does when its window closes: its input closed, then its group. */

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { newToken } from "@specgate-studio/host";
 import { serve, serveOrJoin } from "./serve.js";
 
 const USAGE = "Usage: specgate-studio serve [--project-dir <path> | --no-folder] [--port <n>]\n";
@@ -24,7 +25,8 @@ async function main(argv: string[]): Promise<void> {
   }
   if (noFolder) {
     // No folder open: nothing to share with another host (draft-workbench-v2 REQ-185).
-    const host = await serve({ projectDir, port, noFolder });
+    // Its address carries a token of its own: nothing without it is answered (draft-desktop A2).
+    const host = await serve({ projectDir, port, noFolder, tokens: [newToken()] });
     process.stdout.write(
       `specgate studio serving no folder\n  ${host.url.replace(/^ws/, "http")}\n`,
     );

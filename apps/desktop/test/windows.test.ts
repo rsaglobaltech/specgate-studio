@@ -32,7 +32,7 @@ test("REQ-152 SCN-453: a second project opens over its own core host, and the fi
     assert.notEqual(studio.ready.key, sprich.ready.key, "a window of its own");
     assert.equal(fs.readdirSync(path.join(home, "hosts")).length, 2);
     // sprich's host still answers, on the same address.
-    assert.equal((await fetch(sprich.ready.url)).status, 200);
+    assert.equal((await fetch(sprich.ready.url, { headers: sprich.auth })).status, 200);
     // The recent list the shell's menu shows: both, the latest first.
     assert.deepEqual(
       studio.ready.recent.map((r) => posix(r.path)),
@@ -56,6 +56,7 @@ test("REQ-152 SCN-454: opening sprich again finds its one host — the same key,
     assert.equal(again.ready.owned, false, "it joined; it started nothing");
     assert.equal(again.ready.key, first.ready.key, "the key the shell focuses the window by");
     assert.equal(again.ready.url, first.ready.url, "the one host");
+    assert.notEqual(again.token, first.token, "a token of its own for the window (A2)");
     assert.equal(await again.exited, 0, "a sidecar that joined ends at once");
     assert.equal(alive(first.child.pid!), true);
     assert.equal(fs.readdirSync(path.join(home, "hosts")).length, 1, "one host for sprich");

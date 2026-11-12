@@ -50,10 +50,16 @@ test("REQ-158 SCN-464: `specgate-studio serve` in sprich's folder, beside the de
     const served = await serveCli(sprich, home);
     assert.equal(served.code, 0, served.out);
     assert.match(served.out, /is already open in the studio/);
-    assert.ok(served.out.includes(`  ${desktop.ready.url}\n`), served.out);
+    // The desktop host's address, with a token the host issued for the browser's tab (A2).
+    const printed = /^ {2}(http:\/\/127\.0\.0\.1:\d+\/)\?token=([A-Za-z0-9_-]+)$/m.exec(served.out);
+    assert.ok(printed, served.out);
+    assert.equal(printed[1], desktop.ready.url);
+    assert.notEqual(printed[2], desktop.token, "the tab's own token, not the window's");
     assert.equal(fs.readdirSync(path.join(home, "hosts")).length, 1, "one host for sprich");
     // The browser gets the same workbench as the desktop window: the same UI.
-    const page = await (await fetch(desktop.ready.url)).text();
+    const page = await (
+      await fetch(desktop.ready.url, { headers: { authorization: `Bearer ${printed[2]}` } })
+    ).text();
     assert.equal(page, fs.readFileSync(path.join(UI_DIST, "index.html"), "utf8"));
   } finally {
     await endAsTheShell(desktop);

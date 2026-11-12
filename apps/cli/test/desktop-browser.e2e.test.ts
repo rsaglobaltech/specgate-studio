@@ -42,7 +42,12 @@ test("REQ-158 SCN-465: Q2 answered in the browser shows answered in the desktop 
   // `specgate-studio serve` in sprich's folder joins it.
   const served = await serveOrJoin({ projectDir: s.projectDir, port: 0, locks });
   assert.equal(served.joined, true);
-  assert.equal(served.url, s.url);
+  // The one host, and a token of its own for the tab (draft-desktop A2).
+  assert.equal(new URL(served.url).origin, new URL(s.url).origin);
+  assert.notEqual(
+    new URL(served.url).searchParams.get("token"),
+    new URL(s.url).searchParams.get("token"),
+  );
   const desktop = await open({ url: served.url });
   const browser = await open({ url: served.url });
   try {

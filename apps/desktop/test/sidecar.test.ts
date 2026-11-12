@@ -23,6 +23,7 @@ import {
   until,
   type Sidecar,
 } from "./support.js";
+import { takeToken } from "../src/sidecar.js";
 
 const made: string[] = [];
 const dir = (p: string) => {
@@ -63,7 +64,7 @@ function refused(host: string, port: number): Promise<boolean> {
 
 /** A terminal running in the host, and the processes under the sidecar once it runs. */
 async function withTerminal(s: Sidecar): Promise<number[]> {
-  const ui = await rpc(s.ready.url);
+  const ui = await rpc(s.page);
   const opened = await ui.ask("terminal.open", { cols: 80, rows: 24 });
   assert.ok(opened.result?.id, `a terminal opens: ${JSON.stringify(opened)}`);
   await until(() => descendants(s.child.pid!).length > 0, 15_000, "the terminal's shell runs");
@@ -80,8 +81,9 @@ test("REQ-151 SCN-451: the sidecar serves the studio's UI on 127.0.0.1 only, fro
     assert.match(s.ready.url, /^http:\/\/127\.0\.0\.1:\d+\/$/);
     assert.equal(s.ready.owned, true, "the sidecar started the host");
     assert.equal(s.ready.projectDir, sprich);
-    // The same UI the browser gets (REQ-158): apps/ui's built index.
-    const res = await fetch(s.ready.url);
+    // Nothing without the window's session token (A2); with it, the same UI the browser gets (REQ-158).
+    assert.equal((await fetch(s.ready.url)).status, 403);
+    const res = await fetch(s.ready.url, { headers: s.auth });
     assert.equal(res.status, 200);
     assert.equal(await res.text(), fs.readFileSync(path.join(UI_DIST, "index.html"), "utf8"));
     // Not on any other address of the machine.
@@ -142,3 +144,38 @@ test(
     assert.equal(alive(s.child.pid!), false);
   },
 );
+
+test("REQ-151: the sidecar takes its session token from the environment — never its arguments — and leaves none for what it starts", async () => {
+  const env: NodeJS.ProcessEnv = { SPECGATE_STUDIO_TOKEN: "t".repeat(43), PATH: "/bin" };
+  assert.equal(takeToken(env), "t".repeat(43));
+  assert.equal(env.SPECGATE_STUDIO_TOKEN, undefined, "out of the environment its children inherit");
+  assert.throws(() => takeToken({}), /SPECGATE_STUDIO_TOKEN/);
+
+  // Started with none, it serves nothing.
+  const home = dir("sg-home-");
+  const s = await sidecar(dir("sprich-"), home, null);
+  assert.equal(s.first.type, "error");
+  assert.equal(await s.exited, 1);
+  assert.equal(fs.existsSync(path.join(home, "hosts")), false, "no host, no lock");
+});
+
+test("REQ-151 REQ-158: a window that joins another process's host gets a token of its own from that host; the lock that lets it is the Developer's alone", async () => {
+  const home = dir("sg-home-");
+  const folder = dir("sprich-");
+  const first = await sidecar(folder, home);
+  const again = await sidecar(folder, home);
+  try {
+    assert.equal(again.ready.owned, false);
+    assert.ok(again.ready.token, "the joined host issued a token");
+    assert.notEqual(again.token, first.token);
+    assert.equal((await fetch(again.ready.url, { headers: again.auth })).status, 200);
+    assert.equal((await fetch(first.ready.url, { headers: first.auth })).status, 200);
+    if (!WIN) {
+      const [lock] = fs.readdirSync(path.join(home, "hosts"));
+      assert.equal(fs.statSync(path.join(home, "hosts", lock!)).mode & 0o077, 0, "the lock: 0600");
+      assert.equal(fs.statSync(path.join(home, "hosts")).mode & 0o077, 0, "its folder: 0700");
+    }
+  } finally {
+    await endAsTheShell(first);
+  }
+});

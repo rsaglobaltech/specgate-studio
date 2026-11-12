@@ -3,6 +3,7 @@
 //! Job object on Windows. The sidecar here is a stand-in that starts a child
 //! that would run for five minutes, writes its pid, and says it is ready.
 
+use specgate_studio_desktop::session::{new_token, window_url, TOKEN_ENV};
 use specgate_studio_desktop::sidecar::{Line, Sidecar, GRACE};
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -92,7 +93,8 @@ fn req_151_scn_452_ending_the_sidecar_ends_every_process_it_started() {
     let dir = scratch("tree");
     let pid_file = dir.join("child.pid");
     let (program, args) = stand_in(&pid_file, false);
-    let (mut sidecar, line) = Sidecar::spawn(&program, &args, Duration::from_secs(30)).unwrap();
+    let (mut sidecar, line) =
+        Sidecar::spawn(&program, &args, &[], Duration::from_secs(30)).unwrap();
     assert_eq!(line, Line::Choose { recent: vec![] });
     let child = read_pid(&pid_file);
     assert!(alive(child), "the sidecar's child runs");
@@ -111,7 +113,7 @@ fn req_151_scn_452_dropping_the_sidecar_when_its_window_closes_ends_its_tree() {
     let dir = scratch("drop");
     let pid_file = dir.join("child.pid");
     let (program, args) = stand_in(&pid_file, false);
-    let (sidecar, _) = Sidecar::spawn(&program, &args, Duration::from_secs(30)).unwrap();
+    let (sidecar, _) = Sidecar::spawn(&program, &args, &[], Duration::from_secs(30)).unwrap();
     let child = read_pid(&pid_file);
     drop(sidecar);
     assert!(
@@ -127,7 +129,7 @@ fn req_151_scn_452_a_sidecar_that_ignores_the_request_is_killed_after_the_grace_
     let dir = scratch("stubborn");
     let pid_file = dir.join("child.pid");
     let (program, args) = stand_in(&pid_file, true);
-    let (mut sidecar, _) = Sidecar::spawn(&program, &args, Duration::from_secs(30)).unwrap();
+    let (mut sidecar, _) = Sidecar::spawn(&program, &args, &[], Duration::from_secs(30)).unwrap();
     let child = read_pid(&pid_file);
     let start = Instant::now();
     sidecar.end();
@@ -155,6 +157,61 @@ fn req_151_a_sidecar_that_never_says_it_is_ready_is_ended() {
             "Start-Sleep -Seconds 300".into(),
         ],
     );
-    let started = Sidecar::spawn(&program, &args, Duration::from_millis(500));
+    let started = Sidecar::spawn(&program, &args, &[], Duration::from_millis(500));
     assert!(started.is_err());
+}
+
+/// A stand-in that says back the token it found in its environment, and its arguments.
+fn echo_token() -> (PathBuf, Vec<OsString>) {
+    #[cfg(unix)]
+    return (
+        PathBuf::from("/bin/sh"),
+        vec![
+            "-c".into(),
+            "echo \"{\\\"type\\\":\\\"error\\\",\\\"message\\\":\\\"$SPECGATE_STUDIO_TOKEN $*\\\"}\"".into(),
+            "stand-in".into(),
+        ],
+    );
+    #[cfg(windows)]
+    return (
+        PathBuf::from("powershell.exe"),
+        vec![
+            "-NoProfile".into(),
+            "-Command".into(),
+            "Write-Output ('{\"type\":\"error\",\"message\":\"' + $env:SPECGATE_STUDIO_TOKEN + '\"}')".into(),
+        ],
+    );
+}
+
+#[test]
+fn req_151_the_shell_gives_the_sidecar_a_new_token_in_its_environment_never_its_arguments() {
+    let token = new_token();
+    assert_eq!(token.len(), 64);
+    assert!(token.chars().all(|c| c.is_ascii_hexdigit()));
+    assert_ne!(token, new_token(), "a new one for each launch");
+    let (program, args) = echo_token();
+    assert!(args.iter().all(|a| !a.to_string_lossy().contains(&token)));
+    let (_sidecar, line) = Sidecar::spawn(
+        &program,
+        &args,
+        &[(TOKEN_ENV, &token)],
+        Duration::from_secs(30),
+    )
+    .unwrap();
+    match line {
+        Line::Error { message } => assert_eq!(message.trim(), token),
+        other => panic!("unexpected {other:?}"),
+    }
+}
+
+#[test]
+fn req_151_the_window_loads_the_host_with_its_token() {
+    assert_eq!(
+        window_url("http://127.0.0.1:52011/", "abc"),
+        "http://127.0.0.1:52011/?token=abc"
+    );
+    assert_eq!(
+        window_url("http://127.0.0.1:52011/?token=old", "abc"),
+        "http://127.0.0.1:52011/?token=abc"
+    );
 }
