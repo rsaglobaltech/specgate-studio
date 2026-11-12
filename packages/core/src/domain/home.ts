@@ -185,6 +185,8 @@ export function agentCostOf(
 /** Everything Home shows beyond the sections (REQ-173). */
 export interface HomeView {
   next: NextStep;
+  /** The drafts no person approved yet (REQ-169, REQ-173). */
+  review: string[];
   route: RouteState[];
   cost: { total: number; minutes: number; runs: number } | null;
   activity: Activity[];

@@ -61,6 +61,8 @@ async function openFolder(page: Page, p: string) {
     const r = document.querySelector(sel);
     return r?.getAttribute("aria-expanded") === "true";
   }, row(p));
+  // Its children read and shown: the folder is read when it opens (REQ-161).
+  await page.waitForSelector(`.explorer .row[data-path^="${p}/"]`);
 }
 const noticeText = (page: Page) => page.textContent(".notice [data-part='ran']");
 

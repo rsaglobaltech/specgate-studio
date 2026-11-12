@@ -250,12 +250,14 @@ export function App({ rpc }: { rpc: Rpc }) {
     );
     return rpc.on("live.changed", (l) => setBuilding(l.building));
   }, [rpc]);
-  useEffect(() => {
-    rpc.ask("changes.get", {}).then(
-      (c) => setUnapproved(new Set(c.groups.review.map((x) => x.id))),
-      () => undefined,
-    );
-  }, [rpc, sections.changes, sections.home]);
+  // The drafts to review come with what Home and the Explorer read (REQ-169, REQ-173).
+  const onReview = useCallback(
+    (ids: readonly string[]) =>
+      setUnapproved((old) =>
+        old.size === ids.length && ids.every((i) => old.has(i)) ? old : new Set(ids),
+      ),
+    [],
+  );
   const refreshFiles = useCallback(
     () => void rpc.ask("files.list", {}).then(setFiles, () => undefined),
     [rpc],
@@ -630,6 +632,7 @@ export function App({ rpc }: { rpc: Rpc }) {
             questions={questionsSection}
             report={sections.report}
             unapproved={unapproved}
+            onReview={onReview}
             building={building}
             activeFile={activeFile}
             workspaceStamp={workspace}
@@ -881,6 +884,7 @@ export function App({ rpc }: { rpc: Rpc }) {
                     report={sections.report}
                     stamp={[sections.home, sections.changes, sections.questions]}
                     unapproved={unapproved}
+                    onReview={onReview}
                     questionsByChange={questionsByChange}
                     next={home?.nextCommand ?? null}
                     show={show}

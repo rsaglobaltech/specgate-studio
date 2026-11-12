@@ -17,6 +17,8 @@ export interface HomeProps {
   /** Bumped when a section Home reads changed: read again. */
   stamp: unknown;
   unapproved: ReadonlySet<string>;
+  /** Told the drafts to review that `home.get` read. */
+  onReview?: (ids: readonly string[]) => void;
   questionsByChange: ReadonlyMap<string, number>;
   /** Read once by the parent: `specgate status`'s next command, shown under the sentence. */
   next: string | null;
@@ -63,7 +65,11 @@ export function Home(p: HomeProps) {
   useEffect(() => {
     let live = true;
     p.rpc.ask("home.get", {}).then(
-      (v) => live && setView(v),
+      (v) => {
+        if (!live) return;
+        setView(v);
+        p.onReview?.(v.review);
+      },
       () => undefined,
     );
     return () => {

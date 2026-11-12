@@ -40,6 +40,8 @@ export interface ExplorerProps {
   report: unknown;
   /** The open changes no person approved yet: their requirements are drafts (REQ-169). */
   unapproved: ReadonlySet<string>;
+  /** Told the drafts to review, read when the Explorer opens. */
+  onReview?: (ids: readonly string[]) => void;
   /** The requirement being built, if any (REQ-169). */
   building: string | null;
   /** The active editor tab: revealed in the tree (REQ-164). */
@@ -126,6 +128,18 @@ export function Explorer(p: ExplorerProps) {
       live = false;
     };
   }, [rpc, read]);
+
+  // Which open changes are drafts, for the modules' dots (REQ-169).
+  useEffect(() => {
+    let live = true;
+    rpc.ask("changes.get", {}).then(
+      (c) => live && p.onReview?.(c.groups.review.map((x) => x.id)),
+      () => undefined,
+    );
+    return () => {
+      live = false;
+    };
+  }, [rpc, p.changes.map((c) => c.id).join(" ")]);
 
   // Kept per project, as they change (A4).
   useEffect(() => {

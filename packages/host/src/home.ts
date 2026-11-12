@@ -76,6 +76,7 @@ export function attachHome(
       const pending = Number((status as { pending?: unknown } | null)?.pending ?? 0) || 0;
       return {
         next: nextStep(status, questions, review),
+        review,
         route: routeOf({
           brief: files.includes("docs/brief.md"),
           modules: modules.length,
