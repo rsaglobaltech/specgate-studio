@@ -312,6 +312,12 @@ export async function open(
   init?: { lang?: "en" | "es"; theme?: "dark" | "light" },
 ): Promise<Page> {
   const page = await browser.newPage({ locale: "en-US" });
+  // A slow CI runner, reproduced: STUDIO_CPU_THROTTLE=6 runs the page six times slower.
+  const throttle = Number(process.env.STUDIO_CPU_THROTTLE ?? 0);
+  if (throttle > 1) {
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Emulation.setCPUThrottlingRate", { rate: throttle });
+  }
   if (init?.lang) {
     await page.addInitScript(
       (s) => localStorage.setItem("specgate-studio.settings", JSON.stringify(s)),

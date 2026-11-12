@@ -3,6 +3,9 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import type { Annotations } from "@specgate-studio/protocol";
 import { SPEC_LANGUAGE, monaco } from "./monaco.js";
 
+/** The last focus request an editor took: each is taken once (see `focus`). */
+let focusTaken = 0;
+
 export type LensAction = "build" | "check" | "trace" | "ask" | "help";
 
 export interface EditorPaneProps {
@@ -161,8 +164,17 @@ export default function EditorPane(p: EditorPaneProps) {
     if (ed.getModel() !== model) ed.setModel(model);
   }, [p.path, p.text]);
 
+  // A focus request is taken once: an editor mounted later — the new group of
+  // a split — does not take it again from wherever the Developer has moved
+  // focus since, the splitter or the palette (REQ-192). A file changed in a
+  // mounted editor is still focused while the request stands.
+  const mounted = useRef(false);
   useEffect(() => {
-    if (p.focus) editor.current?.focus();
+    if (p.focus && (p.focus !== focusTaken || mounted.current)) {
+      focusTaken = p.focus;
+      editor.current?.focus();
+    }
+    mounted.current = true;
   }, [p.focus, p.path]);
 
   // A requirement opened from the Explorer: its heading in view, the cursor on it (REQ-169).

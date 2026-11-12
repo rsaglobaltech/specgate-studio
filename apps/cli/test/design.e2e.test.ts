@@ -543,7 +543,10 @@ test("REQ-177 SCN-526: a feature and a test — tabs typed FT and TS, the breadc
   try {
     for (const f of ["features/pedidos/REQ-031.feature", "test/pedidos/CancelOrder.test.ts"]) {
       await page.keyboard.press(`${MOD}+P`);
+      // The palette's field has the keyboard before typing, and lists the file before Enter.
+      await page.waitForFunction(() => document.activeElement?.closest(".palette .pinput") != null);
       await page.keyboard.type(f);
+      await page.waitForSelector(`.palette li[aria-selected="true"] >> text="${f}"`);
       await page.keyboard.press("Enter");
       await page.waitForSelector(`.tab[aria-selected="true"][title="${f}"]`);
     }

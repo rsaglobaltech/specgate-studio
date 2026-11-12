@@ -1964,6 +1964,15 @@ function Palette(props: {
 }) {
   const [query, setQuery] = useState("");
   const [at, setAt] = useState(0);
+  /** Enter pressed on a file before the project's file list came: opened once it does. */
+  const [waiting, setWaiting] = useState<string | null>(null);
+  const fileMatches = (q: string) =>
+    props.files.filter((f) => f.toLowerCase().includes(q.toLowerCase())).slice(0, 50);
+  useEffect(() => {
+    if (waiting === null) return;
+    const first = fileMatches(waiting)[0];
+    if (first !== undefined) (setWaiting(null), props.onFile(first));
+  }, [props.files, waiting]);
   type Item = {
     key: string;
     title: string;
@@ -1993,25 +2002,29 @@ function Palette(props: {
               help: f.action ? () => props.onHelp(f) : null,
             })),
         )
-      : props.files
-          .filter((f) => f.toLowerCase().includes(query.toLowerCase()))
-          .slice(0, 50)
-          .map((f) => ({
-            key: f,
-            title: f,
-            command: null,
-            area: null,
-            feature: null,
-            pick: () => props.onFile(f),
-            help: null,
-          }));
+      : fileMatches(query).map((f) => ({
+          key: f,
+          title: f,
+          command: null,
+          area: null,
+          feature: null,
+          pick: () => props.onFile(f),
+          help: null,
+        }));
   const chosen = items[at] ?? null;
   const onKey = (e: KeyboardEvent) => {
     if (e.key === "ArrowDown")
       (e.preventDefault(), setAt((i) => Math.min(i + 1, items.length - 1)));
     else if (e.key === "ArrowUp") (e.preventDefault(), setAt((i) => Math.max(i - 1, 0)));
-    else if (e.key === "Enter") (e.preventDefault(), items[at]?.pick());
-    else if (e.key === "Escape") props.onClose();
+    else if (e.key === "Enter") {
+      e.preventDefault();
+      if (props.mode === "features") return void items[at]?.pick();
+      // What is typed now, not what was last drawn; a list not read yet is waited for.
+      const typed = (e.currentTarget as HTMLInputElement).value;
+      const file = typed === query ? items[at]?.key : fileMatches(typed)[0];
+      if (file !== undefined) props.onFile(file);
+      else setWaiting(typed);
+    } else if (e.key === "Escape") props.onClose();
     else if (e.key === "?" && chosen?.help && query.trim() === "")
       (e.preventDefault(), chosen.help());
   };
@@ -2049,7 +2062,11 @@ function Palette(props: {
             ref={(el) => el?.focus()}
             value={query}
             placeholder={props.tr("palette.placeholder")}
-            onInput={(e) => (setQuery((e.target as HTMLInputElement).value), setAt(0))}
+            onInput={(e) => (
+              setQuery((e.target as HTMLInputElement).value),
+              setAt(0),
+              setWaiting(null)
+            )}
             onKeyDown={onKey}
             aria-label={props.tr("palette.placeholder")}
           />
