@@ -1,0 +1,43 @@
+# The desktop shell's own tests (draft-desktop): the Rust side of the
+# sidecar's lifecycle — its process group on macOS and Linux, its Job object on
+# Windows — one window per project, and the update's gate. Rust is needed for
+# apps/desktop only: the spec gate (spec-gate.yml) runs the Node tests without it.
+name: Desktop shell
+
+on:
+  pull_request:
+    paths:
+      - 'apps/desktop/**'
+      - '.github/workflows/desktop-*.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/desktop/**'
+
+jobs:
+  cargo-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/desktop/src-tauri
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Linux libraries for the webview
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev
+      # The bundle's inputs, empty: the tests need the shell, not the Node it ships.
+      - name: Placeholders for the sidecar
+        run: |
+          triple="$(rustc -vV | sed -n 's/^host: //p')"
+          ext=""; [ "$RUNNER_OS" = "Windows" ] && ext=".exe"
+          mkdir -p binaries ../dist/sidecar
+          touch "binaries/studio-node-$triple$ext"
+      - run: cargo test --locked

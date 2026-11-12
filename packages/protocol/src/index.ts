@@ -104,6 +104,7 @@ import type {
   ReportUsage,
   ReportView,
   StageResult,
+  UpdateDecision,
 } from "@specgate-studio/core";
 
 export type { CommandEvent, RunResult, Section, SectionData, SpecgateCommand };
@@ -211,6 +212,16 @@ export interface Requests {
   "recent.list": { params: Record<string, never>; result: RecentProject[] };
   /** Open a recent project in its own host, or answer the one already open (REQ-026). */
   "recent.open": { params: { path: string }; result: { url: string; reused: boolean } };
+  /**
+   * The desktop app's update, step by step: whether to install it now and what
+   * to say — it waits while a build or a write command runs (draft-desktop REQ-156).
+   */
+  "update.step": {
+    params:
+      | { phase: "offered" | "accepted" | "installed"; from: string; to: string }
+      | { phase: "refused"; from: string; to: string; reason: "signature" | "download" };
+    result: UpdateDecision;
+  };
   /** The project's files, relative with `/`, as Explorer lists them (draft-workbench REQ-032). */
   "files.list": { params: Record<string, never>; result: string[] };
   /** Home's next step, route, agent's cost and activity (draft-design-conformance REQ-173). */

@@ -23,6 +23,7 @@ import { HostRegistry } from "./HostRegistry.js";
 import { NodeProcessRunner } from "./NodeProcessRunner.js";
 import { NodeBuildRunner } from "./NodeBuildRunner.js";
 import { startHost, type Host, type ProjectFiles } from "./startHost.js";
+import { newToken } from "./session.js";
 import type { TerminalWiring } from "./terminals.js";
 
 export interface ProjectHostOptions {
@@ -44,6 +45,8 @@ export interface ProjectHostOptions {
   terminals?: TerminalWiring;
   /** Whether a program is on the PATH: the agent an adoption saves (draft-project-setup A8). */
   onPath?: (program: string) => boolean;
+  /** The session tokens this host answers to (draft-desktop A2); a project it opens gets one of its own. */
+  tokens?: readonly string[];
 }
 
 /** A folder that is not a specgate project reads nothing, and no specgate runs for it (REQ-021). */
@@ -72,7 +75,13 @@ export async function startProjectHost(
   const registry: HostRegistry =
     options.registry ??
     new HostRegistry(
-      (dir): Promise<Host> => startProjectHost(dir, { ...options, registry, port: 0 }),
+      (dir): Promise<Host> =>
+        startProjectHost(dir, {
+          ...options,
+          registry,
+          port: 0,
+          ...(options.tokens?.length ? { tokens: [newToken()] } : {}),
+        }),
       caseInsensitive,
     );
 
@@ -102,6 +111,7 @@ export async function startProjectHost(
       projectDir,
     }),
     port: options.port ?? 0,
+    ...(options.tokens ? { tokens: options.tokens } : {}),
     workspace: { fs, git, watcher: new NodeWatcher(), recent, registry },
     // The folders the Explorer leaves open, kept per project (draft-explorer-tree A4).
     store,

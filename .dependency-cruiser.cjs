@@ -56,7 +56,7 @@ module.exports = {
   ],
   options: {
     doNotFollow: { path: "node_modules" },
-    exclude: { path: "(^|/)dist(-test)?/|node_modules" },
+    exclude: { path: "(^|/)dist(-test)?/|node_modules|(^|/)src-tauri/" },
     tsPreCompilationDeps: true,
     tsConfig: { fileName: "tsconfig.depcruise.json" },
     enhancedResolveOptions: { extensions: [".ts", ".js"] },

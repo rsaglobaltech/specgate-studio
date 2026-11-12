@@ -27,10 +27,14 @@ import {
   type StorePort,
   type SpecgateAnswer,
   type CommandEvent,
+  updateBlocker,
+  updateStep,
+  type UpdateStep,
   type UserSettingsPort,
 } from "@specgate-studio/core";
 import { attachSettings } from "./settings.js";
 import { fromStudio, uiHandler } from "./serveUi.js";
+import { NO_TOKEN_TEXT, Session, cookieName, withoutToken } from "./session.js";
 import { attachTerminals, type TerminalWiring } from "./terminals.js";
 import { RPC_ERRORS, type Notifications, type ProjectOpened } from "@specgate-studio/protocol";
 import { attachWorkspace, type WorkspaceWiring } from "./workspace.js";
@@ -82,6 +86,11 @@ export interface HostOptions {
   agent?: AgentWiring;
   /** The Developer's own settings file, the User scope of Settings (draft-settings REQ-141). */
   userSettings?: UserSettingsPort;
+  /**
+   * The session tokens this host answers to (draft-desktop REQ-151, A2): the
+   * desktop shell's per-launch secret, or `serve`'s. With none, it asks for none.
+   */
+  tokens?: readonly string[];
 }
 
 export type { ProjectFiles, FileRefusal } from "./files.js";
@@ -100,7 +109,7 @@ function insideProject(p: unknown): p is string {
 }
 
 export interface Host {
-  /** `ws://127.0.0.1:<port>/` */
+  /** `ws://127.0.0.1:<port>/`, with `?token=<its first token>` when it has one. */
   url: string;
   state: ProjectState;
   close(): Promise<void>;
@@ -179,12 +188,38 @@ export async function startHost(given: HostOptions): Promise<Host> {
     const a = http.address();
     return typeof a === "object" && a ? a.port : options.port;
   };
-  const http = createServer((req, res) =>
-    fromStudio(req, boundPort) ? serveFile(req, res) : res.writeHead(403).end(),
-  );
+  // Only the studio's own page (fromStudio), and only with a token this host
+  // gave out: other local pages and processes are refused (REQ-151, A2).
+  const session = new Session(options.tokens);
+  const http = createServer((req, res) => {
+    if (!fromStudio(req, boundPort)) return void res.writeHead(403).end();
+    const via = session.check(req, boundPort());
+    if (!via)
+      return void res
+        .writeHead(403, {
+          "content-type": "text/plain; charset=utf-8",
+          "cache-control": "no-store",
+        })
+        .end(NO_TOKEN_TEXT);
+    if (via === "query" && req.method === "GET") {
+      // Kept in a cookie only this port reads, and taken out of the address.
+      const token = new URL(req.url ?? "/", "http://host").searchParams.get("token")!;
+      return void res
+        .writeHead(303, {
+          location: withoutToken(req.url),
+          "set-cookie": `${cookieName(boundPort())}=${token}; Path=/; HttpOnly; SameSite=Strict`,
+          "cache-control": "no-store",
+        })
+        .end();
+    }
+    serveFile(req, res);
+  });
   const server = new WebSocketServer({
     server: http,
-    verifyClient: (info, done) => (fromStudio(info.req, boundPort) ? done(true) : done(false, 403)),
+    verifyClient: (info, done) =>
+      fromStudio(info.req, boundPort) && session.check(info.req, boundPort())
+        ? done(true)
+        : done(false, 403),
   });
   await new Promise<void>((ok, ko) =>
     http.once("listening", ok).once("error", ko).listen(options.port, "127.0.0.1"),
@@ -330,6 +365,8 @@ export async function startHost(given: HostOptions): Promise<Host> {
   liveRefresh = builds ? () => builds.refresh() : null;
 
   const handlers: Record<string, (params: unknown) => Promise<unknown>> = {
+    // A window or a tab joining this host gets a token of its own, asked by a holder of one (A2, A11).
+    ...(session.required ? { "session.issue": async () => ({ token: session.issue() }) } : {}),
     "project.open": async () => {
       if (!checked.ok)
         throw rpcError(RPC_ERRORS.specgate, `${checked.message}. Fix: ${checked.fix}`);
@@ -417,6 +454,27 @@ export async function startHost(given: HostOptions): Promise<Host> {
         ),
       ) as HelpVars;
       return { labels: PART_LABELS[lang], explanation: explain(p.action as ActionId, lang, vars) };
+    },
+    // The desktop shell asks before it installs an update: never during a build or a write (REQ-156).
+    "update.step": async (params) => {
+      const p = (params ?? {}) as {
+        phase?: unknown;
+        from?: unknown;
+        to?: unknown;
+        reason?: unknown;
+      };
+      if (typeof p.from !== "string" || typeof p.to !== "string")
+        throw rpcError(RPC_ERRORS.params, "an update step needs from and to");
+      const { from, to } = p;
+      let step: UpdateStep;
+      if (p.phase === "offered" || p.phase === "installed") step = { phase: p.phase, from, to };
+      else if (p.phase === "accepted") {
+        const running = updateBlocker(builds?.building() ?? null, commands.writingNow);
+        step = { phase: "accepted", from, to, running };
+      } else if (p.phase === "refused" && (p.reason === "signature" || p.reason === "download"))
+        step = { phase: "refused", from, to, reason: p.reason };
+      else throw rpcError(RPC_ERRORS.params, "no such update step");
+      return updateStep(step);
     },
     "files.list": async () => (options.files ? options.files.list() : []),
     // Saving: that one file, only when the person saves (REQ-045).
@@ -529,8 +587,9 @@ export async function startHost(given: HostOptions): Promise<Host> {
 
   const address = http.address();
   const port = typeof address === "object" && address ? address.port : options.port;
+  const first = options.tokens?.find((t) => t.length > 0);
   return {
-    url: `ws://127.0.0.1:${port}/`,
+    url: `ws://127.0.0.1:${port}/${first ? `?token=${encodeURIComponent(first)}` : ""}`,
     state,
     close: async () => {
       await builds?.close();

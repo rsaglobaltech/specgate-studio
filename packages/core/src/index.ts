@@ -382,3 +382,11 @@ export {
 export type { UserSettingsPort } from "./ports/UserSettingsPort.js";
 export { InMemoryUserSettings } from "./fakes/InMemoryUserSettings.js";
 export { Settings, type SettingsOptions, type UserSettingResult } from "./application/Settings.js";
+export {
+  updateBlocker,
+  updateStep,
+  type UpdateBlocker,
+  type UpdateDecision,
+  type UpdateStep,
+} from "./domain/update.js";
+export { hostToJoin, projectKey, type HostLock } from "./domain/hostLock.js";

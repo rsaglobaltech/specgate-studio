@@ -1,0 +1,65 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Specgate Studio",
+  "mainBinaryName": "specgate-studio",
+  "version": "../package.json",
+  "identifier": "com.rsaglobaltech.specgate-studio",
+  "build": {
+    "frontendDist": "../shell",
+    "beforeBuildCommand": "node scripts/bundle-sidecar.mjs"
+  },
+  "app": {
+    "windows": [],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app", "dmg", "msi", "appimage", "deb"],
+    "publisher": "rsaglobaltech",
+    "copyright": "MIT License",
+    "category": "DeveloperTool",
+    "shortDescription": "An IDE for spec-driven development, with specgate underneath",
+    "homepage": "https://github.com/rsaglobaltech/specgate-studio",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "externalBin": ["binaries/studio-node"],
+    "resources": {
+      "../dist/sidecar/": "host/"
+    },
+    "createUpdaterArtifacts": false,
+    "macOS": {
+      "signingIdentity": "-",
+      "hardenedRuntime": true,
+      "entitlements": "entitlements.plist",
+      "minimumSystemVersion": "11.0"
+    },
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      }
+    },
+    "linux": {
+      "deb": {
+        "depends": []
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "REPLACE_WITH_TAURI_UPDATER_PUBLIC_KEY",
+      "endpoints": [
+        "https://github.com/rsaglobaltech/specgate-studio/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}
