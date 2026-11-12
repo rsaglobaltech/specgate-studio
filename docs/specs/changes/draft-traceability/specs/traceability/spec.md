@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-121 — One row per scenario: requirement, feature, test, code, status
 
-<!-- specgate:trace actor=Reviewer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Reviewer kind=functional -->
 
 The system SHALL show in Traceability one row for every scenario of the project, each naming its requirement, its feature file, the tests that name it, the code that implements it and its requirement's status, and SHALL mark as a gap every row that lacks a feature, a test or code — read from specgate's per-scenario rows (`specgate matrix --json` `rows[]`, or the API's `matrix()`), never from the prose of `docs/specs/traceability.md`, and never as one row per requirement.
 
