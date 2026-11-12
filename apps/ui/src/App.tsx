@@ -25,6 +25,7 @@ import type {
   CommandEvent,
   Finding,
   Lang as NoticeLang,
+  LiveView,
   Notice,
   Question,
   QuestionsSection,
@@ -58,12 +59,14 @@ import {
 } from "./tabs.js";
 import { BOTTOM_VIEWS, PANEL_TABS, TOP_VIEWS, type PanelTab, type ViewId } from "./views.js";
 import { AgentIcon, Logo, ViewIcon } from "./icons.js";
-import { VirtualList } from "./VirtualList.js";
+import { Traceability, TraceProposal, type ProposalState } from "./views/Traceability.js";
 import { HelpButton, HelpDialog, NoticeToast, type HelpRequest } from "./Help.js";
 import { Changes } from "./views/Changes.js";
 import { Build } from "./views/Build.js";
 import { Live } from "./views/Live.js";
 import { loadSettings, saveSettings, type Theme } from "./settings.js";
+import { Echoes } from "./echo.js";
+import { statusUsage } from "./usage.js";
 import Questions from "./views/Questions.js";
 import { AdoptedAreas, NewProject, SetupNext, SetupPane, type SetupStep } from "./Setup.js";
 import { Problems } from "./views/Problems.js";
@@ -72,6 +75,9 @@ import { bt } from "./views/briefText.js";
 import { Explorer } from "./Explorer.js";
 import { Home } from "./views/Home.js";
 import { HelpView } from "./views/HelpView.js";
+import { SettingsEditor } from "./views/Settings.js";
+import { applyPrefs } from "./prefs.js";
+import { Report } from "./views/Report.js";
 import { fileType, modulesOf } from "./tree.js";
 
 type Sections = Partial<
@@ -99,6 +105,10 @@ export function App({ rpc }: { rpc: Rpc }) {
   const initial = useMemo(() => loadSettings(), []);
   const [lang, setLang] = useState<Lang>(initial.lang);
   const [theme, setTheme] = useState<Theme>(initial.theme);
+  /** The Developer pays per use of the API: the agent's dollars read as cost (demo-findings REQ-211). */
+  const [perUse, setPerUse] = useState<boolean>(initial.perUse);
+  /** What the last run spent, for the status bar (REQ-211): Live's totals. */
+  const [spent, setSpent] = useState<{ tokens: number; dollars: number | null } | null>(null);
   const [view, setView] = useState<ViewId>("home");
   /** What the main area shows while the Explorer's panel is the open view (draft-explorer-tree A7). */
   const [behind, setBehind] = useState<ViewId>("home");
@@ -188,7 +198,7 @@ export function App({ rpc }: { rpc: Rpc }) {
   };
   const cloneInto = (repo: string, parent: string) => {
     setChoosing(null);
-    pendingLabel.current = tr("nofolder.clone");
+    echoes.current.announce(tr("nofolder.clone"));
     setPanel({ open: true, tab: "terminal" });
     setShowStudio((n) => n + 1);
     void rpc.ask("folder.clone", { repo, parent }).then(
@@ -224,6 +234,17 @@ export function App({ rpc }: { rpc: Rpc }) {
   const [closing, setClosing] = useState<string | null>(null);
   const [buildReq, setBuildReq] = useState<string | null>(null);
   const [traceFilter, setTraceFilter] = useState("");
+  /** "Fix"'s proposed test, in the panel's Traceability tab (draft-traceability REQ-123). */
+  const [proposal, setProposal] = useState<ProposalState | null>(null);
+  /** The project's agent, for "Ask the agent" (REQ-123, A11); null when none is set. */
+  const [agentName, setAgentName] = useState<string | null>(null);
+  useEffect(() => {
+    void rpc.ask("agent.get", {}).then(
+      (v) => setAgentName(v.agent),
+      () => undefined,
+    );
+    return rpc.on("agent.changed", (v) => setAgentName(v.agent));
+  }, [rpc]);
   const annotateTimer = useRef<number | undefined>(undefined);
   const activeRef = useRef<string | null>(null);
   const annotateRef = useRef<(path: string) => Promise<unknown>>(async () => undefined);
@@ -243,8 +264,8 @@ export function App({ rpc }: { rpc: Rpc }) {
   const [echo, setEcho] = useState("");
   const [showStudio, setShowStudio] = useState(0);
   const [openShell, setOpenShell] = useState(0);
-  /** The button whose command runs next: the echo names it (REQ-053). */
-  const pendingLabel = useRef<string | null>(null);
+  /** The buttons whose commands run next, a build's kept by its requirement: the echo names them (REQ-053, REQ-103). */
+  const echoes = useRef(new Echoes());
   /** The button whose agent runs, one module after another: the echo names it for each (draft-brief). */
   const draftLabel = useRef<string | null>(null);
   const [briefRead, setBriefRead] = useState(0);
@@ -282,8 +303,38 @@ export function App({ rpc }: { rpc: Rpc }) {
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme;
     document.documentElement.lang = lang;
-    saveSettings({ lang, theme });
-  }, [lang, theme]);
+    saveSettings({ lang, theme, perUse });
+  }, [lang, theme, perUse]);
+
+  // The user settings apply to every project: the Developer's own file wins over this page's memory (REQ-141).
+  useEffect(() => {
+    void rpc.ask("settings.user.get", {}).then(
+      (u) => {
+        if (u.lang === "en" || u.lang === "es") setLang(u.lang);
+        if (u.theme === "dark" || u.theme === "light") setTheme(u.theme);
+        applyPrefs(u);
+      },
+      () => undefined,
+    );
+  }, [rpc]);
+  /** A user setting: applied now, and saved by the host in the Developer's own file (REQ-141, REQ-143). */
+  const saveUser = useCallback(
+    (key: string, value: string, quiet = false) => {
+      if (key === "lang" && (value === "en" || value === "es")) setLang(value);
+      else if (key === "theme" && (value === "dark" || value === "light")) setTheme(value);
+      else if (/^(editor|terminal)\./.test(key)) applyPrefs({ [key]: value });
+      else return;
+      void rpc.ask("settings.user.set", { key, value }).then(
+        (r) => {
+          if (quiet) return;
+          if (r.ok) setEnded(r.notice);
+          else setNotice(r.message);
+        },
+        () => undefined,
+      );
+    },
+    [rpc],
+  );
 
   const openProject = useCallback(
     () =>
@@ -338,10 +389,10 @@ export function App({ rpc }: { rpc: Rpc }) {
     const offCommand = rpc.on("command.event", (e: CommandEvent) => {
       if (e.type === "started") {
         setOutput((o) => `${o}$ ${e.command}\n`);
-        const label =
-          pendingLabel.current ??
-          (draftLabel.current && / --agent /.test(e.command) ? draftLabel.current : e.command);
-        pendingLabel.current = null;
+        const label = echoes.current.started(
+          e.command,
+          draftLabel.current && / --agent /.test(e.command) ? draftLabel.current : null,
+        );
         setEcho((t) => `${t}\u25b6 "${label}" \u00b7 ${e.command}\n`);
         if (e.command === "specgate check") setGate("running");
       } else if (e.type === "output") {
@@ -364,11 +415,14 @@ export function App({ rpc }: { rpc: Rpc }) {
 
   // The requirement being built and the drafts to review: the Explorer's dots (REQ-169).
   useEffect(() => {
-    rpc.ask("live.get", {}).then(
-      (l) => setBuilding(l.building),
-      () => undefined,
-    );
-    return rpc.on("live.changed", (l) => setBuilding(l.building));
+    // What the run spent, for the status bar (demo-findings REQ-211).
+    const seen = (l: LiveView) => {
+      setBuilding(l.building);
+      const t = l.totals;
+      setSpent({ tokens: t.input + t.output + t.cacheRead + t.cacheWrite, dollars: t.cost });
+    };
+    rpc.ask("live.get", {}).then(seen, () => undefined);
+    return rpc.on("live.changed", seen);
   }, [rpc]);
   // The drafts to review come with what Home and the Explorer read (REQ-169, REQ-173).
   const onReview = useCallback(
@@ -491,7 +545,19 @@ export function App({ rpc }: { rpc: Rpc }) {
 
   /** Names the button whose command runs next, in the terminal's echo (REQ-053). */
   const announce = useCallback((label: string) => {
-    pendingLabel.current = label;
+    echoes.current.announce(label);
+    setPanel({ open: true, tab: "terminal" });
+    setShowStudio((n) => n + 1);
+  }, []);
+
+  /**
+   * Names the button that builds `req`: kept by the requirement, so a queued
+   * build is echoed with its own once its turn comes (demo-findings REQ-103);
+   * `null` forgets it, for a build refused.
+   */
+  const announceBuild = useCallback((req: string, label: string | null) => {
+    if (label === null) return echoes.current.forget(req);
+    echoes.current.build(req, label);
     setPanel({ open: true, tab: "terminal" });
     setShowStudio((n) => n + 1);
   }, []);
@@ -519,13 +585,13 @@ export function App({ rpc }: { rpc: Rpc }) {
       try {
         const r = await rpc.ask("changes.redraft", { change });
         if (!r.ok) {
-          pendingLabel.current = null;
+          echoes.current.forget();
           if (r.notice) setEnded(r.notice);
           else setNotice(r.message);
         }
         return r;
       } catch (e) {
-        pendingLabel.current = null;
+        echoes.current.forget();
         const message = e instanceof Error ? e.message : String(e);
         setNotice(message);
         return { ok: false, code: "command_unknown", message };
@@ -546,11 +612,11 @@ export function App({ rpc }: { rpc: Rpc }) {
       try {
         const r = await rpc.ask("brief.draft", {});
         // Refused or nothing to draft: no run consumed the button's name.
-        if (!r.ok || r.drafted.length === 0) pendingLabel.current = null;
+        if (!r.ok || r.drafted.length === 0) echoes.current.forget();
         if (r.notice) setEnded(r.notice);
         else if (!r.ok) setNotice(r.message);
       } catch (e) {
-        pendingLabel.current = null;
+        echoes.current.forget();
         setNotice(e instanceof Error ? e.message : String(e));
       } finally {
         if (mine) {
@@ -571,9 +637,20 @@ export function App({ rpc }: { rpc: Rpc }) {
         if (r.panel === "fromTicket") setTicketPanel(true);
       } else if (r.kind === "check") {
         void runCommand(label ?? f.title[lang], { name: "check" });
-      } else if (r.kind === "language") setLang((l) => (l === "en" ? "es" : "en"));
-      else if (r.kind === "theme") setTheme((th) => (th === "dark" ? "light" : "dark"));
-      else if (r.kind === "togglePanel") setPanel((p) => ({ ...p, open: !p.open }));
+      } else if (r.kind === "language") saveUser("lang", lang === "en" ? "es" : "en", true);
+      else if (r.kind === "theme") saveUser("theme", theme === "dark" ? "light" : "dark", true);
+      else if (r.kind === "billing") {
+        // How the agent's dollars read; nothing runs, nothing is written in the project (REQ-211).
+        const now = !perUse;
+        setPerUse(now);
+        const say = (l: Lang) => ({
+          tone: "ok" as const,
+          ran: t(l, now ? "billing.perUse" : "billing.subscription"),
+          wrote: t(l, "billing.wrote"),
+          next: t(l, "billing.next"),
+        });
+        setEnded({ en: say("en"), es: say("es") });
+      } else if (r.kind === "togglePanel") setPanel((p) => ({ ...p, open: !p.open }));
       else if (r.kind === "openFile") setPalette("files");
       else if (r.kind === "palette") setPalette("features");
       else if (r.kind === "newTerminal") {
@@ -598,7 +675,7 @@ export function App({ rpc }: { rpc: Rpc }) {
       else if (r.kind === "buildReq") (setBuildReq(r.req), show("build"));
       else setSidebar((s) => !s);
     },
-    [rpc, show, runCommand, lang],
+    [rpc, show, runCommand, lang, theme, saveUser, perUse],
   );
 
   const act = useCallback(
@@ -1196,8 +1273,7 @@ export function App({ rpc }: { rpc: Rpc }) {
                       tr={tr}
                       lang={lang}
                       theme={theme}
-                      setLang={setLang}
-                      setTheme={setTheme}
+                      saveUser={saveUser}
                       project={project}
                       total={total}
                       done={done}
@@ -1212,6 +1288,7 @@ export function App({ rpc }: { rpc: Rpc }) {
                       areas={areas}
                       run={runCommand}
                       announce={announce}
+                      onNotice={setEnded}
                       requirements={requirements}
                       changes={changes}
                       questionsSection={questionsSection}
@@ -1262,6 +1339,7 @@ export function App({ rpc }: { rpc: Rpc }) {
                         />
                       }
                       reportTotal={(sections.report as { total?: number } | undefined)?.total}
+                      checking={gate === "running"}
                       onCheck={() =>
                         runFeature(
                           FEATURES.find((f) => f.id === "gate.check")!,
@@ -1306,6 +1384,8 @@ export function App({ rpc }: { rpc: Rpc }) {
                               requests: [r],
                             })
                           }
+                          lang={lang}
+                          perUse={perUse}
                         />
                       }
                       buildView={
@@ -1318,6 +1398,7 @@ export function App({ rpc }: { rpc: Rpc }) {
                             setHelp({ title: tr("help.title", { feature }), requests })
                           }
                           announce={announce}
+                          announceBuild={announceBuild}
                           onLive={() => show("live")}
                           run={runCommand}
                         />
@@ -1336,9 +1417,44 @@ export function App({ rpc }: { rpc: Rpc }) {
                             unapproved,
                           })}
                           titles={titles}
+                          perUse={perUse}
                         />
                       }
                       traceFilter={traceFilter}
+                      traceView={
+                        <Traceability
+                          rpc={rpc}
+                          lang={lang}
+                          stamp={[sections.matrix, sections.home]}
+                          initial={traceFilter}
+                          onFix={(row) =>
+                            void rpc
+                              .ask("trace.fix", {
+                                requirement: row.requirement,
+                                scenario: row.scenario ?? "",
+                              })
+                              .then(
+                                (r) => {
+                                  if (!r.ok) return setNotice(r.message);
+                                  // The scenario in the editor, the proposal beside it in the panel.
+                                  openFile(r.proposal.feature, r.proposal.line);
+                                  setPanel({ open: true, tab: "traceability" });
+                                  // Room for the skeleton under the scenario (REQ-123).
+                                  setFrame((f) =>
+                                    f.panelPos === "bottom" && f.panelSize < 340
+                                      ? { ...f, panelSize: 340 }
+                                      : f,
+                                  );
+                                  setProposal({ step: "skeleton", proposal: r.proposal });
+                                },
+                                (e: Error) => setNotice(e.message),
+                              )
+                          }
+                          onHelp={(feature, requests) =>
+                            setHelp({ title: tr("help.title", { feature }), requests })
+                          }
+                        />
+                      }
                     />
                   )}
                 </div>
@@ -1472,6 +1588,18 @@ export function App({ rpc }: { rpc: Rpc }) {
                 !TerminalPane && tr("panel.empty")
               ) : panel.tab === "gate" ? (
                 <pre style="margin:0;white-space:pre-wrap">{output || tr("panel.empty")}</pre>
+              ) : panel.tab === "traceability" ? (
+                <TraceProposal
+                  rpc={rpc}
+                  lang={lang}
+                  state={proposal}
+                  agent={agentName}
+                  onState={setProposal}
+                  onNotice={setEnded}
+                  onHelp={(feature, requests) =>
+                    setHelp({ title: tr("help.title", { feature }), requests })
+                  }
+                />
               ) : panel.tab === "problems" ? (
                 <Problems
                   lang={lang}
@@ -1554,7 +1682,7 @@ export function App({ rpc }: { rpc: Rpc }) {
           </button>
         )}
         <span class={folderOpen ? undefined : "end"} data-testid="status-cost">
-          {tr("status.cost")} $0.00
+          {statusUsage(lang, spent, perUse)}
         </span>
         <span>{lang.toUpperCase()}</span>
       </footer>
@@ -1746,11 +1874,13 @@ interface ViewProps {
   areas: Requests["setup.areas"]["result"] | null;
   run: (label: string, command: SpecgateCommand) => Promise<RunResult>;
   announce: (label: string) => void;
+  /** A notice in both languages, as a command's end has it (draft-report REQ-133). */
+  onNotice: (n: Record<NoticeLang, Notice>) => void;
   tr: (k: string, v?: Record<string, string | number>) => string;
   lang: Lang;
   theme: Theme;
-  setLang: (l: Lang) => void;
-  setTheme: (t: Theme) => void;
+  /** A user setting chosen in Settings: applied, and saved in the Developer's file (REQ-141). */
+  saveUser: (key: string, value: string) => void;
   project: string;
   total: number;
   done: number;
@@ -1770,6 +1900,8 @@ interface ViewProps {
   briefView: JSX.Element;
   reportTotal: number | undefined;
   onCheck: () => void;
+  /** A gate running (draft-report REQ-132). */
+  checking: boolean;
   onHelp: (r: HelpRequest) => void;
   /** Home as the boards draw it (draft-design-conformance REQ-173). */
   homeView: JSX.Element;
@@ -1777,6 +1909,8 @@ interface ViewProps {
   buildView: JSX.Element;
   liveView: JSX.Element;
   traceFilter: string;
+  /** Traceability (draft-traceability). */
+  traceView: JSX.Element;
 }
 
 function View(p: ViewProps) {
@@ -1860,86 +1994,40 @@ function View(p: ViewProps) {
       return p.buildView;
     case "live":
       return p.liveView;
-    case "traceability": {
-      // Trace from the editor: the requirement's own row first (REQ-042).
-      const rows = p.traceFilter
-        ? p.requirements.filter((r) => r.id === p.traceFilter)
-        : p.requirements;
-      return (
-        <div style="display:flex;flex-direction:column;height:100%">
-          <h2 style="margin:0;padding:12px" class="muted" data-filter={p.traceFilter}>
-            {p.tr("traceability.rows", { n: rows.length })}
-          </h2>
-          <div style="flex:1;min-height:0" data-testid="traceability-list">
-            <VirtualList
-              count={rows.length}
-              row={(i) => {
-                const r = rows[i]!;
-                return (
-                  <div class="row">
-                    <span class="mono">{r.id}</span>
-                    <span>{r.title}</span>
-                    <span class="muted" style="margin-left:auto">
-                      {r.needs}
-                    </span>
-                  </div>
-                );
-              }}
-            />
-          </div>
-        </div>
-      );
-    }
+    case "traceability":
+      // Trace from the editor: the requirement's own rows first (REQ-042).
+      return p.traceView;
     case "report":
+      // What was built, how it was proven, what it cost, the gate by stage (draft-report REQ-131, REQ-132).
       return (
-        <>
-          {title}
-          <div class="card">
-            <div class="k">{p.tr("home.requirements")}</div>
-            {/* The same count as Home: `report --json`'s total leaves out open changes. */}
-            <div class="v" data-testid="report-total">
-              {p.total}
-            </div>
-            {p.reportTotal !== undefined && (
-              <div class="muted" data-testid="report-split">
-                {p.tr("report.split", {
-                  spec: String(p.reportTotal),
-                  changes: String(Math.max(0, p.total - p.reportTotal)),
-                })}
-              </div>
-            )}
-          </div>
-        </>
+        <Report
+          rpc={p.rpc}
+          lang={p.lang}
+          tr={p.tr}
+          project={p.project}
+          total={p.total}
+          reportTotal={p.reportTotal}
+          onCheck={p.onCheck}
+          checking={p.checking}
+          onHelp={p.onHelp}
+          onNotice={p.onNotice}
+        />
       );
     case "help":
       return <HelpView rpc={p.rpc} lang={p.lang} tr={p.tr} />;
     case "settings":
+      // A search, two scopes and nine sections; saved through specgate (draft-settings REQ-141 … REQ-143).
       return (
-        <div class="settings">
-          {title}
-          <label>
-            {p.tr("settings.language")}
-            <select
-              value={p.lang}
-              onChange={(e) => p.setLang((e.target as HTMLSelectElement).value as Lang)}
-              aria-label={p.tr("settings.language")}
-            >
-              <option value="en">English</option>
-              <option value="es">Español</option>
-            </select>
-          </label>
-          <label>
-            {p.tr("settings.theme")}
-            <select
-              value={p.theme}
-              onChange={(e) => p.setTheme((e.target as HTMLSelectElement).value as Theme)}
-              aria-label={p.tr("settings.theme")}
-            >
-              <option value="dark">{p.tr("settings.dark")}</option>
-              <option value="light">{p.tr("settings.light")}</option>
-            </select>
-          </label>
-        </div>
+        <SettingsEditor
+          rpc={p.rpc}
+          lang={p.lang}
+          theme={p.theme}
+          project={p.project}
+          tr={p.tr}
+          onUser={p.saveUser}
+          run={p.run}
+          onHelp={p.onHelp}
+        />
       );
     default:
       return (
@@ -1964,6 +2052,15 @@ function Palette(props: {
 }) {
   const [query, setQuery] = useState("");
   const [at, setAt] = useState(0);
+  /** Enter pressed on a file before the project's file list came: opened once it does. */
+  const [waiting, setWaiting] = useState<string | null>(null);
+  const fileMatches = (q: string) =>
+    props.files.filter((f) => f.toLowerCase().includes(q.toLowerCase())).slice(0, 50);
+  useEffect(() => {
+    if (waiting === null) return;
+    const first = fileMatches(waiting)[0];
+    if (first !== undefined) (setWaiting(null), props.onFile(first));
+  }, [props.files, waiting]);
   type Item = {
     key: string;
     title: string;
@@ -1993,25 +2090,29 @@ function Palette(props: {
               help: f.action ? () => props.onHelp(f) : null,
             })),
         )
-      : props.files
-          .filter((f) => f.toLowerCase().includes(query.toLowerCase()))
-          .slice(0, 50)
-          .map((f) => ({
-            key: f,
-            title: f,
-            command: null,
-            area: null,
-            feature: null,
-            pick: () => props.onFile(f),
-            help: null,
-          }));
+      : fileMatches(query).map((f) => ({
+          key: f,
+          title: f,
+          command: null,
+          area: null,
+          feature: null,
+          pick: () => props.onFile(f),
+          help: null,
+        }));
   const chosen = items[at] ?? null;
   const onKey = (e: KeyboardEvent) => {
     if (e.key === "ArrowDown")
       (e.preventDefault(), setAt((i) => Math.min(i + 1, items.length - 1)));
     else if (e.key === "ArrowUp") (e.preventDefault(), setAt((i) => Math.max(i - 1, 0)));
-    else if (e.key === "Enter") (e.preventDefault(), items[at]?.pick());
-    else if (e.key === "Escape") props.onClose();
+    else if (e.key === "Enter") {
+      e.preventDefault();
+      if (props.mode === "features") return void items[at]?.pick();
+      // What is typed now, not what was last drawn; a list not read yet is waited for.
+      const typed = (e.currentTarget as HTMLInputElement).value;
+      const file = typed === query ? items[at]?.key : fileMatches(typed)[0];
+      if (file !== undefined) props.onFile(file);
+      else setWaiting(typed);
+    } else if (e.key === "Escape") props.onClose();
     else if (e.key === "?" && chosen?.help && query.trim() === "")
       (e.preventDefault(), chosen.help());
   };
@@ -2049,7 +2150,11 @@ function Palette(props: {
             ref={(el) => el?.focus()}
             value={query}
             placeholder={props.tr("palette.placeholder")}
-            onInput={(e) => (setQuery((e.target as HTMLInputElement).value), setAt(0))}
+            onInput={(e) => (
+              setQuery((e.target as HTMLInputElement).value),
+              setAt(0),
+              setWaiting(null)
+            )}
             onKeyDown={onKey}
             aria-label={props.tr("palette.placeholder")}
           />
@@ -2197,7 +2302,14 @@ function AskDialog(props: {
 }
 
 /** The views drawn as a side panel beside their detail, edge to edge (REQ-175). */
-const SPLIT_VIEWS = new Set<ViewId>(["traceability", "changes", "questions", "build", "live"]);
+const SPLIT_VIEWS = new Set<ViewId>([
+  "traceability",
+  "changes",
+  "questions",
+  "build",
+  "live",
+  "settings",
+]);
 
 /** The desktop app: the operating system draws the menu (REQ-172, A5). */
 const DESKTOP =

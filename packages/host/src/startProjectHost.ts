@@ -13,6 +13,7 @@ import {
   NodeHarnessEvents,
   NodeScratch,
   NodeStore,
+  NodeUserSettings,
   NodeWatcher,
   caseInsensitivePaths,
   systemClock,
@@ -104,6 +105,8 @@ export async function startProjectHost(
     workspace: { fs, git, watcher: new NodeWatcher(), recent, registry },
     // The folders the Explorer leaves open, kept per project (draft-explorer-tree A4).
     store,
+    // The Developer's own settings file, Settings' User scope (draft-settings REQ-141, A2).
+    userSettings: new NodeUserSettings(options.home),
     ...(options.ui ? { ui: options.ui } : {}),
     ...(options.files ? { files: options.files(projectDir) } : {}),
     ...(options.findings ? { findings: options.findings(projectDir) } : {}),

@@ -154,7 +154,8 @@ test("REQ-173 SCN-515: sprich's Home — the next step as a sentence, four count
       ["Built", "15"],
       ["Proven", "12"],
     ]);
-    assert.deepEqual(cards[3]![0], "Agent's cost");
+    // What the agent spent, as usage (demo-findings REQ-211).
+    assert.deepEqual(cards[3]![0], "Agent's usage");
     await page.waitForSelector('.step[data-step="answered"][data-state="current"]');
     assert.match(
       await page.innerText('.step[data-step="answered"]'),
@@ -543,7 +544,10 @@ test("REQ-177 SCN-526: a feature and a test — tabs typed FT and TS, the breadc
   try {
     for (const f of ["features/pedidos/REQ-031.feature", "test/pedidos/CancelOrder.test.ts"]) {
       await page.keyboard.press(`${MOD}+P`);
+      // The palette's field has the keyboard before typing, and lists the file before Enter.
+      await page.waitForFunction(() => document.activeElement?.closest(".palette .pinput") != null);
       await page.keyboard.type(f);
+      await page.waitForSelector(`.palette li[aria-selected="true"] >> text="${f}"`);
       await page.keyboard.press("Enter");
       await page.waitForSelector(`.tab[aria-selected="true"][title="${f}"]`);
     }
@@ -790,6 +794,19 @@ test("REQ-171 SCN-511: the editor's theme — titles bold near-white, the marker
       return ["REQ-031 — Cancel an order", "SHALL", "GIVEN", "<!--"].every((t) =>
         spans.some((x) => x.startsWith(t)),
       );
+    });
+    // Tokenized down to the trace: Monaco colours the later lines in the background, a moment
+    // after drawing them in the editor's plain foreground.
+    await page.waitForFunction(() => {
+      const plain = getComputedStyle(document.querySelector(".monaco-editor .view-lines")!).color;
+      const trace = [...document.querySelectorAll(".monaco-editor .view-line span span")].find(
+        (x) =>
+          x.textContent
+            ?.replace(/\u00a0/g, " ")
+            .trim()
+            .startsWith("<!--"),
+      );
+      return !!trace && getComputedStyle(trace).color !== plain;
     });
     assert.deepEqual(await color(page, "REQ-031 — Cancel an order"), ["rgb(236, 231, 222)", "700"]);
     assert.equal((await color(page, "###"))?.[0], "rgb(255, 138, 92)");

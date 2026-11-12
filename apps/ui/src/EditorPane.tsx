@@ -2,6 +2,10 @@ import { render } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { Annotations } from "@specgate-studio/protocol";
 import { SPEC_LANGUAGE, monaco } from "./monaco.js";
+import { currentPrefs, onPrefs, type Prefs } from "./prefs.js";
+
+/** The last focus request an editor took: each is taken once (see `focus`). */
+let focusTaken = 0;
 
 export type LensAction = "build" | "check" | "trace" | "ask" | "help";
 
@@ -117,11 +121,16 @@ export default function EditorPane(p: EditorPaneProps) {
   props.current = p;
 
   useEffect(() => {
+    // The user's editor settings (draft-settings REQ-143): font size, tab size, word wrap.
+    const opts = (q: Prefs) => ({
+      wordWrap: q["editor.wordWrap"],
+      fontSize: q["editor.fontSize"],
+      tabSize: q["editor.tabSize"],
+    });
     const ed = monaco.editor.create(box.current!, {
       automaticLayout: true,
       minimap: { enabled: false },
-      wordWrap: "on",
-      fontSize: 13,
+      ...opts(currentPrefs()),
       lineHeight: 22,
       codeLensFontFamily: "'IBM Plex Sans', system-ui, sans-serif",
       codeLensFontSize: 12,
@@ -144,7 +153,14 @@ export default function EditorPane(p: EditorPaneProps) {
       },
     });
     (window as unknown as { __studio: Record<string, unknown> }).__studio.monaco = monaco;
-    return () => ed.dispose();
+    const stop = onPrefs((q) => {
+      ed.updateOptions(opts(q));
+      ed.getModel()?.updateOptions({ tabSize: q["editor.tabSize"] });
+    });
+    return () => {
+      stop();
+      ed.dispose();
+    };
   }, []);
 
   // The file: its model, created once from the text read.
@@ -161,8 +177,17 @@ export default function EditorPane(p: EditorPaneProps) {
     if (ed.getModel() !== model) ed.setModel(model);
   }, [p.path, p.text]);
 
+  // A focus request is taken once: an editor mounted later — the new group of
+  // a split — does not take it again from wherever the Developer has moved
+  // focus since, the splitter or the palette (REQ-192). A file changed in a
+  // mounted editor is still focused while the request stands.
+  const mounted = useRef(false);
   useEffect(() => {
-    if (p.focus) editor.current?.focus();
+    if (p.focus && (p.focus !== focusTaken || mounted.current)) {
+      focusTaken = p.focus;
+      editor.current?.focus();
+    }
+    mounted.current = true;
   }, [p.focus, p.path]);
 
   // A requirement opened from the Explorer: its heading in view, the cursor on it (REQ-169).

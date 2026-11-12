@@ -395,6 +395,196 @@ h1 {
   font-size: 26px;
   font-weight: 700;
 }
+/* Report as the Informe board draws it (draft-report REQ-131 … REQ-133). */
+.report {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.rhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.rtitle {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.rtitle h1 {
+  margin: 0;
+}
+.ractions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rchip {
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  padding: 2px 10px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.rcards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+.rcard {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.rcard .v small {
+  font-size: 13px;
+  font-weight: 400;
+}
+.rcard .rline,
+.rcard .rtime {
+  margin-top: 6px;
+  font-size: 12px;
+}
+.rcard .rfix {
+  margin-top: 4px;
+}
+.rgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 12px;
+}
+.rsec {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.rsec h2 {
+  margin: 0;
+  font-size: 14px;
+}
+.rgate-says {
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 6px;
+}
+.rgate-says.ok {
+  color: var(--ok-text);
+}
+.rgate-says.bad {
+  color: var(--bad);
+}
+.rgate-when {
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.rstage {
+  display: grid;
+  grid-template-columns: 18px minmax(90px, 140px) minmax(0, 1fr);
+  gap: 4px 10px;
+  align-items: baseline;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+.rstage-what {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.rmark.passed {
+  color: var(--ok-text);
+}
+.rmark.failed {
+  color: var(--bad);
+}
+.rmark.not_configured {
+  color: var(--amber);
+}
+.rmark.not_run,
+.rmark.skipped {
+  color: var(--muted);
+}
+.rfinding {
+  grid-column: 2 / -1;
+  font-size: 12px;
+  color: var(--bad);
+  overflow-wrap: anywhere;
+}
+.rfix-line {
+  color: var(--text);
+}
+.rmod {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 10px;
+  width: 100%;
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.rmod[aria-pressed="true"] .rmod-name {
+  color: var(--accent);
+  font-weight: 600;
+}
+.rmod .rmod-says {
+  color: var(--muted);
+  font-size: 12px;
+}
+.rmod .rmod-says.warn {
+  color: var(--amber);
+}
+.rmod .bar {
+  display: block;
+  grid-column: 1 / -1;
+  margin-top: 2px;
+}
+.rmod .bar .fill {
+  display: block;
+}
+.bar .fill.ok {
+  background: var(--ok);
+}
+.bar .fill.warn {
+  background: var(--amber);
+}
+.rmiss {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr) minmax(0, auto);
+  gap: 10px;
+  padding: 4px 0;
+  font-size: 13px;
+}
+.rmiss .rid {
+  color: var(--accent-soft);
+}
+.rmiss-why {
+  text-align: right;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.rmiss-why.warn {
+  color: var(--amber);
+}
+.rmiss-why.bad {
+  color: var(--accent-soft);
+}
+.rfoot {
+  font-size: 12px;
+  margin: 0;
+}
 .next {
   border: 1px solid #4a2a1c;
   border-radius: 4px;
@@ -682,19 +872,130 @@ pre.file {
   padding: 10px 14px;
   color: #9c978e;
 }
-.settings label {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 0 0 14px;
-}
-.settings select {
+/* Settings as the Ajustes board draws it (draft-settings REQ-141 … REQ-143): the
+   sections down the side; the search, the scopes and the "?" above; a row per setting. */
+.settings select,
+.settings .setting input,
+.settings .settings-search {
   height: 30px;
   background: var(--bg-input);
   color: var(--text);
   border: 1px solid var(--line-strong);
   border-radius: 4px;
   padding: 0 8px;
+  min-width: 0;
+}
+.split.settings > .snav {
+  flex: 0 1 200px;
+  min-width: 160px;
+  padding: 6px 0;
+}
+.snav .tr[aria-current="true"] {
+  color: var(--text);
+}
+.settings-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+}
+.settings-bar .settings-search {
+  flex: 1 1 auto;
+  width: 0;
+}
+.settings-scopes {
+  display: flex;
+  gap: 4px;
+  flex: none;
+}
+.settings-scopes [role="tab"][aria-selected="true"] {
+  border-color: var(--accent);
+}
+.settings-scope > h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin: 18px 0 2px;
+}
+.settings-where {
+  margin: 0 0 6px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.settings-section > h3 {
+  font-size: 15px;
+  margin: 18px 0 4px;
+}
+.settings-group-h {
+  color: var(--accent);
+  font-size: 12px;
+  margin: 12px 0 0;
+}
+.settings .setting {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  min-width: 0;
+}
+.settings .setting-name {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.settings .setting-where {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.settings .setting-control {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+.settings .setting-control > input {
+  flex: 0 1 320px;
+  width: 0;
+  min-width: 120px;
+}
+.settings .setting-control > select {
+  flex: 0 1 220px;
+  max-width: 100%;
+}
+.settings .setting-control > .btn {
+  height: 30px;
+  flex: none;
+}
+.settings .setting-desc,
+.settings .setting-cmd,
+.settings .setting-env {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.settings .setting-env[data-set="true"] {
+  color: var(--ok-text);
+}
+.settings .setting-env[data-set="false"] {
+  color: var(--amber);
+}
+.settings .setting-refused {
+  font-size: 12px;
+  color: var(--bad);
+  overflow-wrap: anywhere;
+}
+.settings .setting-keys {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  font-size: 12px;
+}
+.settings .settings-add {
+  margin: 10px 0 0;
 }
 .muted {
   color: var(--muted);
@@ -3751,4 +4052,351 @@ ul.notes > li:first-child {
   flex: none;
   max-height: 40%;
   overflow-y: auto;
+}
+
+/* Traceability (draft-traceability REQ-121 … REQ-123): one row per scenario, as the board draws it. */
+.trace {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  height: 100%;
+  min-height: 0;
+  padding: 20px 24px 12px;
+  box-sizing: border-box;
+}
+.trace-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.trace-head h1 {
+  margin: 0;
+  font-size: 24px;
+  letter-spacing: -0.02em;
+}
+.trace-sub {
+  font-size: 13px;
+}
+.trace-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.trace-filter {
+  flex: 1 1 220px;
+  max-width: 380px;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--text);
+  font:
+    13px "IBM Plex Sans",
+    system-ui,
+    sans-serif;
+}
+.trace-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--row-text);
+  font:
+    13px "IBM Plex Sans",
+    system-ui,
+    sans-serif;
+  white-space: nowrap;
+}
+.chip[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--text);
+  background: var(--row-current);
+}
+.trace-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 13px;
+}
+.tcard {
+  flex: 1 1 200px;
+  padding: 10px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--bg-raised);
+}
+.tcard .k {
+  font-size: 12px;
+  color: var(--muted);
+}
+.tcard .v {
+  font-size: 22px;
+  font-weight: 700;
+}
+.tcard .v .muted {
+  font-size: 13px;
+  font-weight: 400;
+}
+.tcard.bad {
+  border-color: #5c2a2a;
+  background: #1e1616;
+}
+.tcard.bad .v {
+  color: #ff9c9c;
+}
+:root[data-theme="light"] .tcard.bad {
+  border-color: #f0b8b8;
+  background: #fff3f3;
+}
+:root[data-theme="light"] .tcard.bad .v {
+  color: var(--bad);
+}
+.trace-table {
+  flex: 1 1 auto;
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.trace-rows {
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
+}
+.trow {
+  display: grid;
+  grid-template-columns:
+    minmax(96px, 1.4fr) minmax(84px, 0.75fr) minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 0.8fr)
+    minmax(150px, 2.1fr) 72px;
+  align-items: center;
+  height: 36px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+.trow > span {
+  min-width: 0;
+  padding: 0 10px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.trow.thead {
+  flex: none;
+  background: var(--bg-input);
+  border-bottom-color: var(--line-strong);
+  font:
+    600 11px "IBM Plex Sans",
+    system-ui,
+    sans-serif;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.trow .mono {
+  font-size: 12px;
+}
+.treq {
+  color: var(--accent-soft);
+}
+.trow .ok {
+  color: var(--ok-text);
+}
+.trow .gap {
+  color: #ff9c9c;
+}
+:root[data-theme="light"] .trow .gap {
+  color: var(--bad);
+}
+.tc-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tpill {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: var(--bg-input);
+  color: var(--row-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.tpill[data-status="Verified"],
+.tpill[data-status="Implemented"],
+.tpill[data-status="Released"] {
+  background: #17271f;
+  color: var(--ok-text);
+}
+.tpill[data-status="Needs Clarification"] {
+  background: #3a3220;
+  color: var(--warn);
+}
+.tpill.gap {
+  flex: none;
+  background: #2a1716;
+  color: #ff9c9c;
+}
+:root[data-theme="light"] .tpill[data-status="Verified"],
+:root[data-theme="light"] .tpill[data-status="Implemented"],
+:root[data-theme="light"] .tpill[data-status="Released"] {
+  background: #e3f4ea;
+}
+:root[data-theme="light"] .tpill[data-status="Needs Clarification"] {
+  background: #fbf0d6;
+}
+:root[data-theme="light"] .tpill.gap {
+  background: #fde8e8;
+  color: var(--bad);
+}
+.tc-act {
+  display: flex;
+  justify-content: flex-end;
+}
+.tfix {
+  border: 0;
+  background: transparent;
+  color: var(--accent-soft);
+  font:
+    12px "IBM Plex Sans",
+    system-ui,
+    sans-serif;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+.tfix:hover {
+  text-decoration: underline;
+}
+.trace-empty {
+  padding: 12px;
+}
+.trace-foot {
+  margin: 0;
+  font-size: 12px;
+  flex: none;
+}
+.trace-unavailable {
+  max-width: 640px;
+}
+
+/* "Fix"'s proposal in the panel's Traceability tab (REQ-123). */
+.pbody[data-panel="traceability"] {
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+}
+.proposal {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--text);
+}
+.proposal-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  font-size: 12px;
+}
+.proposal-path {
+  color: var(--accent-soft);
+}
+.proposal-acts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.proposal-acts .btn {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+.proposal-acts .btn:disabled {
+  opacity: 0.5;
+}
+pre.skeleton {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--row-text);
+  font:
+    12px/1.55 "IBM Plex Mono",
+    monospace;
+  white-space: pre;
+  overflow: auto;
+}
+.proposal-left p {
+  margin: 0 0 4px;
+}
+.proposal-none {
+  margin: 0;
+  font-size: 12px;
+}
+/* Print to PDF (draft-report REQ-133): the report alone, laid out for paper, in the light colours. */
+@media print {
+  :root:has(.report),
+  :root[data-theme]:has(.report) {
+    color-scheme: light;
+    --bg: #ffffff;
+    --bg-raised: #ffffff;
+    --line: #e0dad0;
+    --line-strong: #cfc8bc;
+    --text: #1d1b18;
+    --muted: #6b665e;
+    --accent: #d9480f;
+    --accent-soft: #b93d0b;
+    --ok: #1f8a57;
+    --ok-text: #1f8a57;
+    --bad: #c62828;
+    --amber: #9a6b00;
+  }
+  body:has(.report) .activity,
+  body:has(.report) .menubar,
+  body:has(.report) .wb > .top,
+  body:has(.report) .banner,
+  body:has(.report) .panel,
+  body:has(.report) .status,
+  body:has(.report) .agent,
+  body:has(.report) .middle > .side,
+  body:has(.report) .notice,
+  body:has(.report) [class*="sash"],
+  .report .ractions,
+  .report .rchip,
+  .report [data-testid="report-check"] {
+    display: none !important;
+  }
+  body:has(.report),
+  body:has(.report) .wb,
+  body:has(.report) .middle,
+  body:has(.report) .main,
+  body:has(.report) .content {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+    color: #1d1b18 !important;
+  }
+  .report .card {
+    break-inside: avoid;
+    background: #fff;
+  }
 }

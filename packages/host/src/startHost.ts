@@ -27,7 +27,9 @@ import {
   type StorePort,
   type SpecgateAnswer,
   type CommandEvent,
+  type UserSettingsPort,
 } from "@specgate-studio/core";
+import { attachSettings } from "./settings.js";
 import { fromStudio, uiHandler } from "./serveUi.js";
 import { attachTerminals, type TerminalWiring } from "./terminals.js";
 import { RPC_ERRORS, type Notifications, type ProjectOpened } from "@specgate-studio/protocol";
@@ -38,7 +40,9 @@ import { attachBuilds, type BuildsWiring } from "./builds.js";
 import { attachBrief, type BriefWiring } from "./brief.js";
 import { attachAgent, type AgentWiring } from "./agent.js";
 import { attachExplorer } from "./explorer.js";
+import { attachTraceability } from "./traceability.js";
 import { attachHome } from "./home.js";
+import { attachReport } from "./report.js";
 import { attachFolders, type FoldersWiring } from "./folders.js";
 import type { ProjectFiles } from "./files.js";
 
@@ -76,6 +80,8 @@ export interface HostOptions {
   folders?: FoldersWiring;
   /** specgate's `agent ask|apply|discard --json` for the agent panel (draft-workbench-v2 REQ-181 … REQ-183). */
   agent?: AgentWiring;
+  /** The Developer's own settings file, the User scope of Settings (draft-settings REQ-141). */
+  userSettings?: UserSettingsPort;
 }
 
 export type { ProjectFiles, FileRefusal } from "./files.js";
@@ -112,7 +118,8 @@ export async function startHost(given: HostOptions): Promise<Host> {
   // anything changes: each is asked once (draft-design-conformance REQ-173).
   const reads = new Map<string, Promise<SpecgateAnswer>>();
   const forget = () => reads.clear();
-  const READ_ONLY = /^(change show \S+|harness report|config list)$/;
+  const READ_ONLY =
+    /^(change show \S+|harness report( --capability \S+)?|config (list|keys)|report|check --last)$/;
   const memo = <P extends Pick<SpecgatePort, "call">>(port: P): P => {
     const wrapped = Object.create(port) as P;
     wrapped.call = (args: readonly string[]) => {
@@ -245,6 +252,25 @@ export async function startHost(given: HostOptions): Promise<Host> {
       )
     : null;
 
+  // Traceability: one row per scenario, and "Fix" (draft-traceability REQ-121 … REQ-123).
+  const files = options.files;
+  const traceability = files
+    ? attachTraceability(
+        {
+          sections: state,
+          files: {
+            list: () => files.list(),
+            read: (p) => files.read(p),
+            ...(files.create ? { create: (p: string, dir: boolean) => files.create!(p, dir) } : {}),
+            ...(files.write ? { write: (p: string, t: string) => files.write!(p, t) } : {}),
+          },
+          ...(agent ? { agent: agent.agent } : {}),
+        },
+        broadcast,
+        (m) => rpcError(RPC_ERRORS.params, m),
+      )
+    : null;
+
   // Home's next step, route, cost and activity (draft-design-conformance REQ-173).
   const homeSpecgate =
     options.builds?.specgate ?? options.changes?.specgate ?? options.brief?.specgate;
@@ -268,6 +294,18 @@ export async function startHost(given: HostOptions): Promise<Host> {
         (m) => rpcError(RPC_ERRORS.params, m),
       )
     : null;
+
+  // Report's figures, for the project and each module (draft-report REQ-131).
+  const report = attachReport({
+    state,
+    ...(homeSpecgate ? { specgate: homeSpecgate } : {}),
+  });
+
+  // Settings: the project's read through specgate, the user's in their own file (REQ-141).
+  const settings = attachSettings({
+    ...(homeSpecgate ? { specgate: homeSpecgate } : {}),
+    ...(options.userSettings ? { user: options.userSettings } : {}),
+  });
 
   const setup = options.setup
     ? attachSetup(
@@ -336,6 +374,8 @@ export async function startHost(given: HostOptions): Promise<Host> {
           message: 'A module is drafted with "Draft the modules", with the project\'s agent.',
         };
       const result = await commands.run(params as SpecgateCommand);
+      // A gate run is kept by specgate: Report reads it again (draft-report REQ-132).
+      if ((params as SpecgateCommand).name === "check") forget();
       // What it wrote feeds sections: read them again now, not when the watcher says.
       if (result.ok)
         for (const f of result.written) await state.fileChanged(f).catch(() => undefined);
@@ -372,6 +412,7 @@ export async function startHost(given: HostOptions): Promise<Host> {
               "id",
               "then",
               "count",
+              "scenario",
             ].includes(k) && typeof v === "string",
         ),
       ) as HelpVars;
@@ -445,8 +486,11 @@ export async function startHost(given: HostOptions): Promise<Host> {
     ...builds?.handlers,
     ...brief?.handlers,
     ...agent?.handlers,
+    ...traceability?.handlers,
     ...explorer?.handlers,
     ...home.handlers,
+    ...settings.handlers,
+    ...report.handlers,
     ...(options.folders
       ? attachFolders(options.folders, broadcast, (m) => rpcError(RPC_ERRORS.params, m)).handlers
       : {}),

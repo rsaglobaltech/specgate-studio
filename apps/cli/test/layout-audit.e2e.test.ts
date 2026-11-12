@@ -10,6 +10,38 @@ import assert from "node:assert/strict";
 import { MOD, close, open, studio, type Page } from "./support.js";
 import { PLAN, SETTINGS, buildAnswers } from "./build-support.js";
 import { audit } from "./audit.js";
+import { coreFixture } from "./fixtures.js";
+
+/**
+ * Settings and Report with something in them (draft-settings, draft-report):
+ * specgate's catalog with two profiles, a check and the ALM; the last gate,
+ * failed at the tests; the usage of two builds.
+ */
+const FULL = {
+  "config keys": { data: coreFixture("config-keys-0.34.json"), findings: [], exitCode: 0 },
+  "config list": {
+    data: {
+      config: {
+        test_cmd: "npm test",
+        agent: "claude -p < {prompt_file}",
+        "profiles.claude-sonnet.agent": "claude -p --model sonnet < {prompt_file}",
+        "profiles.claude-opus.agent": "claude -p --model opus < {prompt_file}",
+        "checks.lint.run": "npx eslint .",
+        "alm.provider": "jira",
+        "alm.token_env": "JIRA_API_TOKEN",
+      },
+      files: {},
+    },
+    findings: [],
+    exitCode: 0,
+  },
+  "check --last": {
+    data: coreFixture("check-last-tests-failed-0.34.json"),
+    findings: [],
+    exitCode: 0,
+  },
+  report: { data: { total: 3, coverage: { lines: null } }, findings: [], exitCode: 0 },
+};
 
 const VIEWS = [
   "home",
@@ -85,7 +117,7 @@ for (const [w, h] of SIZES)
     } — nothing over anything, no dead column, no sideways scroll`, async () => {
       const s = await studio({
         homeRequirements: SETTINGS as never,
-        specgate: { ...buildAnswers("claude -p < {prompt_file}"), plan: PLAN },
+        specgate: { ...buildAnswers("claude -p < {prompt_file}"), plan: PLAN, ...FULL },
       });
       const page = await open(s, { lang: "es" });
       try {

@@ -14,3 +14,6 @@ export { attachExplorer, insideProject, type ExplorerWiring } from "./explorer.j
 export { attachHome, type HomeWiring } from "./home.js";
 export { attachFolders, type FoldersWiring } from "./folders.js";
 export { attachAgent, type AgentWiring } from "./agent.js";
+export { attachTraceability } from "./traceability.js";
+export { attachSettings } from "./settings.js";
+export { attachReport, type ReportWiring } from "./report.js";

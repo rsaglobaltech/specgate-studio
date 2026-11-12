@@ -13,6 +13,7 @@ import {
   InMemoryHarnessEvents,
   InMemoryFileSystem,
   InMemoryGit,
+  InMemoryUserSettings,
   InMemoryWatcher,
   IgnoreRules,
   type Finding,
@@ -62,8 +63,11 @@ export interface StudioOptions {
   findings?: Finding[];
   /** The project's git branch, read through the workspace (draft-workspace). */
   branch?: string | null;
-  /** Sections over the defaults (draft-changes). */
-  sections?: Partial<Record<Section, unknown>>;
+  /**
+   * Sections over the defaults (draft-changes); a function reads the files on
+   * disk each time, as specgate would read the project again (draft-traceability).
+   */
+  sections?: Partial<Record<Section, unknown | ((disk: Record<string, string>) => unknown)>>;
   /**
    * specgate's `--json` answers, by the arguments joined with spaces; a
    * function may change the sections, as the command would, read the files
@@ -98,6 +102,8 @@ export interface StudioOptions {
    * `/scratch/<name>`, so specgate's answers can be recorded for them.
    */
   scratch?: Map<string, string>;
+  /** What the Developer's own settings file holds; nothing by default (draft-settings REQ-141). */
+  user?: Record<string, unknown>;
 }
 
 export async function studio(opts: StudioOptions = {}) {
@@ -123,7 +129,24 @@ export async function studio(opts: StudioOptions = {}) {
         ],
       },
     },
-    matrix: { matrix: { derived: true, written: false, rows } },
+    // One row per scenario, as specgate 0.34.0 answers (draft-traceability A5): one scenario each.
+    matrix: {
+      matrix: {
+        derived: true,
+        written: false,
+        rows,
+        scenarios: (opts.homeRequirements ?? requirements(rows)).map((r) => ({
+          requirement: r.id,
+          scenario: `SCN-${r.id.slice(4)}a`,
+          feature: `features/${r.id}.feature`,
+          tests: r.category === "DONE" ? [`test/${r.id}.test.ts`] : [],
+          code: r.category === "DONE" ? [`src/${r.id}.ts`] : [],
+          status: r.category === "DONE" ? "Implemented" : "Approved",
+          gaps: r.category === "DONE" ? [] : ["test", "code"],
+          waiting: null,
+        })),
+      },
+    },
     report: { total: rows },
     ...opts.sections,
   };
@@ -134,6 +157,9 @@ export async function studio(opts: StudioOptions = {}) {
       if (wait) await new Promise((ok) => setTimeout(ok, wait));
       // A section given as an Error cannot be read (draft-design-conformance REQ-178).
       if (data[s] instanceof Error) throw data[s];
+      // A section given as a function is read from the files on disk (draft-traceability).
+      if (typeof data[s] === "function")
+        return structuredClone((data[s] as (d: Record<string, string>) => unknown)(disk));
       return structuredClone(data[s]);
     },
   };
@@ -267,9 +293,15 @@ export async function studio(opts: StudioOptions = {}) {
       return structuredClone(typeof a === "function" ? await a(data, disk) : a);
     },
   };
+  // The Developer's own settings file, outside sprich (draft-settings A2).
+  const userSettings = new InMemoryUserSettings(
+    path.join(dir, "home", ".config", "specgate-studio", "settings.json"),
+    opts.user ?? {},
+  );
   const host = await serve({
     projectDir,
     port: opts.port ?? 0,
+    userSettings,
     reader,
     runner,
     files,
@@ -301,6 +333,7 @@ export async function studio(opts: StudioOptions = {}) {
     harness,
     events,
     scratch: scratchFiles,
+    userSettings,
     projectDir,
     url: host.url.replace(/^ws/, "http"),
     newPage: () => browser.newPage({ locale: "en-US" }),
@@ -312,6 +345,12 @@ export async function open(
   init?: { lang?: "en" | "es"; theme?: "dark" | "light" },
 ): Promise<Page> {
   const page = await browser.newPage({ locale: "en-US" });
+  // A slow CI runner, reproduced: STUDIO_CPU_THROTTLE=6 runs the page six times slower.
+  const throttle = Number(process.env.STUDIO_CPU_THROTTLE ?? 0);
+  if (throttle > 1) {
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Emulation.setCPUThrottlingRate", { rate: throttle });
+  }
   if (init?.lang) {
     await page.addInitScript(
       (s) => localStorage.setItem("specgate-studio.settings", JSON.stringify(s)),

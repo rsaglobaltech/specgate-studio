@@ -13,6 +13,7 @@ import { HelpButton, type HelpRequest } from "../Help.js";
 import type { Rpc } from "../rpc.js";
 import type { Lang } from "../i18n.js";
 import { bt, type BuildTextKey } from "./buildText.js";
+import { price, priceShort, tokens as tokenWords, turns } from "../usage.js";
 
 export interface LiveProps {
   rpc: Rpc;
@@ -27,6 +28,8 @@ export interface LiveProps {
   modules?: Array<{ name: string; requirements: Array<{ id: string; state: string }> }>;
   /** Titles of the requirements, by id. */
   titles?: ReadonlyMap<string, string>;
+  /** The Developer pays per use: the dollars read as cost, not "≈ precio de API" (demo-findings REQ-211). */
+  perUse?: boolean;
 }
 
 type T = (key: BuildTextKey, vars?: Record<string, string | number>) => string;
@@ -49,23 +52,9 @@ function clock(s: number): string {
   return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${ss}` : `${m}:${ss}`;
 }
 
-/** A cost as the board writes it: "1,10 $" in Spanish, "$1.10" in English. */
-function money(lang: Lang, n: number): string {
-  const v = new Intl.NumberFormat(lang, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(n);
-  return lang === "es" ? `${v} $` : `$${v}`;
-}
-
 /** Tokens as the board writes them: "182 k tokens", "11,8 M tokens" past a million. */
-function tokenText(lang: Lang, n: number, t: T): string {
-  if (n >= 1_000_000)
-    return t("live.tokensM", {
-      n: new Intl.NumberFormat(lang, { maximumFractionDigits: 1 }).format(n / 1_000_000),
-    });
-  if (n < 1000) return t("live.tokens0", { n });
-  return t("live.tokensK", { n: new Intl.NumberFormat(lang).format(Math.round(n / 1000)) });
+function tokenText(lang: Lang, n: number): string {
+  return tokenWords(lang, n);
 }
 
 /** An event's time, `HH:MM:SS` in local time (A6). */
@@ -153,11 +142,20 @@ export function Live(p: LiveProps) {
           <span data-testid="live-elapsed">{clock(elapsed)}</span>
           {" · "}
           <span data-testid="live-tokens" data-tokens={tokens}>
-            {tokenText(p.lang, tokens, t)}
+            {tokenText(p.lang, tokens)}
           </span>
+          {view.totals.turns !== null && (
+            <>
+              {" · "}
+              <span data-testid="live-turns">{turns(p.lang, view.totals.turns)}</span>
+            </>
+          )}
           {" · "}
-          <span data-cost={view.totals.cost ?? ""}>
-            {view.totals.cost === null ? t("live.noCost") : money(p.lang, view.totals.cost)}
+          {/* What Claude Code reports: at API prices, unless the Developer pays per use (REQ-211). */}
+          <span data-cost={view.totals.cost ?? ""} data-per-use={p.perUse ? "1" : undefined}>
+            {view.totals.cost === null
+              ? t("live.noCost")
+              : price(p.lang, view.totals.cost, p.perUse === true)}
           </span>
         </span>
         <span class="grow" />
@@ -413,7 +411,15 @@ export function Live(p: LiveProps) {
                     r.seconds !== null
                       ? t("live.mins", { n: Math.max(1, Math.round(r.seconds / 60)) })
                       : null,
-                    r.usage?.cost != null ? money(p.lang, r.usage.cost) : null,
+                    r.usage
+                      ? tokenText(
+                          p.lang,
+                          r.usage.input + r.usage.output + r.usage.cacheRead + r.usage.cacheWrite,
+                        )
+                      : null,
+                    r.usage?.cost != null
+                      ? priceShort(p.lang, r.usage.cost, p.perUse === true)
+                      : null,
                   ]
                     .filter(Boolean)
                     .join(" · ")}
@@ -478,7 +484,10 @@ function Stages(props: { r: LiveRequirement; t: T; lang: Lang; now: number }) {
                 ? duration(props.lang, s.seconds)
                 : s.mark === "skipped"
                   ? t("live.stage.skipped")
-                  : "";
+                  : // Done with no time of its own from specgate: "—", never a guess (demo-findings REQ-103).
+                    s.mark === "done" || s.mark === "failed"
+                    ? "—"
+                    : "";
           const name =
             s.id === "gate"
               ? t("live.stage.gate", { stage: s.label })

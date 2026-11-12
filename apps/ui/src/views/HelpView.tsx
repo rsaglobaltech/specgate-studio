@@ -23,11 +23,19 @@ const AREA_OF: Record<string, "spec" | "build" | "project" | "files"> = {
   "build-ignore": "build",
   "build-stop-after": "build",
   "build-stop-now": "build",
+  traceability: "build",
+  "trace-fix": "build",
+  "trace-ask-agent": "build",
   init: "project",
   adopt: "project",
   "agents-init": "project",
   "ci-init": "project",
   "config-set": "project",
+  "settings-user": "project",
+  "settings-save": "project",
+  "agent-guard": "project",
+  "report-download": "build",
+  "report-print": "build",
 };
 const AREAS = ["spec", "build", "project", "files"] as const;
 

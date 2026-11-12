@@ -211,6 +211,8 @@ async function noFolder(opts: { gh?: boolean } = {}) {
   const host = await serve({
     projectDir: home,
     noFolder: true,
+    // The studio's own folder inside the test's home: the Developer's real settings are not read.
+    home: path.join(home, ".specgate-studio"),
     port: 0,
     folders: {
       folders: new NodeFolders(home),
@@ -553,18 +555,30 @@ test("REQ-192 SCN-570: the Reviewer tabs to the splitter and presses Right three
     assert.equal(await page.getAttribute(splitter, "tabindex"), "0");
     assert.equal(await page.getAttribute(splitter, "aria-valuemin"), "0");
     assert.equal(await page.getAttribute(splitter, "aria-valuemax"), "100");
+    // Both groups drawn, the new one's editor too, before the keys: it must not take them.
+    await page.waitForFunction(
+      () => document.querySelectorAll(".egroup .monaco-editor .view-lines").length === 2,
+    );
     const [before] = await groups(page);
     await page.focus(splitter);
-    for (let i = 0; i < 3; i++) await page.keyboard.press("ArrowRight");
-    // Drawn once the three steps are in: a render may come after the last key.
-    await page
-      .waitForFunction(
-        (w) =>
-          Math.abs(document.querySelector(".egroup")!.getBoundingClientRect().width - w - 30) <= 2,
-        before!.w,
-        { timeout: 3000 },
-      )
-      .catch(() => undefined);
+    for (let i = 0; i < 3; i++) {
+      // Each key to the splitter, each step drawn before the next.
+      await page.waitForFunction(
+        (sel) => document.activeElement === document.querySelector(sel),
+        splitter,
+      );
+      const was = await page.getAttribute(splitter, "aria-valuenow");
+      await page.keyboard.press("ArrowRight");
+      await page.waitForFunction(
+        ([sel, v]) => document.querySelector(sel)?.getAttribute("aria-valuenow") !== v,
+        [splitter, was] as const,
+      );
+    }
+    await page.waitForFunction(
+      (w) =>
+        Math.abs(document.querySelector(".egroup")!.getBoundingClientRect().width - w - 30) <= 2,
+      before!.w,
+    );
     const [after] = await groups(page);
     assert.ok(Math.abs(after!.w - before!.w - 30) <= 2, `${before!.w} → ${after!.w}`);
     const now = Number(await page.getAttribute(splitter, "aria-valuenow"));

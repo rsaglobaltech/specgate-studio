@@ -111,6 +111,8 @@ test("REQ-103 SCN-305: REQ-030's finished steps with their times, the gate's tes
     cacheRead: 30000,
     cacheWrite: 2000,
     cost: 0.4213,
+    // No turns counted in this run's final usage (demo-findings REQ-211).
+    turns: null,
   });
   // The agent's words, apart from its actions (draft-live-polish A3, REQ-201).
   assert.deepEqual(

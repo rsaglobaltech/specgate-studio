@@ -61,6 +61,7 @@ export {
   fileNotice,
   missingTranslations,
   notice,
+  proposalNotice,
   type FileOutcome,
   type ActionId,
   type Catalog,
@@ -274,6 +275,8 @@ export {
   ROUTE,
   activityOf,
   agentCostOf,
+  agentUsageOf,
+  type AgentUsage,
   briefModuleNames,
   nextStep,
   routeOf,
@@ -304,3 +307,78 @@ export {
   type PlanChange,
 } from "./domain/agent.js";
 export { Agent, type AgentOptions, type AgentResult } from "./application/Agent.js";
+/** Traceability: one row per scenario, its filters, and "Fix" (draft-traceability REQ-121 … REQ-123). */
+export {
+  TRACE_FILTERS,
+  addedText,
+  agentTestRequest,
+  keeps,
+  lineDiff,
+  scenarioIn,
+  testPathFor,
+  testSkeleton,
+  testStyleOf,
+  traceRowsOf,
+  traceViewOf,
+  type ScenarioStep,
+  type ScenarioText,
+  type TestProposal,
+  type TestStyle,
+  type TraceFilter,
+  type TraceLink,
+  type TraceRow,
+  type TraceView,
+} from "./domain/traceability.js";
+export {
+  Traceability,
+  type FixResult,
+  type TraceAgent,
+  type TraceAgentResult,
+  type TraceFiles,
+  type TraceRefusal,
+  type TraceWriteResult,
+  type TraceabilityOptions,
+} from "./application/Traceability.js";
+/** The settings editor: two scopes, nine sections, its search; specgate's catalog (draft-settings REQ-141 … REQ-143). */
+export {
+  SCOPES,
+  SETTING_SECTIONS,
+  SECTION_NAMES,
+  SECTION_SCOPE,
+  SHORTCUTS,
+  USER_SETTINGS,
+  catalogOf,
+  configSetLine,
+  configValue,
+  projectSettings,
+  searchSettings,
+  sectionOfKey,
+  settingValue,
+  shortcutSettings,
+  userSetting,
+  type CatalogKey,
+  type NewGroup,
+  type Setting,
+  type SettingScope,
+  type SettingSection,
+  type SettingsView,
+} from "./domain/settings.js";
+/** Report: its figures for the project and each module, and the last gate by stage (draft-report REQ-131, REQ-132). */
+export {
+  MEASURE_COMMAND,
+  gateOf,
+  reportOf,
+  type Figure,
+  type GateStage,
+  type GateView,
+  type ReportCost,
+  type ReportInput,
+  type ReportMissing,
+  type ReportModule,
+  type ReportView,
+  type StageResult,
+  type Usage as ReportUsage,
+} from "./domain/report.js";
+export type { UserSettingsPort } from "./ports/UserSettingsPort.js";
+export { InMemoryUserSettings } from "./fakes/InMemoryUserSettings.js";
+export { Settings, type SettingsOptions, type UserSettingResult } from "./application/Settings.js";

@@ -51,7 +51,7 @@ const studio = (over: Partial<LiveStudio> = {}): LiveStudio => ({
 });
 const marks = (stages: LiveStage[]) => stages.map((s) => [s.id, s.mark]);
 
-test("REQ-103 SCN-305: REQ-141 in its first attempt of 3 — Rama creada ✓ 0,2 s, the setup ✓ 4,5 s, the agent writing, the gate and apply waiting, REQ-142 queued with its estimate", () => {
+test("REQ-103 SCN-305: REQ-141 in its first attempt of 3 — Rama creada ✓ with no time of its own, the setup ✓ 4,5 s, the agent writing, the gate and apply waiting, REQ-142 queued with its estimate", () => {
   const writing = until((e) => e.type === "gate-start" && e.stage === "validate --strict");
   const view = foldLive({ "REQ-141": jsonl(writing) }, T0 - 1, studio());
   const r = view.requirements[0]!;
@@ -66,7 +66,8 @@ test("REQ-103 SCN-305: REQ-141 in its first attempt of 3 — Rama creada ✓ 0,2
     ["architecture", "waiting"],
     ["apply", "waiting"],
   ]);
-  assert.equal(r.stages[0]!.seconds, 0.2);
+  // specgate 0.34.0 writes no event for the branch: no time, not the 0,2 s before the setup.
+  assert.equal(r.stages[0]!.seconds, null);
   assert.deepEqual(
     [r.stages[1]!.label, r.stages[1]!.seconds],
     ["npm ci --silent --no-audit --no-fund", 4.5],

@@ -8,6 +8,7 @@ import {
   type SectionReader,
   type ScratchPort,
   type SpecgatePort,
+  type UserSettingsPort,
 } from "@specgate-studio/core";
 import {
   HostRegistry,
@@ -29,6 +30,7 @@ import {
   NodeGit,
   NodeScratch,
   NodePrograms,
+  NodeUserSettings,
   caseInsensitivePaths,
 } from "@specgate-studio/adapter-node";
 import { nodeFiles } from "./nodeFiles.js";
@@ -62,6 +64,8 @@ export interface ServeOptions {
   builds?: Omit<BuildsWiring, "specgate">;
   /** Files outside the project for the brief's form; the system's temporary folder when not given. */
   scratch?: ScratchPort;
+  /** The Developer's own settings file, Settings' User scope (draft-settings REQ-141). */
+  userSettings?: UserSettingsPort;
 }
 
 /**
@@ -102,6 +106,8 @@ export async function serve(options: ServeOptions): Promise<Host> {
         },
       },
       runner: { run: async () => 127 },
+      // With no folder open the user's settings are still theirs to change (draft-settings REQ-141).
+      userSettings: options.userSettings ?? new NodeUserSettings(options.home),
       terminals: { ...terminals, home },
       port,
       ui,
@@ -134,6 +140,7 @@ export async function serve(options: ServeOptions): Promise<Host> {
           }
         : {}),
       ...(options.specgate ? { builds: { ...options.builds, specgate: options.specgate } } : {}),
+      ...(options.userSettings ? { userSettings: options.userSettings } : {}),
       terminals,
       port,
       ui,
