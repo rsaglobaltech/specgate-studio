@@ -212,7 +212,7 @@ test('REQ-182 SCN-543: on the desktop, "Ver el diff y aplicar", the three diffs,
     );
     assert.ok(!s.calls.some((c) => c[1] === "apply"), "nothing applied before the confirmation");
     await page.click('[data-action="agent-confirm"]');
-    await page.waitForSelector('.notice[data-tone="ok"] >> text=specgate agent apply');
+    await page.waitForSelector('.notice[data-tone="ok"] >> text=escribió el plan');
     const notice = (await page.textContent(".notice"))!;
     for (const f of [SPEC, QUESTIONS, FEATURE]) assert.ok(notice.includes(f), `names ${f}`);
     assert.match(notice, /specgate draft --check pedidos/);
