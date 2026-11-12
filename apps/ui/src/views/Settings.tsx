@@ -80,7 +80,8 @@ type Help = (a: HelpRequest["action"], feature: string, vars?: HelpRequest["vars
  */
 export function SettingsEditor(p: SettingsProps) {
   const [query, setQuery] = useState("");
-  const [scope, setScope] = useState<SettingScope>("project");
+  // Both scopes, as the board scrolls from the project's sections to the user's; a tab keeps one (REQ-141).
+  const [scope, setScope] = useState<SettingScope | null>(null);
   const [view, setView] = useState<SettingsView | null>(null);
   const [current, setCurrent] = useState<SettingSection | null>(null);
   const [read, setRead] = useState(0);
@@ -97,14 +98,18 @@ export function SettingsEditor(p: SettingsProps) {
   }, [p.rpc, query, lang, read]);
 
   const searching = query.trim() !== "";
-  const settings = view?.settings ?? [];
-  const scopes = searching
-    ? SCOPES.filter((s) => settings.some((x) => x.scope === s))
-    : SCOPES.filter((s) => s === scope);
+  // The studio's language and theme show at once, before the host answers (REQ-034).
+  const settings: Setting[] = view?.settings ?? [
+    appearance("lang", p.tr("settings.language"), ["en", "es"]),
+    appearance("theme", p.tr("settings.theme"), ["dark", "light"]),
+  ];
+  const scopes = SCOPES.filter((s) =>
+    searching ? settings.some((x) => x.scope === s) : scope === null || s === scope,
+  );
   const section = (s: SettingSection) => p.tr(`settings.section.${s}`);
   const go = (s: SettingSection) => {
     setCurrent(s);
-    if (!searching) setScope(SCOPE_OF[s]);
+    if (!searching && scope !== null && scope !== SCOPE_OF[s]) setScope(null);
     requestAnimationFrame(() =>
       body.current?.querySelector(`[data-section="${s}"]`)?.scrollIntoView({ block: "start" }),
     );
@@ -114,6 +119,9 @@ export function SettingsEditor(p: SettingsProps) {
   return (
     <div class="split settings" data-view="settings">
       <aside class="side snav" aria-label={p.tr("settings.sections")}>
+        <div class="shead">
+          <h1 class="shead-h">{p.tr("view.settings")}</h1>
+        </div>
         {SCOPES.map((s) => (
           <div key={s} class="snav-group" data-scope={s}>
             <div class="sgroup">{p.tr(`settings.scope.${s}`)}</div>
@@ -150,7 +158,7 @@ export function SettingsEditor(p: SettingsProps) {
                 role="tab"
                 class="btn"
                 aria-selected={scope === s}
-                onClick={() => setScope(s)}
+                onClick={() => setScope(scope === s ? null : s)}
               >
                 {p.tr(`settings.scope.${s}`)}
               </button>
@@ -214,6 +222,19 @@ export function SettingsEditor(p: SettingsProps) {
     </div>
   );
 }
+
+/** A user setting of Appearance as the studio shows it before the host answers. */
+const appearance = (key: string, name: string, options: string[]): Setting => ({
+  key,
+  scope: "user",
+  section: "appearance",
+  name: { en: name, es: name },
+  description: { en: "", es: "" },
+  value: null,
+  default: null,
+  options,
+  file: null,
+});
 
 const addSection = (a: NewGroup): SettingSection =>
   a.prefix === "profiles" ? "agents" : "quality";
