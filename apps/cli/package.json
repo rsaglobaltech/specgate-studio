@@ -16,6 +16,7 @@
     "@specgate-studio/host": "*",
     "@specgate-studio/adapter-specgate-cli": "*",
     "@specgate-studio/adapter-specgate-api": "*",
-    "@specgate-studio/adapter-pty-node": "*"
+    "@specgate-studio/adapter-pty-node": "*",
+    "@specgate-studio/adapter-node": "*"
   }
 }

@@ -23,6 +23,7 @@ import {
   type Section,
   type SectionReader,
   type SpecgateCommand,
+  type StorePort,
 } from "@specgate-studio/core";
 import { fromStudio, uiHandler } from "./serveUi.js";
 import { attachTerminals, type TerminalWiring } from "./terminals.js";
@@ -32,6 +33,8 @@ import { attachChanges, type ChangesWiring } from "./changes.js";
 import { attachSetup, type SetupWiring } from "./setup.js";
 import { attachBuilds, type BuildsWiring } from "./builds.js";
 import { attachBrief, type BriefWiring } from "./brief.js";
+import { attachExplorer } from "./explorer.js";
+import type { ProjectFiles } from "./files.js";
 
 export interface HostOptions {
   projectDir: string;
@@ -61,15 +64,12 @@ export interface HostOptions {
   builds?: BuildsWiring;
   /** specgate's `--json` answers for the Brief view: its checks and drafts (draft-brief). */
   brief?: BriefWiring;
+  /** Where the Explorer keeps the folders left open per project (draft-explorer-tree A4). */
+  store?: StorePort;
 }
 
-/** The project's files, by paths relative to it with `/`. */
-export interface ProjectFiles {
-  list(): Promise<string[]>;
-  read(path: string): Promise<string>;
-  /** Only when the person saves (draft-editor REQ-045). */
-  write?(path: string, text: string): Promise<void>;
-}
+export type { ProjectFiles, FileRefusal } from "./files.js";
+export { FILE_REFUSALS } from "./files.js";
 
 /** A path inside the project: relative, `/`-separated, never climbing out of it. */
 function insideProject(p: unknown): p is string {
@@ -164,12 +164,37 @@ export async function startHost(options: HostOptions): Promise<Host> {
     ? await attachWorkspace(options.projectDir, options.workspace, state, broadcast)
     : null;
   const terminals = options.terminals
-    ? attachTerminals(options.projectDir, options.terminals, broadcast, (m) =>
-        rpcError(RPC_ERRORS.params, m),
+    ? attachTerminals(
+        options.projectDir,
+        options.terminals,
+        broadcast,
+        (m) => rpcError(RPC_ERRORS.params, m),
+        // A terminal opens only in a folder of the project (draft-explorer-tree A15).
+        async (dir) =>
+          options.files?.children
+            ? options.files.children(dir).then(
+                () => true,
+                () => false,
+              )
+            : false,
       )
     : null;
 
   const brief = options.brief ? attachBrief(options.brief, commands, broadcast) : null;
+
+  // The Explorer's tree and its writes (draft-explorer-tree).
+  const explorer = options.files
+    ? attachExplorer(
+        options.projectDir,
+        {
+          files: options.files,
+          ...(options.workspace?.git ? { git: options.workspace.git } : {}),
+          ...(options.store ? { store: options.store } : {}),
+        },
+        broadcast,
+        (m) => rpcError(RPC_ERRORS.params, m),
+      )
+    : null;
 
   const setup = options.setup
     ? attachSetup(
@@ -245,7 +270,8 @@ export async function startHost(options: HostOptions): Promise<Host> {
       const vars = Object.fromEntries(
         Object.entries((p.vars ?? {}) as Record<string, unknown>).filter(
           ([k, v]) =>
-            ["req", "change", "module", "key", "q", "agent"].includes(k) && typeof v === "string",
+            ["req", "change", "module", "key", "q", "agent", "path", "to"].includes(k) &&
+            typeof v === "string",
         ),
       ) as HelpVars;
       return { labels: PART_LABELS[lang], explanation: explain(p.action as ActionId, lang, vars) };
@@ -308,6 +334,7 @@ export async function startHost(options: HostOptions): Promise<Host> {
     ...setup?.handlers,
     ...builds?.handlers,
     ...brief?.handlers,
+    ...explorer?.handlers,
   };
 
   server.on("connection", (ws: WebSocket) => {

@@ -20,6 +20,7 @@ import {
 import { NodePty, hasProgram } from "@specgate-studio/adapter-pty-node";
 import { SpecgateCli, specgateBin } from "@specgate-studio/adapter-specgate-cli";
 import { inProcessSpecgate } from "@specgate-studio/adapter-specgate-api";
+import { NodeGit } from "@specgate-studio/adapter-node";
 import { nodeFiles } from "./nodeFiles.js";
 
 /** The UI bundle built by apps/ui. */
@@ -70,7 +71,7 @@ export async function serve(options: ServeOptions): Promise<Host> {
       runner:
         options.runner ??
         new NodeProcessRunner({ program: process.execPath, prefix: [specgateBin()], projectDir }),
-      files: options.files ?? nodeFiles(projectDir),
+      files: options.files ?? nodeFiles(projectDir, { git: new NodeGit() }),
       ...(options.findings ? { findings: options.findings } : {}),
       ...(options.workspace ? { workspace: options.workspace } : {}),
       ...(options.specgate
@@ -90,7 +91,7 @@ export async function serve(options: ServeOptions): Promise<Host> {
     reader: async (dir) => (await inProcessSpecgate(cliFor(dir), dir)) ?? cliFor(dir),
     // The agent an adoption saves is the one on the PATH (draft-project-setup A8).
     onPath: hasProgram,
-    files: nodeFiles,
+    files: (dir) => nodeFiles(dir, { git: new NodeGit() }),
     // The specification's findings with file and line, for the editor (REQ-043): read-only.
     findings: (dir) => async () => (await cliFor(dir).call(["validate", "--strict"])).findings,
   });

@@ -6,7 +6,18 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { MOD, PERF, browser, close, open, studio, type Page } from "./support.js";
+import {
+  MOD,
+  PERF,
+  browser,
+  close,
+  hidePanel,
+  open,
+  showPanel,
+  studio,
+  type Page,
+  openFromExplorer,
+} from "./support.js";
 
 const activityLabels = (page: Page) =>
   page.$$eval(".activity .sga", (els) => els.map((e) => e.getAttribute("aria-label")));
@@ -138,10 +149,8 @@ test("REQ-032 SCN-094: brief.md open, then proposal.md from Explorer — two tab
   const s = await studio();
   const page = await open(s);
   try {
-    await page.click('.sga[data-view="explorer"]');
-    await page.click('.row[title="docs/brief.md"]');
-    await page.click('.sga[data-view="explorer"]');
-    await page.click('.row[title="docs/specs/changes/draft-workbench/proposal.md"]');
+    await openFromExplorer(page, "docs/brief.md");
+    await openFromExplorer(page, "docs/specs/changes/draft-workbench/proposal.md");
     assert.deepEqual(
       await page.$$eval(".tab", (els) => els.map((e) => e.firstChild?.textContent)),
       ["brief.md", "proposal.md"],
@@ -165,16 +174,14 @@ test("REQ-032 SCN-103: the panel hidden, two tabs — Mod+J shows the panel, Ctr
   const s = await studio();
   const page = await open(s);
   try {
-    await page.keyboard.press(`${MOD}+J`);
+    await hidePanel(page);
     assert.equal(
       await page.$eval(".panel", (e) => (e as HTMLElement).hidden),
       true,
       "hidden first",
     );
-    await page.click('.sga[data-view="explorer"]');
-    await page.click('.row[title="docs/brief.md"]');
-    await page.click('.sga[data-view="explorer"]');
-    await page.click('.row[title="docs/specs/changes/draft-workbench/proposal.md"]');
+    await openFromExplorer(page, "docs/brief.md");
+    await openFromExplorer(page, "docs/specs/changes/draft-workbench/proposal.md");
     await page.keyboard.press(`${MOD}+J`);
     await page.keyboard.press("Control+Shift+Tab");
     assert.equal(await page.$eval(".panel", (e) => (e as HTMLElement).hidden), false);
@@ -195,6 +202,7 @@ test("REQ-032: the essential shortcuts answer — Mod+, opens Settings, Mod+Shif
     assert.equal(await current(page), "Settings");
     await page.keyboard.press(`${MOD}+Shift+E`);
     assert.equal(await current(page), "Explorer");
+    await showPanel(page);
     await page.click('.ptab:has-text("Gate")');
     await page.keyboard.press("Control+Backquote");
     assert.equal(await page.$eval('.ptab[aria-selected="true"]', (e) => e.textContent), "Terminal");

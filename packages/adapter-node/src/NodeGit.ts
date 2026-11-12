@@ -69,6 +69,35 @@ export class NodeGit implements GitPort, GitWriter {
     return files;
   }
 
+  /** Each uncommitted file with its two letters (draft-explorer-tree REQ-163). */
+  async changes(root: string): Promise<Record<string, string> | null> {
+    const r = await git(root, ["status", "--porcelain=v1", "-z", "--untracked-files=all"]);
+    if (r.code !== 0) return null;
+    const entries = r.out.split("\0");
+    const out: Record<string, string> = {};
+    for (let i = 0; i < entries.length; i++) {
+      const e = entries[i]!;
+      if (e.length < 4) continue;
+      out[e.slice(3)] = e.slice(0, 2);
+      if (e[0] === "R" || e[0] === "C") i++;
+    }
+    return out;
+  }
+
+  /**
+   * Of these paths, those git ignores (A18): `check-ignore` reads them on
+   * standard input, NUL-separated, so any name and any number of them are
+   * safe; wildcards and `!` in .gitignore are git's to read. Outside a
+   * repository none is ignored.
+   */
+  async ignored(root: string, paths: readonly string[]): Promise<Set<string>> {
+    if (paths.length === 0) return new Set();
+    const r = await git(root, ["check-ignore", "-z", "--stdin"], { input: pathspec(paths) });
+    // 0: some are ignored; 1: none is; anything else: not a repository.
+    if (r.code !== 0) return new Set();
+    return new Set(r.out.split("\0").filter(Boolean));
+  }
+
   async commit(
     root: string,
     files: readonly string[],

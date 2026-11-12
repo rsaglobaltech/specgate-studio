@@ -1,6 +1,7 @@
 import { render } from "preact";
 import { App } from "./App.js";
 import { Rpc, hostUrl } from "./rpc.js";
+import "./fonts.css";
 import "./styles.css";
 
 performance.mark("workbench:start");

@@ -3,7 +3,7 @@ import type { ClockPort } from "../ports/ClockPort.js";
 import type { FileSystemPort } from "../ports/FileSystemPort.js";
 import type { GitPort, GitWriter } from "../ports/GitPort.js";
 import type { StorePort } from "../ports/StorePort.js";
-import type { Watch, WatcherPort } from "../ports/WatcherPort.js";
+import { GIT_STATE, type Watch, type WatcherPort } from "../ports/WatcherPort.js";
 
 /** Files in memory, by absolute path with `/`; folders are implied by them. */
 export class InMemoryFileSystem implements FileSystemPort {
@@ -73,6 +73,21 @@ export class InMemoryGit implements GitPort, GitWriter {
     return repo ? [...repo.uncommitted] : null;
   }
 
+  /** Each uncommitted file's two letters: as set with `status`, `" M"` otherwise. */
+  async changes(root: string): Promise<Record<string, string> | null> {
+    const repo = this.repos[toPosix(root)];
+    if (!repo) return null;
+    const status = this.status[toPosix(root)] ?? {};
+    return Object.fromEntries(repo.uncommitted.map((f) => [f, status[f] ?? " M"]));
+  }
+
+  /** The two letters of some uncommitted files (`"??"` untracked, `"A "` added). */
+  setStatus(root: string, status: Record<string, string>): void {
+    this.status[toPosix(root)] = { ...this.status[toPosix(root)], ...status };
+  }
+
+  private readonly status: Record<string, Record<string, string>> = {};
+
   async commit(
     root: string,
     files: readonly string[],
@@ -114,6 +129,11 @@ export class InMemoryWatcher implements WatcherPort {
     const w = { root: toPosix(root), ignored, onChange };
     this.watches.add(w);
     return { close: async () => void this.watches.delete(w) };
+  }
+
+  /** Only git's state of `root` changed: a commit or a stage (draft-explorer-tree REQ-163). */
+  emitGit(root: string): void {
+    for (const w of this.watches) if (w.root === toPosix(root)) w.onChange(GIT_STATE);
   }
 
   /** A file of `root` changed. */

@@ -35,6 +35,14 @@ export const ACTIONS = [
   "build-stop-now",
   "brief-check",
   "draft-modules",
+  "explorer",
+  "file-new",
+  "folder-new",
+  "file-rename",
+  "file-delete",
+  "file-delete-permanent",
+  "copy-path",
+  "open-terminal",
 ] as const;
 export type ActionId = (typeof ACTIONS)[number];
 
@@ -674,6 +682,168 @@ export const HELP: Catalog = {
       },
     },
   },
+  // draft-explorer-tree: the tree and its menu (REQ-168, A19). No specgate command:
+  // the host writes through its file port, inside the project only.
+  explorer: {
+    en: {
+      does: "Shows the specification — spec.md, the brief, the open changes, capabilities and features — the modules with their requirements, and the project's files as a tree, one folder read when it is opened. M is a modified file, U an untracked one, A one added to the index; a dot on a folder says it holds one. The orange mark is the specification: spec.md, docs/specs and features.",
+      command: "None: the tree reads the project's folders through the studio's host.",
+      files:
+        "None: the tree writes only through its menu — new file, new folder, rename and delete.",
+      doesNot:
+        "It shows nothing .gitignore or the studio's ignore rules name, never writes outside the project, and runs no specgate command.",
+      next: "Open a file with Enter or a click; the menu of a row creates, renames or deletes.",
+      notice: { ranOk: "The tree shows {path}.", next: "Open a file" },
+    },
+    es: {
+      does: "Muestra la especificación — spec.md, el brief, los cambios abiertos, capacidades y features —, los módulos con sus requisitos, y los archivos del proyecto como árbol, leyendo una carpeta al abrirla. M es un archivo modificado, U uno sin seguimiento, A uno añadido al índice; un punto en una carpeta dice que contiene uno. La marca naranja es la especificación: spec.md, docs/specs y features.",
+      command: "Ninguno: el árbol lee las carpetas del proyecto a través del host del studio.",
+      files:
+        "Ninguno: el árbol solo escribe desde su menú — nuevo archivo, nueva carpeta, renombrar y eliminar.",
+      doesNot:
+        "No muestra nada de lo que nombran .gitignore o las reglas del studio, nunca escribe fuera del proyecto y no ejecuta ningún comando de specgate.",
+      next: "Abre un archivo con Enter o un clic; el menú de una fila crea, renombra o elimina.",
+      notice: { ranOk: "El árbol muestra {path}.", next: "Abre un archivo" },
+    },
+  },
+  "file-new": {
+    en: {
+      does: "Creates the empty file {path} and opens it in the editor.",
+      command: "None: the studio's host creates {path} through its file port.",
+      files: "{path}, new and empty.",
+      doesNot:
+        "It never overwrites a file, never writes outside the project — a link to a folder outside it included — and commits nothing.",
+      next: "Write in it and save with Ctrl/Cmd+S.",
+      notice: { ranOk: "Created {path}", next: "Save it with Ctrl/Cmd+S" },
+    },
+    es: {
+      does: "Crea el archivo vacío {path} y lo abre en el editor.",
+      command: "Ninguno: el host del studio crea {path} con su puerto de archivos.",
+      files: "{path}, nuevo y vacío.",
+      doesNot:
+        "Nunca sobrescribe un archivo ni escribe fuera del proyecto — tampoco a través de un enlace a una carpeta de fuera — y no hace commit.",
+      next: "Escribe en él y guarda con Ctrl/Cmd+S.",
+      notice: { ranOk: "Creado {path}", next: "Guárdalo con Ctrl/Cmd+S" },
+    },
+  },
+  "folder-new": {
+    en: {
+      does: "Creates the empty folder {path} and opens it in the tree.",
+      command: "None: the studio's host creates {path} through its file port.",
+      files: "{path}, a new empty folder.",
+      doesNot:
+        "It never replaces a file or folder, never writes outside the project, and commits nothing.",
+      next: "Create a file in it from its menu.",
+      notice: { ranOk: "Created the folder {path}", next: "New file in {path}" },
+    },
+    es: {
+      does: "Crea la carpeta vacía {path} y la abre en el árbol.",
+      command: "Ninguno: el host del studio crea {path} con su puerto de archivos.",
+      files: "{path}, una carpeta nueva y vacía.",
+      doesNot:
+        "Nunca sustituye un archivo o carpeta, nunca escribe fuera del proyecto y no hace commit.",
+      next: "Crea un archivo en ella desde su menú.",
+      notice: { ranOk: "Creada la carpeta {path}", next: "Nuevo archivo en {path}" },
+    },
+  },
+  "file-rename": {
+    en: {
+      does: "Renames {path} to {to}; a tab open on it follows the new name.",
+      command: "None: the studio's host renames {path} through its file port.",
+      files: "{path}, which becomes {to}.",
+      doesNot:
+        "It never overwrites an existing {to}, never moves a file outside the project, and commits nothing: git sees a deleted and a new file until you commit.",
+      next: "Commit the rename when you are ready.",
+      notice: { ranOk: "Renamed {path} to {to}", next: "git add {to}" },
+    },
+    es: {
+      does: "Renombra {path} a {to}; una pestaña abierta en él sigue el nombre nuevo.",
+      command: "Ninguno: el host del studio renombra {path} con su puerto de archivos.",
+      files: "{path}, que pasa a ser {to}.",
+      doesNot:
+        "Nunca sobrescribe un {to} que ya exista, nunca saca un archivo del proyecto y no hace commit: git ve un archivo borrado y uno nuevo hasta que lo confirmes.",
+      next: "Haz commit del cambio de nombre cuando quieras.",
+      notice: { ranOk: "Renombrado {path} a {to}", next: "git add {to}" },
+    },
+  },
+  "file-delete": {
+    en: {
+      does: "Moves {path} to the system's trash after a confirmation; a tab open on it closes.",
+      command:
+        "None: the studio's host moves {path} to the trash — Finder on macOS, the Recycle Bin on Windows, the freedesktop.org trash on Linux.",
+      files: "{path}, moved to the trash, from where it can be restored.",
+      doesNot:
+        "It removes nothing for good — Shift+Delete does that, after its own confirmation — writes nothing else, and commits nothing. With no trash reachable it deletes nothing.",
+      next: "Restore it from the trash if it was a mistake.",
+      notice: { ranOk: "Moved {path} to the trash", next: "Restore it from the trash" },
+    },
+    es: {
+      does: "Mueve {path} a la papelera del sistema tras una confirmación; una pestaña abierta en él se cierra.",
+      command:
+        "Ninguno: el host del studio mueve {path} a la papelera — el Finder en macOS, la Papelera de reciclaje en Windows, la papelera de freedesktop.org en Linux.",
+      files: "{path}, movido a la papelera, desde donde se puede recuperar.",
+      doesNot:
+        "No borra nada para siempre — eso lo hace Mayús+Supr, tras su propia confirmación —, no escribe nada más y no hace commit. Sin papelera disponible no borra nada.",
+      next: "Recupéralo de la papelera si fue un error.",
+      notice: { ranOk: "Movido {path} a la papelera", next: "Recupéralo de la papelera" },
+    },
+  },
+  "file-delete-permanent": {
+    en: {
+      does: "Removes {path} for good after a confirmation that says it cannot be undone; a tab open on it closes.",
+      command: "None: the studio's host removes {path} through its file port.",
+      files: "{path}, removed: not in the trash.",
+      doesNot:
+        "It cannot be undone by the studio, never removes anything outside the project, and commits nothing.",
+      next: "If the file was committed, git can still bring it back: `git restore {path}`.",
+      notice: { ranOk: "Deleted {path} for good", next: "git restore {path}" },
+    },
+    es: {
+      does: "Borra {path} para siempre tras una confirmación que dice que no se puede deshacer; una pestaña abierta en él se cierra.",
+      command: "Ninguno: el host del studio borra {path} con su puerto de archivos.",
+      files: "{path}, borrado: no va a la papelera.",
+      doesNot:
+        "El studio no puede deshacerlo, nunca borra nada fuera del proyecto y no hace commit.",
+      next: "Si el archivo tenía commit, git aún puede recuperarlo: `git restore {path}`.",
+      notice: { ranOk: "Borrado {path} para siempre", next: "git restore {path}" },
+    },
+  },
+  "copy-path": {
+    en: {
+      does: "Copies {path}, the path from the project's folder with `/`, to the clipboard — the form specgate and the agent use.",
+      command: "None: the studio copies the text.",
+      files: "None: no file is changed.",
+      doesNot: "It writes no file and runs nothing.",
+      next: "Paste it in the terminal, a note or the agent's prompt.",
+      notice: { ranOk: "Copied {path}", next: "Paste it" },
+    },
+    es: {
+      does: "Copia {path}, la ruta desde la carpeta del proyecto con `/`, al portapapeles — la forma que usan specgate y el agente.",
+      command: "Ninguno: el studio copia el texto.",
+      files: "Ninguno: no cambia ningún archivo.",
+      doesNot: "No escribe ningún archivo ni ejecuta nada.",
+      next: "Pégala en el terminal, en una nota o en el prompt del agente.",
+      notice: { ranOk: "Copiado {path}", next: "Pégala" },
+    },
+  },
+  "open-terminal": {
+    en: {
+      does: "Opens a new terminal of yours, with your shell, in the folder {path}.",
+      command: "None: your shell starts in {path}.",
+      files: "None: opening it changes no file; what you type is yours.",
+      doesNot: "It runs no command for you and never opens outside the project.",
+      next: "Type in it; Ctrl+` shows the terminals.",
+      notice: { ranOk: "Opened a terminal in {path}", next: "Type a command" },
+    },
+    es: {
+      does: "Abre un terminal tuyo nuevo, con tu shell, en la carpeta {path}.",
+      command: "Ninguno: tu shell arranca en {path}.",
+      files: "Ninguno: abrirlo no cambia ningún archivo; lo que escribas es tuyo.",
+      doesNot: "No ejecuta ningún comando por ti y nunca se abre fuera del proyecto.",
+      next: "Escribe en él; Ctrl+` muestra los terminales.",
+      notice: { ranOk: "Abierto un terminal en {path}", next: "Escribe un comando" },
+    },
+  },
 };
 
 /** What a placeholder reads as when the action has no value for it yet. */
@@ -687,10 +857,15 @@ const UNSET: Record<string, string> = {
   queued: "<the queued requirements>",
   agent: "<agent>",
   command: "<command>",
+  path: "<path>",
+  to: "<new name>",
 };
 
 export type HelpVars = Partial<
-  Record<"req" | "change" | "module" | "key" | "q" | "count" | "queued" | "agent", string>
+  Record<
+    "req" | "change" | "module" | "key" | "q" | "count" | "queued" | "agent" | "path" | "to",
+    string
+  >
 >;
 
 function fill(text: string, vars: Record<string, string | undefined>): string {
@@ -821,5 +996,83 @@ export function notice(action: ActionId, lang: Lang, vars: HelpVars, outcome: Ou
     ran: fill(e.notice.ranOk, all),
     wrote: e.notice.after ? `${wrote} ${fill(e.notice.after, all)}` : wrote,
     next: fill(e.notice.next, all),
+  };
+}
+
+/** How a write of the tree ended (REQ-166): done, refused for its path, or failed. */
+export type FileOutcome =
+  | { ok: true }
+  | { ok: false; refused: "outside" | "name" | "exists" | "missing" }
+  | { ok: false; failed: string };
+
+const FILE_SAY: Record<
+  Lang,
+  Record<"outside" | "name" | "exists" | "missing" | "failed" | "nothing", string>
+> = {
+  en: {
+    outside: "Not inside the project: {path} was not {done}",
+    name: "Not a name a file can take: {path} was not {done}",
+    exists: "{path} already exists: nothing was {done}",
+    missing: "{path} is not there any more: nothing was {done}",
+    failed: "{path} was not {done}: {message}",
+    nothing: "Nothing was written.",
+  },
+  es: {
+    outside: "Fuera del proyecto: {path} no se ha {done}",
+    name: "No es un nombre que pueda tener un archivo: {path} no se ha {done}",
+    exists: "{path} ya existe: no se ha {done} nada",
+    missing: "{path} ya no está: no se ha {done} nada",
+    failed: "{path} no se ha {done}: {message}",
+    nothing: "No se escribió nada.",
+  },
+};
+
+const DONE: Record<Lang, Partial<Record<ActionId, string>>> = {
+  en: {
+    "file-new": "created",
+    "folder-new": "created",
+    "file-rename": "renamed",
+    "file-delete": "deleted",
+    "file-delete-permanent": "deleted",
+  },
+  es: {
+    "file-new": "creado",
+    "folder-new": "creado",
+    "file-rename": "renombrado",
+    "file-delete": "borrado",
+    "file-delete-permanent": "borrado",
+  },
+};
+
+/**
+ * The notice of a write of the tree (REQ-166, REQ-168, A16): it names the
+ * file and what was done, or why nothing was — in both languages.
+ */
+export function fileNotice(
+  action: ActionId,
+  lang: Lang,
+  vars: HelpVars,
+  outcome: FileOutcome,
+): Notice {
+  const e = HELP[action][lang] ?? HELP[action].en!;
+  const all = { ...vars, done: DONE[lang][action] ?? "" };
+  if (outcome.ok) {
+    return {
+      tone: "ok",
+      ran: fill(e.notice.ranOk, all),
+      wrote: fill(e.files, all),
+      next: fill(e.notice.next, all),
+    };
+  }
+  const say = FILE_SAY[lang];
+  const ran =
+    "refused" in outcome
+      ? fill(say[outcome.refused], all)
+      : fill(say.failed, { ...all, message: outcome.failed });
+  return {
+    tone: "refused" in outcome ? "refused" : "failed",
+    ran,
+    wrote: say.nothing,
+    next: fill(e.next, all),
   };
 }

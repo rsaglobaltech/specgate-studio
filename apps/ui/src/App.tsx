@@ -19,8 +19,16 @@ import type {
 import { Rpc } from "./rpc.js";
 import { t, type Lang } from "./i18n.js";
 import { shortcut, type Action } from "./keys.js";
-import { FEATURES, filterFeatures, type Feature } from "./palette.js";
-import { closeTab, nextTab, openTab, previousTab, type Tabs } from "./tabs.js";
+import { FEATURES, MENUS, filterFeatures, type Feature } from "./palette.js";
+import {
+  closeTab,
+  closeTabs,
+  nextTab,
+  openTab,
+  previousTab,
+  renameTab,
+  type Tabs,
+} from "./tabs.js";
 import { BOTTOM_VIEWS, PANEL_TABS, TOP_VIEWS, type PanelTab, type ViewId } from "./views.js";
 import { Logo, ViewIcon } from "./icons.js";
 import { VirtualList } from "./VirtualList.js";
@@ -34,6 +42,7 @@ import { AdoptedAreas, SetupNext, SetupPane, type SetupStep } from "./Setup.js";
 import { Problems } from "./views/Problems.js";
 import { Brief } from "./views/Brief.js";
 import { bt } from "./views/briefText.js";
+import { Explorer } from "./Explorer.js";
 
 type Sections = Partial<
   Record<"home" | "changes" | "questions" | "matrix" | "report", SectionData>
@@ -61,11 +70,23 @@ export function App({ rpc }: { rpc: Rpc }) {
   const [lang, setLang] = useState<Lang>(initial.lang);
   const [theme, setTheme] = useState<Theme>(initial.theme);
   const [view, setView] = useState<ViewId>("home");
+  /** What the main area shows while the Explorer's panel is the open view (draft-explorer-tree A7). */
+  const [behind, setBehind] = useState<ViewId>("home");
+  /** A line to bring into view in the editor: a requirement opened from the Explorer (REQ-169). */
+  const [reveal, setReveal] = useState<{ path: string; line: number; n: number } | null>(null);
+  /** The requirement the studio is building, for the modules' dots (REQ-169). */
+  const [building, setBuilding] = useState<string | null>(null);
+  /** The drafts no person approved yet (REQ-169). */
+  const [unapproved, setUnapproved] = useState<ReadonlySet<string>>(new Set());
+  const [focusEditor, setFocusEditor] = useState(0);
+  const [openShellIn, setOpenShellIn] = useState<{ n: number; cwd: string } | null>(null);
   const [ticketPanel, setTicketPanel] = useState(false);
   const [tabs, setTabs] = useState<Tabs>({ open: [], active: null });
   const [texts, setTexts] = useState<Record<string, string>>({});
+  // Hidden until it holds something: a terminal, a command's echo, or the Developer's
+  // Ctrl/Cmd+J (draft-design-conformance REQ-172, A4).
   const [panel, setPanel] = useState<{ open: boolean; tab: PanelTab }>({
-    open: true,
+    open: false,
     tab: "terminal",
   });
   const [sidebar, setSidebar] = useState(false);
@@ -157,6 +178,11 @@ export function App({ rpc }: { rpc: Rpc }) {
   useEffect(() => {
     void openProject();
     rpc.ask("files.list", {}).then(setFiles, () => undefined);
+    // A terminal of the Developer's still open (a reload, a second tab): the panel holds it.
+    rpc.ask("terminal.list", {}).then(
+      (open) => open.length > 0 && setPanel((p) => ({ ...p, open: true })),
+      () => undefined,
+    );
     // The open folder: its branch, team and ticket (draft-workspace), kept current.
     rpc.ask("workspace.get", {}).then(setWorkspace, () => undefined);
     const offWorkspace = rpc.on("workspace.changed", ({ state }) => setWorkspace(state));
@@ -202,6 +228,25 @@ export function App({ rpc }: { rpc: Rpc }) {
     };
   }, [rpc]);
 
+  // The requirement being built and the drafts to review: the Explorer's dots (REQ-169).
+  useEffect(() => {
+    rpc.ask("live.get", {}).then(
+      (l) => setBuilding(l.building),
+      () => undefined,
+    );
+    return rpc.on("live.changed", (l) => setBuilding(l.building));
+  }, [rpc]);
+  useEffect(() => {
+    rpc.ask("changes.get", {}).then(
+      (c) => setUnapproved(new Set(c.groups.review.map((x) => x.id))),
+      () => undefined,
+    );
+  }, [rpc, sections.changes, sections.home]);
+  const refreshFiles = useCallback(
+    () => void rpc.ask("files.list", {}).then(setFiles, () => undefined),
+    [rpc],
+  );
+
   // A folder created or adopted here is read once it is a project (draft-project-setup).
   const kind = workspace?.kind;
   const wasProject = useRef<boolean | null>(null);
@@ -220,6 +265,14 @@ export function App({ rpc }: { rpc: Rpc }) {
 
   const show = useCallback((v: ViewId) => {
     performance.mark(`view:${v}`);
+    // The Explorer is a side panel: what was in the main area stays (A7).
+    if (v === "explorer") {
+      setView((old) => {
+        if (old !== "explorer") setBehind(old);
+        return "explorer";
+      });
+      return;
+    }
     setView(v);
     setTicketPanel(false);
     setTabs((tb) => ({ ...tb, active: null }));
@@ -238,7 +291,8 @@ export function App({ rpc }: { rpc: Rpc }) {
   activeRef.current = tabs.active;
 
   const openFile = useCallback(
-    (path: string) => {
+    (path: string, line?: number) => {
+      if (line) setReveal((r) => ({ path, line, n: (r?.n ?? 0) + 1 }));
       setTabs((tb) => openTab(tb, path));
       if (!EditorPane) {
         void import("./EditorPane.js").then((m) => setEditorPane(() => m.default));
@@ -327,7 +381,12 @@ export function App({ rpc }: { rpc: Rpc }) {
       } else if (r.kind === "language") setLang((l) => (l === "en" ? "es" : "en"));
       else if (r.kind === "theme") setTheme((th) => (th === "dark" ? "light" : "dark"));
       else if (r.kind === "togglePanel") setPanel((p) => ({ ...p, open: !p.open }));
-      else setSidebar((s) => !s);
+      else if (r.kind === "openFile") setPalette("files");
+      else if (r.kind === "palette") setPalette("features");
+      else if (r.kind === "newTerminal") {
+        setPanel({ open: true, tab: "terminal" });
+        setOpenShell((n) => n + 1);
+      } else setSidebar((s) => !s);
     },
     [rpc, show, runCommand, lang],
   );
@@ -423,6 +482,14 @@ export function App({ rpc }: { rpc: Rpc }) {
     questions: questions.length,
   };
   const activeFile = tabs.active;
+  /** What the main area shows: the Explorer is a side panel beside it (A7). */
+  const mainView: ViewId = view === "explorer" ? behind : view;
+  // What the open view counts, in the status bar (REQ-172, A7).
+  const answered = questionsSection?.questions?.answered ?? [];
+  const viewStatus =
+    !activeFile && mainView === "questions"
+      ? tr("status.questions", { open: questions.length, confirm: answered.length })
+      : null;
 
   return (
     <div class="wb">
@@ -431,13 +498,28 @@ export function App({ rpc }: { rpc: Rpc }) {
           <Logo />
           specgate<b>studio</b>
         </span>
+        {/* The menu bar: in the page in the browser; the desktop app's is the system's (REQ-172). */}
+        {!DESKTOP && <MenuBar lang={lang} onFeature={(f) => runFeature(f)} />}
         <button type="button" class="search" onClick={() => setPalette("features")}>
           <span>{tr("palette.search", { project: project || "…" })}</span>
           <span class="mono">{isMac ? "⌘ ⇧ P" : "Ctrl ⇧ P"}</span>
         </button>
-        <span class={`pill ${gate}`} data-testid="gate-pill">
-          <span class="dot" />
-          {tr(`status.gate.${gate}`)}
+        <span class="top-end">
+          <span class={`pill ${gate}`} data-testid="gate-pill">
+            <span class="dot" />
+            {tr(`pill.${gate}`)}
+          </span>
+          <button
+            type="button"
+            class="btn pri build"
+            data-testid="header-build"
+            onClick={() => show("build")}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M7 4l13 8-13 8z" />
+            </svg>
+            {tr("view.build")}
+          </button>
         </span>
       </header>
 
@@ -465,40 +547,87 @@ export function App({ rpc }: { rpc: Rpc }) {
           ))}
         </nav>
 
-        {sidebar && (
-          <aside class="side" aria-label={tr("explorer.files")}>
-            <h2>{tr("view.explorer")}</h2>
-            <FileList files={files} onOpen={openFile} empty={tr("explorer.empty")} />
-          </aside>
+        {(view === "explorer" || sidebar) && (
+          <Explorer
+            rpc={rpc}
+            lang={lang}
+            tr={tr}
+            files={files}
+            requirements={requirements}
+            changes={changes}
+            questions={questionsSection}
+            report={sections.report}
+            unapproved={unapproved}
+            building={building}
+            activeFile={activeFile}
+            workspaceStamp={workspace}
+            filterRef={filterRef}
+            openFile={openFile}
+            onHelp={(title, requests) => setHelp({ title, requests })}
+            onNotice={setEnded}
+            onOpenTerminal={(cwd) => {
+              setPanel({ open: true, tab: "terminal" });
+              setOpenShellIn((o) => ({ n: (o?.n ?? 0) + 1, cwd }));
+              setEnded({
+                en: {
+                  tone: "ok",
+                  ran: t("en", "tree.terminalOpened", { path: cwd || "." }),
+                  wrote: t("en", "tree.copiedWrote"),
+                  next: t("en", "tree.terminalNext"),
+                },
+                es: {
+                  tone: "ok",
+                  ran: t("es", "tree.terminalOpened", { path: cwd || "." }),
+                  wrote: t("es", "tree.copiedWrote"),
+                  next: t("es", "tree.terminalNext"),
+                },
+              });
+            }}
+            onRenamed={(from, to) => {
+              setTabs((tb) => renameTab(tb, from, to));
+              setTexts((old) => {
+                const next: Record<string, string> = {};
+                for (const [k, v] of Object.entries(old))
+                  next[k === from || k.startsWith(`${from}/`) ? to + k.slice(from.length) : k] = v;
+                return next;
+              });
+            }}
+            onDeleted={(path) =>
+              setTabs((tb) => closeTabs(tb, (p) => p === path || p.startsWith(`${path}/`)))
+            }
+            onFilesChanged={refreshFiles}
+          />
         )}
 
         <section class="main">
-          <div class="tabs" role="tablist" aria-label={tr("explorer.files")}>
-            {tabs.open.map((p) => (
-              <button
-                type="button"
-                role="tab"
-                class="tab"
-                key={p}
-                aria-selected={p === activeFile}
-                title={p}
-                onClick={() => setTabs((tb) => ({ ...tb, active: p }))}
-              >
-                {p.split("/").pop()}
-                {unsaved[p] && (
-                  <span class="dirty" aria-label={tr("editor.unsaved")}>
-                    ●
+          {tabs.open.length > 0 && (
+            <div class="tabs" role="tablist" aria-label={tr("explorer.files")}>
+              {tabs.open.map((p) => (
+                <button
+                  type="button"
+                  role="tab"
+                  class="tab"
+                  key={p}
+                  aria-selected={p === activeFile}
+                  title={p}
+                  onClick={() => setTabs((tb) => ({ ...tb, active: p }))}
+                >
+                  {p.split("/").pop()}
+                  {unsaved[p] && (
+                    <span class="dirty" aria-label={tr("editor.unsaved")}>
+                      ●
+                    </span>
+                  )}
+                  <span class="x" aria-label="×" onClick={(e) => (e.stopPropagation(), close(p))}>
+                    ×
                   </span>
-                )}
-                <span class="x" aria-label="×" onClick={(e) => (e.stopPropagation(), close(p))}>
-                  ×
-                </span>
-              </button>
-            ))}
-          </div>
+                </button>
+              ))}
+            </div>
+          )}
           <div
-            class={`content ${activeFile || view === "explorer" || view === "traceability" ? "flush" : ""}`}
-            data-view={activeFile ? "file" : view}
+            class={`content ${activeFile || mainView === "traceability" ? "flush" : ""}`}
+            data-view={activeFile ? "file" : mainView}
           >
             {activeFile ? (
               EditorPane && texts[activeFile] !== undefined ? (
@@ -510,6 +639,8 @@ export function App({ rpc }: { rpc: Rpc }) {
                   labels={lensLabels}
                   commands={LENS_COMMANDS}
                   register={(api) => (editorApi.current = api)}
+                  reveal={reveal}
+                  focus={focusEditor}
                   onEdit={(path, value) => {
                     setUnsaved((u) => {
                       if (value !== texts[path]) return { ...u, [path]: true };
@@ -566,7 +697,7 @@ export function App({ rpc }: { rpc: Rpc }) {
               )
             ) : (
               <View
-                view={view}
+                view={mainView}
                 tr={tr}
                 lang={lang}
                 theme={theme}
@@ -702,6 +833,7 @@ export function App({ rpc }: { rpc: Rpc }) {
                 echo={echo}
                 showStudio={showStudio}
                 openShell={openShell}
+                openShellIn={openShellIn}
                 labels={{
                   newTerminal: tr("term.new"),
                   close: tr("term.close"),
@@ -742,6 +874,7 @@ export function App({ rpc }: { rpc: Rpc }) {
         </span>
         <span data-testid="status-gate">{tr(`status.gate.${gate}`)}</span>
         <span data-testid="status-progress">{tr("status.progress", { done, total })}</span>
+        {viewStatus && <span data-testid="status-view">{viewStatus}</span>}
         <span class="end" data-testid="status-cost">
           {tr("status.cost")} $0.00
         </span>
@@ -756,7 +889,7 @@ export function App({ rpc }: { rpc: Rpc }) {
           files={files}
           onClose={() => setPalette(null)}
           onFeature={runFeature}
-          onFile={(p) => (setPalette(null), openFile(p))}
+          onFile={(p) => (setPalette(null), openFile(p), setFocusEditor((n) => n + 1))}
           onHelp={(f) => {
             setPalette(null);
             setHelp({
@@ -873,33 +1006,6 @@ function ActivityButton(props: {
   );
 }
 
-function FileList(props: {
-  files: string[];
-  onOpen: (p: string) => void;
-  empty: string;
-  filter?: string;
-}) {
-  const shown = props.filter
-    ? props.files.filter((f) => f.toLowerCase().includes(props.filter!.toLowerCase()))
-    : props.files;
-  if (shown.length === 0)
-    return (
-      <p class="muted" style="padding:0 12px">
-        {props.empty}
-      </p>
-    );
-  return (
-    <VirtualList
-      count={shown.length}
-      row={(i) => (
-        <button type="button" class="row" onClick={() => props.onOpen(shown[i]!)} title={shown[i]}>
-          {shown[i]}
-        </button>
-      )}
-    />
-  );
-}
-
 interface ViewProps {
   view: ViewId;
   rpc: Rpc;
@@ -943,7 +1049,6 @@ interface ViewProps {
 }
 
 function View(p: ViewProps) {
-  const [filter, setFilter] = useState("");
   const title = <h1>{p.tr(`view.${p.view}`)}</h1>;
   switch (p.view) {
     case "home": {
@@ -1020,32 +1125,6 @@ function View(p: ViewProps) {
         </>
       );
     }
-    case "explorer":
-      return (
-        <div style="display:flex;flex-direction:column;height:100%">
-          <h2
-            style="margin:0;padding:12px 12px 8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase"
-            class="muted"
-          >
-            {p.tr("view.explorer")}
-          </h2>
-          <input
-            ref={p.filterRef}
-            class="filter"
-            value={filter}
-            onInput={(e) => setFilter((e.target as HTMLInputElement).value)}
-            aria-label={p.tr("explorer.files")}
-          />
-          <div style="flex:1;min-height:0">
-            <FileList
-              files={p.files}
-              onOpen={p.openFile}
-              empty={p.tr("explorer.empty")}
-              filter={filter}
-            />
-          </div>
-        </div>
-      );
     case "changes":
       return (
         <>
@@ -1302,5 +1381,72 @@ function AskDialog(props: {
         </div>
       </div>
     </div>
+  );
+}
+
+/** The desktop app: the operating system draws the menu (REQ-172, A5). */
+const DESKTOP =
+  typeof window !== "undefined" && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window);
+if (typeof window !== "undefined")
+  (window as unknown as { __studio?: Record<string, unknown> }).__studio = {
+    ...((window as unknown as { __studio?: Record<string, unknown> }).__studio ?? {}),
+    menus: MENUS,
+  };
+
+/** The menu bar in the page (REQ-172, A5): each menu's entries are the palette's features. */
+function MenuBar(props: { lang: Lang; onFeature: (f: Feature) => void }) {
+  const [open, setOpen] = useState<string | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: Event) => {
+      if (!(e.target as Element | null)?.closest?.(".menubar")) setOpen(null);
+    };
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(null);
+    window.addEventListener("mousedown", away, true);
+    window.addEventListener("keydown", esc, true);
+    return () => {
+      window.removeEventListener("mousedown", away, true);
+      window.removeEventListener("keydown", esc, true);
+    };
+  }, [open]);
+  return (
+    <nav class="menubar" aria-label={props.lang === "es" ? "Menú" : "Menu"}>
+      {MENUS.map((m) => (
+        <div class="menu" key={m.id}>
+          <button
+            type="button"
+            data-menu={m.id}
+            aria-expanded={open === m.id}
+            onClick={() => setOpen((o) => (o === m.id ? null : m.id))}
+            onMouseEnter={() => open && setOpen(m.id)}
+          >
+            {m.title[props.lang]}
+          </button>
+          {open === m.id && (
+            <div class="menu-list" role="menu">
+              {m.items.map((id) => {
+                const f = FEATURES.find((x) => x.id === id);
+                if (!f) return null;
+                return (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    key={id}
+                    data-feature={id}
+                    onClick={() => {
+                      setOpen(null);
+                      props.onFeature(f);
+                    }}
+                  >
+                    <span>{f.title[props.lang]}</span>
+                    {f.command && <span class="mono">{f.command}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ))}
+    </nav>
   );
 }

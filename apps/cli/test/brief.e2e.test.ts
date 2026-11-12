@@ -7,7 +7,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { Finding, SpecgateAnswer } from "@specgate-studio/core";
-import { MOD, close, open, studio, untilTerm, type Page } from "./support.js";
+import {
+  MOD,
+  close,
+  open,
+  showPanel,
+  studio,
+  untilTerm,
+  type Page,
+  openFromExplorer,
+} from "./support.js";
 
 /** sprich's brief (A1): `pedidos` and `pagos`, and the notes of the call outside both. */
 const BRIEF = `---
@@ -74,8 +83,7 @@ function sprich() {
 /** Opens docs/brief.md in the editor, sets its text as the Developer would type it, and saves. */
 async function saveBrief(page: Page, text: string) {
   if (!(await page.$('.tab[title="docs/brief.md"]'))) {
-    await page.click('.sga[data-view="explorer"]');
-    await page.click('.row[title="docs/brief.md"]');
+    await openFromExplorer(page, "docs/brief.md");
   } else await page.click('.tab[title="docs/brief.md"]');
   await page.waitForSelector(".monaco-editor .view-lines");
   await page.evaluate((t) => {
@@ -92,6 +100,7 @@ test('REQ-072 SCN-213: on the desktop, "Shipping is free above some amount" save
   const s = await sprich();
   const page = await open(s);
   try {
+    await showPanel(page);
     await page.click('.ptab:has-text("Problems")');
     await page.waitForSelector('[data-panel="problems"] [data-empty]');
     const vague = BRIEF.replace("Orders are kept a year.", "Shipping is free above some amount.");
@@ -125,6 +134,7 @@ test('REQ-072 SCN-214: in the browser, the rule rewritten as "Shipping is free a
   const s = await sprich();
   const page = await open(s);
   try {
+    await showPanel(page);
     await page.click('.ptab:has-text("Problems")');
     await saveBrief(
       page,

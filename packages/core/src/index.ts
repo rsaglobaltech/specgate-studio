@@ -46,8 +46,10 @@ export {
   LANGS,
   PART_LABELS,
   explain,
+  fileNotice,
   missingTranslations,
   notice,
+  type FileOutcome,
   type ActionId,
   type Catalog,
   type Explanation,
@@ -90,7 +92,7 @@ export {
 } from "./domain/workspace.js";
 export type { FileSystemPort } from "./ports/FileSystemPort.js";
 export type { GitPort, GitWriter } from "./ports/GitPort.js";
-export { ANY_FILE, type Watch, type WatcherPort } from "./ports/WatcherPort.js";
+export { ANY_FILE, GIT_STATE, type Watch, type WatcherPort } from "./ports/WatcherPort.js";
 export type { StorePort } from "./ports/StorePort.js";
 export type { ClockPort } from "./ports/ClockPort.js";
 export { Workspace, type WorkspaceListener } from "./application/Workspace.js";
@@ -207,3 +209,18 @@ export {
 } from "./domain/brief.js";
 export { quoted } from "./domain/args.js";
 export { Brief, type CommandRunner, type DraftResult } from "./application/Brief.js";
+export {
+  OPEN_FOLDERS_KEY,
+  OPEN_FOLDERS_LIMIT,
+  childPath,
+  cleanOpenFolders,
+  foldersAbove,
+  foldersWithChanges,
+  letterOf,
+  parentOf,
+  sortEntries,
+  validName,
+  type GitLetter,
+  type OpenFolders,
+  type TreeEntry,
+} from "./domain/explorer.js";

@@ -35,12 +35,14 @@ export class Terminals {
     private readonly options: { exitWaitMs?: number } = {},
   ) {}
 
-  open(cols: number, rows: number): { id: string; name: string } {
+  /** A terminal in the project's folder, or in `sub`, a folder inside it (draft-explorer-tree A15). */
+  open(cols: number, rows: number, sub?: string): { id: string; name: string } {
     const id = `t${this.next++}`;
     const n = (this.counters.get(this.where.shell.name) ?? 0) + 1;
     this.counters.set(this.where.shell.name, n);
     const name = `${this.where.shell.name} ${n}`;
-    const pty = this.port.spawn({ cwd: this.where.cwd, cols, rows, shell: this.where.shell });
+    const cwd = sub ? inFolder(this.where.cwd, sub) : this.where.cwd;
+    const pty = this.port.spawn({ cwd, cols, rows, shell: this.where.shell });
     let exited!: () => void;
     const t: Open = {
       id,
@@ -113,4 +115,11 @@ export class Terminals {
     if (!t) throw new Error(`no terminal ${id}`);
     return t;
   }
+}
+
+/** `sub` (relative, `/`) inside `root`, with the separator `root` uses: `\\` on Windows. */
+export function inFolder(root: string, sub: string): string {
+  const sep = root.includes("\\") && !root.includes("/") ? "\\" : "/";
+  const parts = sub.split("/").filter(Boolean);
+  return [root.replace(/[\\/]+$/, ""), ...parts].join(sep);
 }

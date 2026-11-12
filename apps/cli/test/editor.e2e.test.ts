@@ -6,7 +6,7 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { MOD, close, open, studio, untilTerm, type Page } from "./support.js";
+import { MOD, close, open, studio, untilTerm, openFromExplorer, type Page } from "./support.js";
 
 const SPEC_PATH = "docs/specs/changes/draft-pedidos/specs/pedidos/spec.md";
 const SPEC = [
@@ -54,8 +54,7 @@ const sprich = () =>
 
 /** Opens the spec from Explorer and waits for Monaco to show it with its actions. */
 async function openSpec(page: Page) {
-  await page.click('.sga[data-view="explorer"]');
-  await page.click(`.row[title="${SPEC_PATH}"]`);
+  await openFromExplorer(page, SPEC_PATH);
   await page.waitForSelector(".monaco-editor .view-lines");
   await page.waitForFunction(
     () => document.querySelectorAll(".codelens-decoration a").length >= 10,

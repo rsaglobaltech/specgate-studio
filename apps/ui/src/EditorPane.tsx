@@ -16,6 +16,12 @@ export interface EditorPaneProps {
   onEdit: (path: string, value: string) => void;
   onLens: (action: LensAction, req: string) => void;
   onAnswer: (q: { id: string; change: string }, answer: string) => void;
+  /** A line to show and put the cursor on, bumped with `n` (a requirement opened, REQ-169). */
+  reveal?: { path: string; line: number; n: number } | null;
+  /** Bumped when the editor should take the keyboard: a file opened from the palette. */
+  focus?: number;
+  /** The line the cursor is on, for the breadcrumb and the status bar (REQ-177). */
+  onCursor?: (path: string, line: number, column: number) => void;
   register: (api: {
     value: (path: string) => string | null;
     discard: (path: string) => void;
@@ -93,6 +99,10 @@ export default function EditorPane(p: EditorPaneProps) {
       renderValidationDecorations: "on",
     });
     editor.current = ed;
+    ed.onDidChangeCursorPosition((e) => {
+      const path = props.current.path;
+      props.current.onCursor?.(path, e.position.lineNumber, e.position.column);
+    });
     p.register({
       value: (path) => models.get(path)?.getValue() ?? null,
       // Don't save: the edits are dropped; the file is read again when reopened.
@@ -116,6 +126,19 @@ export default function EditorPane(p: EditorPaneProps) {
     }
     if (ed.getModel() !== model) ed.setModel(model);
   }, [p.path, p.text]);
+
+  useEffect(() => {
+    if (p.focus) editor.current?.focus();
+  }, [p.focus, p.path]);
+
+  // A requirement opened from the Explorer: its heading in view, the cursor on it (REQ-169).
+  useEffect(() => {
+    const r = p.reveal;
+    const ed = editor.current;
+    if (!r || !ed || r.path !== p.path) return;
+    ed.revealLineNearTop(r.line);
+    ed.setPosition({ lineNumber: r.line, column: 1 });
+  }, [p.reveal?.n, p.path, p.text]);
 
   useEffect(() => {
     monaco.editor.setTheme(p.theme === "dark" ? "studio-dark" : "studio-light");

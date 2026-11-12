@@ -7,6 +7,14 @@ export interface GitPort {
   branch(root: string): Promise<string | null>;
   /** Every uncommitted file — modified, added, deleted, renamed or untracked — relative, with `/`. */
   uncommitted(root: string): Promise<string[] | null>;
+  /**
+   * Each uncommitted file with git's two-letter status of `status
+   * --porcelain=v1` (`" M"`, `"A "`, `"??"`), for the Explorer's letters
+   * (draft-explorer-tree REQ-163). `null` outside a repository.
+   */
+  changes?(root: string): Promise<Record<string, string> | null>;
+  /** Of these paths (relative, `/`), those git ignores — wildcards and `!` included (A18). */
+  ignored?(root: string, paths: readonly string[]): Promise<Set<string>>;
 }
 
 /**
