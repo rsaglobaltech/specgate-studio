@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-071 — The brief edited as a form and as markdown, one file
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL let the Developer edit the brief both as a form and as markdown, both writing `docs/brief.md`, and SHALL keep byte for byte every line of the file the form does not hold when the form saves it.
 
@@ -70,7 +70,7 @@ The system SHALL, when the Developer presses "Draft the modules", run `specgate 
 
 ### Requirement: REQ-074 — The client's text proposes the form; nothing is saved until accepted
 
-<!-- specgate:trace actor=Developer kind=business-rule -->
+<!-- specgate:trace status=Implemented actor=Developer kind=business-rule -->
 
 The system SHALL, when the Developer pastes the client's text into the Brief view, have the agent propose the form's fields from it and show that proposal, and SHALL write nothing to `docs/brief.md` until the Developer accepts it; discarding the proposal SHALL leave the file as it was.
 
