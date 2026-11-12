@@ -70,6 +70,24 @@ test("REQ-031 SCN-092: Report opened in the browser — the same eleven views as
   }
 });
 
+test("REQ-031 SCN-092: Report counts the requirements Home counts — open changes' included", async () => {
+  // Found by the design audit: Report read `report --json`'s total, which
+  // leaves out the requirements of open changes, and said 1 where Home said 3.
+  const s = await studio({ rows: 3, sections: { report: { total: 1 } } });
+  const page = await open(s);
+  try {
+    await page.click('.sga[data-view="report"]');
+    await page.waitForSelector('[data-testid="report-total"]');
+    assert.equal(await page.textContent('[data-testid="report-total"]'), "3");
+    assert.match(
+      (await page.textContent('[data-testid="report-split"]')) ?? "",
+      /1 in the spec · 2 in open changes/,
+    );
+  } finally {
+    await close(s, page);
+  }
+});
+
 // ── REQ-032 ─────────────────────────────────────────────────────────────
 
 test("REQ-032 SCN-093: sprich on feat/mvp-fase-1 — the status bar shows the branch, no ticket, the gate, done of the total, the cost; the panel's five tabs", async () => {

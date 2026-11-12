@@ -1120,7 +1120,18 @@ function View(p: ViewProps) {
           {title}
           <div class="card">
             <div class="k">{p.tr("home.requirements")}</div>
-            <div class="v">{p.reportTotal ?? "—"}</div>
+            {/* The same count as Home: `report --json`'s total leaves out open changes. */}
+            <div class="v" data-testid="report-total">
+              {p.total}
+            </div>
+            {p.reportTotal !== undefined && (
+              <div class="muted" data-testid="report-split">
+                {p.tr("report.split", {
+                  spec: String(p.reportTotal),
+                  changes: String(Math.max(0, p.total - p.reportTotal)),
+                })}
+              </div>
+            )}
           </div>
         </>
       );

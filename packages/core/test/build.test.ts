@@ -159,3 +159,101 @@ test("REQ-101: a report or config specgate cannot give leaves the list, without 
   assert.equal(list.estimate, null);
   assert.equal(list.agent, null);
 });
+
+test("REQ-101: a requirement an open question blocks waits, though status does not say so", () => {
+  // Found by the design audit: `status --json` lists REQ-002 as NEEDS_EVERYTHING
+  // while Q1 of add-login blocks it; Build listed it as ready.
+  const status = {
+    requirements: [
+      { id: "REQ-001", title: "Sign in", category: "NEEDS_EVERYTHING", change: "add-login" },
+      {
+        id: "REQ-002",
+        title: "Lock the account",
+        category: "NEEDS_EVERYTHING",
+        change: "add-login",
+      },
+    ],
+  };
+  const questions = {
+    questions: { open: [{ id: "Q1", change: "add-login", blocks: ["REQ-002"] }], answered: [] },
+  };
+  const list = buildList(status, new Set(), null, {}, questions);
+  assert.deepEqual(
+    list.ready.map((r) => r.id),
+    ["REQ-001"],
+  );
+  assert.deepEqual(list.waiting, [
+    {
+      id: "REQ-002",
+      title: "Lock the account",
+      change: "add-login",
+      why: "question",
+      question: "Q1",
+    },
+  ]);
+});
+
+test("REQ-101: a change no person approved waits for its review, drafted from a brief or not", async () => {
+  const status = {
+    requirements: [
+      { id: "REQ-001", title: "Sign in", category: "NEEDS_EVERYTHING", change: "add-login" },
+      {
+        id: "REQ-030",
+        title: "Cancel an order",
+        category: "NEEDS_EVERYTHING",
+        change: "draft-pedidos",
+      },
+    ],
+  };
+  const answers: Record<string, SpecgateAnswer> = {
+    "harness report": { data: null, findings: [], exitCode: 0 },
+    "config list": { data: { config: {} }, findings: [], exitCode: 0 },
+    "change show add-login": {
+      data: { change: { id: "add-login", config: {} } },
+      findings: [],
+      exitCode: 0,
+    },
+    "change show draft-pedidos": {
+      data: { change: { id: "draft-pedidos", config: { approved: "2026-11-10" } } },
+      findings: [],
+      exitCode: 0,
+    },
+  };
+  const builds = new Builds({
+    specgate: {
+      call: async (args) => {
+        const a = answers[args.join(" ")];
+        if (!a) throw new Error(`no answer for ${args.join(" ")}`);
+        return a;
+      },
+    },
+    sections: {
+      section: async (s) =>
+        s === "home"
+          ? status
+          : s === "changes"
+            ? { changes: [{ id: "add-login" }, { id: "draft-pedidos" }] }
+            : { questions: { open: [], answered: [] } },
+    },
+  });
+  const list = await builds.list();
+  assert.deepEqual(
+    list.ready.map((r) => r.id),
+    ["REQ-030"],
+  );
+  assert.deepEqual(
+    list.waiting.map((w) => [w.id, w.why]),
+    [["REQ-001", "review"]],
+  );
+});
+
+test("REQ-101: the agent's own question, asked while it builds, is answered in Live and does not take the requirement out", () => {
+  const status = {
+    requirements: [{ id: "REQ-030", title: "Cancel", category: "NEEDS_EVERYTHING" }],
+  };
+  const questions = { questions: { open: [{ id: "Q3", blocks: ["REQ-030"], asked: "build" }] } };
+  assert.deepEqual(
+    buildList(status, new Set(), null, {}, questions).ready.map((r) => r.id),
+    ["REQ-030"],
+  );
+});

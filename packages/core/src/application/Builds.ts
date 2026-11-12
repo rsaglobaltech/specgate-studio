@@ -87,9 +87,10 @@ export class Builds {
   constructor(private readonly options: BuildsOptions) {}
 
   async list(): Promise<BuildList> {
-    const [status, changes] = await Promise.all([
+    const [status, changes, questions] = await Promise.all([
       this.options.sections.section("home"),
       this.options.sections.section("changes"),
+      this.options.sections.section("questions").catch(() => null),
     ]);
     const shows: Record<string, unknown> = {};
     const [report, config] = await Promise.all([
@@ -99,8 +100,14 @@ export class Builds {
         shows[change] = await this.data({ name: "change-show", change });
       }),
     ]);
-    // A draft no person approved waits for its review (A2).
+    // A change no person approved waits for its review (A2): a draft of the
+    // brief, and a change proposed without one alike.
     const review = new Set(groupChanges(changes, status, shows).groups.review.map((c) => c.id));
+    for (const [id, show] of Object.entries(shows)) {
+      const config = (show as { change?: { config?: Record<string, unknown> } } | null)?.change
+        ?.config;
+      if (config && config.approved == null) review.add(id);
+    }
     const settings = (config as { config?: Record<string, unknown> } | null)?.config ?? {};
     return buildList(
       status,
@@ -109,6 +116,7 @@ export class Builds {
       Object.fromEntries(
         Object.entries(settings).filter((e): e is [string, string] => typeof e[1] === "string"),
       ),
+      questions,
     );
   }
 
