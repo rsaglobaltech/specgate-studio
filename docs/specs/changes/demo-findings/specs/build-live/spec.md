@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-101 — Build lists what is ready: each title with its estimate below, who codes, REQ-000 only when named; what is ready to close, with "Aplicar"
 
-<!-- specgate:trace feature=features/build-live/REQ-101.feature actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented feature=features/build-live/REQ-101.feature actor=Developer kind=functional -->
 
 The system SHALL list in Build every requirement ready to build — approved, with its scenario and no open question blocking it — each with its id, its title on the row's full width, wrapped and never cut to nothing, its estimate on a line below the title, and the agent that will code it, with no horizontal scroll; SHALL say for each one left out why it is not ready; SHALL leave out REQ-000, the adoption baseline, unless the Developer names it; and SHALL list apart, under "Listos para cerrar" / "Ready to close", every requirement specgate reports as only its status left to update (`NEEDS_STATUS_UPDATE`, "its test is in place"), each with an "Aplicar" / "Apply" button and its "?", the button running `specgate apply <REQ>` in the terminal with its notice.
 
@@ -48,7 +48,7 @@ The system SHALL list in Build every requirement ready to build — approved, wi
 
 ### Requirement: REQ-103 — Live as the "En vivo" board: the harness's stages, a header with counts, time and usage, the queue and what is finished
 
-<!-- specgate:trace feature=features/build-live/REQ-103.feature actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented feature=features/build-live/REQ-103.feature actor=Developer kind=functional -->
 
 The system SHALL show in Live, while a build runs, the requirement in progress with its title and "intento N de M" and its branch; its steps as the harness's stages — "Rama creada", the setup with its command, "Agente escribiendo · test primero, después el código", "Gate: validate", "Gate: tests", "Gate: arquitectura" and "Aplicar · commit en su rama" — each marked ✓ done, ● running, ○ waiting or ✗ failed, with the time it took as specgate's events give it or, while it runs, a timer that advances every second; "Rama creada" with "—" while specgate gives no time of its own for it, never the wait before the requirement's first event; a header with the requirements passed, running and failed, the time elapsed, and the usage so far — tokens, turns and the dollar figure as REQ-211 labels it; on the left the modules and the queue, each queued requirement with its estimate; and on the right NECESITA ATENCIÓN and TERMINADOS, each finished requirement with its time and its usage. From the moment the run starts a step SHALL be running, so Live never shows an empty step list while a build runs. Each queued requirement's run SHALL be echoed in the studio's terminal with its own button, "Construir <REQ>", whichever button was pressed last.
 
@@ -94,7 +94,7 @@ The system SHALL show in Live, while a build runs, the requirement in progress w
 
 ### Requirement: REQ-211 — What the agent spent as usage, its dollars "≈ precio de API" unless the Developer pays per use
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL show, wherever it shows what the agent spent — the status bar, Home's agent card, Live's header and TERMINADOS — the usage: the tokens, the turns when specgate gives them, and the dollar figure Claude Code reports labelled "≈ precio de API" / "≈ API price", because on a Claude subscription that figure is what the work would cost at API prices, not a charge, and specgate's events do not say how the agent is billed; and SHALL label the figure "Coste" / "Cost" only once the Developer set, from the palette's "Facturación: pago por uso de la API" / "Billing: pay per use of the API", that they pay per use, a choice remembered on this machine with its "?" and its notice.
 
