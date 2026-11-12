@@ -8,6 +8,7 @@ export type Run =
   | { kind: "check" }
   | { kind: "language" }
   | { kind: "theme" }
+  | { kind: "billing" }
   | { kind: "togglePanel" }
   | { kind: "toggleSidebar" }
   | { kind: "openFile" }
@@ -167,6 +168,18 @@ export const FEATURES: readonly Feature[] = [
     title: { en: "Switch theme (dark / light)", es: "Cambiar tema (oscuro / claro)" },
     command: null,
     run: { kind: "theme" },
+  },
+  {
+    // The agent's dollars as what the Developer pays, or ≈ API price on a subscription (demo-findings REQ-211).
+    id: "settings.billing",
+    area: "project",
+    action: "billing",
+    title: {
+      en: "Billing: pay per use of the API",
+      es: "Facturación: pago por uso de la API",
+    },
+    command: null,
+    run: { kind: "billing" },
   },
   {
     id: "layout.panel",

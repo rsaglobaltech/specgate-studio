@@ -182,6 +182,43 @@ export function agentCostOf(
   return { total: Math.round(total * 100) / 100, minutes, runs: num(r.runs) };
 }
 
+/**
+ * What the agent spent, as usage (demo-findings REQ-211): the tokens of every
+ * profile `harness report --json` counts, and its dollars — measured, else
+ * estimated, else none. On a subscription they are what the work would cost
+ * at API prices, not a charge: the UI labels them so.
+ */
+export interface AgentUsage {
+  tokens: number;
+  dollars: number | null;
+  minutes: number;
+  runs: number;
+}
+
+export function agentUsageOf(report: unknown): AgentUsage | null {
+  const r = (report as { report?: Record<string, unknown> } | null)?.report;
+  if (!r || typeof r !== "object") return null;
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+  const total = (v: unknown) => {
+    const n = (v as { total?: unknown } | null | undefined)?.total;
+    return typeof n === "number" && Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
+  };
+  const profiles = Array.isArray(r.costByProfile) ? (r.costByProfile as unknown[]) : [];
+  const tokens = profiles.reduce<number>((sum, p) => {
+    const t = ((p as { tokens?: Record<string, unknown> | null } | null)?.tokens ?? {}) as Record<
+      string,
+      unknown
+    >;
+    return sum + num(t.input) + num(t.output) + num(t.cacheRead) + num(t.cacheWrite);
+  }, 0);
+  return {
+    tokens,
+    dollars: total(r.measuredCost) ?? total(r.estimatedCost),
+    minutes: Math.round((num(r.msPerDelivered) * num(r.passed)) / 60_000),
+    runs: num(r.runs),
+  };
+}
+
 /** Everything Home shows beyond the sections (REQ-173). */
 export interface HomeView {
   next: NextStep;
@@ -189,6 +226,8 @@ export interface HomeView {
   review: string[];
   route: RouteState[];
   cost: { total: number; minutes: number; runs: number } | null;
+  /** What the agent spent, as usage (demo-findings REQ-211). */
+  usage: AgentUsage | null;
   activity: Activity[];
 }
 

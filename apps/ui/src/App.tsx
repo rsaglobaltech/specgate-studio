@@ -25,6 +25,7 @@ import type {
   CommandEvent,
   Finding,
   Lang as NoticeLang,
+  LiveView,
   Notice,
   Question,
   QuestionsSection,
@@ -64,6 +65,8 @@ import { Changes } from "./views/Changes.js";
 import { Build } from "./views/Build.js";
 import { Live } from "./views/Live.js";
 import { loadSettings, saveSettings, type Theme } from "./settings.js";
+import { Echoes } from "./echo.js";
+import { statusUsage } from "./usage.js";
 import Questions from "./views/Questions.js";
 import { AdoptedAreas, NewProject, SetupNext, SetupPane, type SetupStep } from "./Setup.js";
 import { Problems } from "./views/Problems.js";
@@ -99,6 +102,10 @@ export function App({ rpc }: { rpc: Rpc }) {
   const initial = useMemo(() => loadSettings(), []);
   const [lang, setLang] = useState<Lang>(initial.lang);
   const [theme, setTheme] = useState<Theme>(initial.theme);
+  /** The Developer pays per use of the API: the agent's dollars read as cost (demo-findings REQ-211). */
+  const [perUse, setPerUse] = useState<boolean>(initial.perUse);
+  /** What the last run spent, for the status bar (REQ-211): Live's totals. */
+  const [spent, setSpent] = useState<{ tokens: number; dollars: number | null } | null>(null);
   const [view, setView] = useState<ViewId>("home");
   /** What the main area shows while the Explorer's panel is the open view (draft-explorer-tree A7). */
   const [behind, setBehind] = useState<ViewId>("home");
@@ -188,7 +195,7 @@ export function App({ rpc }: { rpc: Rpc }) {
   };
   const cloneInto = (repo: string, parent: string) => {
     setChoosing(null);
-    pendingLabel.current = tr("nofolder.clone");
+    echoes.current.announce(tr("nofolder.clone"));
     setPanel({ open: true, tab: "terminal" });
     setShowStudio((n) => n + 1);
     void rpc.ask("folder.clone", { repo, parent }).then(
@@ -243,8 +250,8 @@ export function App({ rpc }: { rpc: Rpc }) {
   const [echo, setEcho] = useState("");
   const [showStudio, setShowStudio] = useState(0);
   const [openShell, setOpenShell] = useState(0);
-  /** The button whose command runs next: the echo names it (REQ-053). */
-  const pendingLabel = useRef<string | null>(null);
+  /** The buttons whose commands run next, a build's kept by its requirement: the echo names them (REQ-053, REQ-103). */
+  const echoes = useRef(new Echoes());
   /** The button whose agent runs, one module after another: the echo names it for each (draft-brief). */
   const draftLabel = useRef<string | null>(null);
   const [briefRead, setBriefRead] = useState(0);
@@ -282,8 +289,8 @@ export function App({ rpc }: { rpc: Rpc }) {
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme;
     document.documentElement.lang = lang;
-    saveSettings({ lang, theme });
-  }, [lang, theme]);
+    saveSettings({ lang, theme, perUse });
+  }, [lang, theme, perUse]);
 
   const openProject = useCallback(
     () =>
@@ -338,10 +345,10 @@ export function App({ rpc }: { rpc: Rpc }) {
     const offCommand = rpc.on("command.event", (e: CommandEvent) => {
       if (e.type === "started") {
         setOutput((o) => `${o}$ ${e.command}\n`);
-        const label =
-          pendingLabel.current ??
-          (draftLabel.current && / --agent /.test(e.command) ? draftLabel.current : e.command);
-        pendingLabel.current = null;
+        const label = echoes.current.started(
+          e.command,
+          draftLabel.current && / --agent /.test(e.command) ? draftLabel.current : null,
+        );
         setEcho((t) => `${t}\u25b6 "${label}" \u00b7 ${e.command}\n`);
         if (e.command === "specgate check") setGate("running");
       } else if (e.type === "output") {
@@ -364,11 +371,14 @@ export function App({ rpc }: { rpc: Rpc }) {
 
   // The requirement being built and the drafts to review: the Explorer's dots (REQ-169).
   useEffect(() => {
-    rpc.ask("live.get", {}).then(
-      (l) => setBuilding(l.building),
-      () => undefined,
-    );
-    return rpc.on("live.changed", (l) => setBuilding(l.building));
+    // What the run spent, for the status bar (demo-findings REQ-211).
+    const seen = (l: LiveView) => {
+      setBuilding(l.building);
+      const t = l.totals;
+      setSpent({ tokens: t.input + t.output + t.cacheRead + t.cacheWrite, dollars: t.cost });
+    };
+    rpc.ask("live.get", {}).then(seen, () => undefined);
+    return rpc.on("live.changed", seen);
   }, [rpc]);
   // The drafts to review come with what Home and the Explorer read (REQ-169, REQ-173).
   const onReview = useCallback(
@@ -491,7 +501,19 @@ export function App({ rpc }: { rpc: Rpc }) {
 
   /** Names the button whose command runs next, in the terminal's echo (REQ-053). */
   const announce = useCallback((label: string) => {
-    pendingLabel.current = label;
+    echoes.current.announce(label);
+    setPanel({ open: true, tab: "terminal" });
+    setShowStudio((n) => n + 1);
+  }, []);
+
+  /**
+   * Names the button that builds `req`: kept by the requirement, so a queued
+   * build is echoed with its own once its turn comes (demo-findings REQ-103);
+   * `null` forgets it, for a build refused.
+   */
+  const announceBuild = useCallback((req: string, label: string | null) => {
+    if (label === null) return echoes.current.forget(req);
+    echoes.current.build(req, label);
     setPanel({ open: true, tab: "terminal" });
     setShowStudio((n) => n + 1);
   }, []);
@@ -519,13 +541,13 @@ export function App({ rpc }: { rpc: Rpc }) {
       try {
         const r = await rpc.ask("changes.redraft", { change });
         if (!r.ok) {
-          pendingLabel.current = null;
+          echoes.current.forget();
           if (r.notice) setEnded(r.notice);
           else setNotice(r.message);
         }
         return r;
       } catch (e) {
-        pendingLabel.current = null;
+        echoes.current.forget();
         const message = e instanceof Error ? e.message : String(e);
         setNotice(message);
         return { ok: false, code: "command_unknown", message };
@@ -546,11 +568,11 @@ export function App({ rpc }: { rpc: Rpc }) {
       try {
         const r = await rpc.ask("brief.draft", {});
         // Refused or nothing to draft: no run consumed the button's name.
-        if (!r.ok || r.drafted.length === 0) pendingLabel.current = null;
+        if (!r.ok || r.drafted.length === 0) echoes.current.forget();
         if (r.notice) setEnded(r.notice);
         else if (!r.ok) setNotice(r.message);
       } catch (e) {
-        pendingLabel.current = null;
+        echoes.current.forget();
         setNotice(e instanceof Error ? e.message : String(e));
       } finally {
         if (mine) {
@@ -573,7 +595,18 @@ export function App({ rpc }: { rpc: Rpc }) {
         void runCommand(label ?? f.title[lang], { name: "check" });
       } else if (r.kind === "language") setLang((l) => (l === "en" ? "es" : "en"));
       else if (r.kind === "theme") setTheme((th) => (th === "dark" ? "light" : "dark"));
-      else if (r.kind === "togglePanel") setPanel((p) => ({ ...p, open: !p.open }));
+      else if (r.kind === "billing") {
+        // How the agent's dollars read; nothing runs, nothing is written in the project (REQ-211).
+        const now = !perUse;
+        setPerUse(now);
+        const say = (l: Lang) => ({
+          tone: "ok" as const,
+          ran: t(l, now ? "billing.perUse" : "billing.subscription"),
+          wrote: t(l, "billing.wrote"),
+          next: t(l, "billing.next"),
+        });
+        setEnded({ en: say("en"), es: say("es") });
+      } else if (r.kind === "togglePanel") setPanel((p) => ({ ...p, open: !p.open }));
       else if (r.kind === "openFile") setPalette("files");
       else if (r.kind === "palette") setPalette("features");
       else if (r.kind === "newTerminal") {
@@ -598,7 +631,7 @@ export function App({ rpc }: { rpc: Rpc }) {
       else if (r.kind === "buildReq") (setBuildReq(r.req), show("build"));
       else setSidebar((s) => !s);
     },
-    [rpc, show, runCommand, lang],
+    [rpc, show, runCommand, lang, perUse],
   );
 
   const act = useCallback(
@@ -1306,6 +1339,8 @@ export function App({ rpc }: { rpc: Rpc }) {
                               requests: [r],
                             })
                           }
+                          lang={lang}
+                          perUse={perUse}
                         />
                       }
                       buildView={
@@ -1318,6 +1353,7 @@ export function App({ rpc }: { rpc: Rpc }) {
                             setHelp({ title: tr("help.title", { feature }), requests })
                           }
                           announce={announce}
+                          announceBuild={announceBuild}
                           onLive={() => show("live")}
                           run={runCommand}
                         />
@@ -1336,6 +1372,7 @@ export function App({ rpc }: { rpc: Rpc }) {
                             unapproved,
                           })}
                           titles={titles}
+                          perUse={perUse}
                         />
                       }
                       traceFilter={traceFilter}
@@ -1554,7 +1591,7 @@ export function App({ rpc }: { rpc: Rpc }) {
           </button>
         )}
         <span class={folderOpen ? undefined : "end"} data-testid="status-cost">
-          {tr("status.cost")} $0.00
+          {statusUsage(lang, spent, perUse)}
         </span>
         <span>{lang.toUpperCase()}</span>
       </footer>

@@ -60,7 +60,7 @@ function setUp(s: Studio, at: number) {
   return e;
 }
 
-test("REQ-103 SCN-305: Live during REQ-141 on the desktop — Rama creada ✓ 0,2 s, the setup ✓ 4,5 s, Agente escribiendo ● with its timer, the gate and apply ○, intento 1 de 3, REQ-142 queued ~6 min, the header's counts, time, tokens and cost", async () => {
+test("REQ-103 SCN-305: Live during REQ-141 on the desktop — Rama creada ✓ — (specgate gives it no time), the setup ✓ 4,5 s, Agente escribiendo ● with its timer, the gate and apply ○, intento 1 de 3, REQ-142 queued ~6 min, the header's counts, time, tokens and ≈ 1,10 $ precio de API (REQ-211)", async () => {
   const { s, page, at } = await pressed(230);
   try {
     const e = setUp(s, at);
@@ -96,7 +96,8 @@ test("REQ-103 SCN-305: Live during REQ-141 on the desktop — Rama creada ✓ 0,
         ["apply", "waiting", "Aplicar · commit en su rama"],
       ],
     );
-    assert.equal(rows[0]![3], "0,2 s");
+    // specgate writes no event for the branch: no time of its own, not the wait (demo-findings).
+    assert.equal(rows[0]![3], "—");
     assert.equal(rows[1]![3], "4,5 s");
     assert.match(rows[2]![3]!, /^3:4\d$/, "the agent's timer, from its attempt's start");
     assert.match(
@@ -116,7 +117,7 @@ test("REQ-103 SCN-305: Live during REQ-141 on the desktop — Rama creada ✓ 0,
     assert.match(bar, /✗ 0 fallidos/);
     assert.match(await text(page, '[data-testid="live-elapsed"]'), /^3:5\d$/);
     assert.equal(await text(page, '[data-testid="live-tokens"]'), "182 k tokens");
-    assert.match(bar, /1,10 \$/);
+    assert.match(bar, /≈ 1,10 \$ precio de API/);
     // The timer advances every second.
     const before = rows[2]![3];
     await page.waitForFunction(
@@ -161,7 +162,7 @@ test("REQ-103 SCN-306: Live opened in a second browser tab mid-build — the sam
     assert.match(await text(second, '[data-testid="live-queue"] li[data-req="REQ-142"]'), /~6 min/);
     assert.match(await text(second, '[data-testid="live-cost"]'), /● 1 running/);
     assert.equal(await text(second, '[data-testid="live-tokens"]'), "44 k tokens");
-    assert.match(await text(second, '[data-testid="live-cost"]'), /\$0\.42/);
+    assert.match(await text(second, '[data-testid="live-cost"]'), /≈ \$0\.42 API price/);
   } finally {
     await second.close();
     await close(s, page);
@@ -199,7 +200,7 @@ test("REQ-103 SCN-612: the first seconds are never empty on the desktop — Rama
   }
 });
 
-test("REQ-103 SCN-613: in the browser, REQ-141 passed in 9 min for 0,57 $ under TERMINADOS, REQ-142's Gate: tests ✗ with its time, and intento 2 de 3 starting", async () => {
+test("REQ-103 SCN-613: in the browser, REQ-141 passed in 9 min for ≈ 0,57 $ under TERMINADOS, REQ-142's Gate: tests ✗ with its time, and intento 2 de 3 starting", async () => {
   const { s, page, at } = await pressed(560);
   try {
     const e = setUp(s, at);
@@ -226,7 +227,10 @@ test("REQ-103 SCN-613: in the browser, REQ-141 passed in 9 min for 0,57 $ under 
     f({ t: t + 8, attempt: 1, type: "attempt", state: "end", result: "fail", stage: "gate" });
     f({ t: t + 9, attempt: 2, type: "attempt", state: "start" });
     await page.waitForSelector('.lreq[data-req="REQ-142"][data-attempt="2"]');
-    assert.match(await text(page, '[data-finished="REQ-141"]'), /✓\s*REQ-141 · 9 min · 0,57 \$/);
+    assert.match(
+      await text(page, '[data-finished="REQ-141"]'),
+      /✓\s*REQ-141 · 9 min · 2 tokens · ≈ 0,57 \$/,
+    );
     assert.match(await text(page, '[data-testid="live-cost"]'), /✓ 1 pasados/);
     assert.match(
       await text(page, '.lreq[data-req="REQ-142"] .lattempts [data-attempt="1"]'),

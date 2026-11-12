@@ -57,6 +57,7 @@ export const ACTIONS = [
   "redraft",
   "brief-form",
   "brief-propose",
+  "billing",
 ] as const;
 export type ActionId = (typeof ACTIONS)[number];
 
@@ -1178,6 +1179,31 @@ export const HELP: Catalog = {
       doesNot: "No cierra ninguna terminal, no detiene nada en marcha y no ejecuta ningún comando.",
       next: "Elige de nuevo Posición del panel para devolverlo.",
       notice: { ranOk: "Movido el panel", next: "Posición del panel: abajo lo devuelve" },
+    },
+  },
+  billing: {
+    en: {
+      does: "Switches how the agent's dollars are labelled: “Cost” when you pay per use of the API, else “≈ API price” — on a Claude subscription Claude Code reports what the work would cost at API prices, not a charge. Tokens and turns show either way.",
+      command: "None: the studio only changes the label.",
+      files: "None: the choice is kept on this machine, with the language and theme.",
+      doesNot: "It runs no command, changes no billing and writes nothing in the project.",
+      next: "Choose it again to switch back.",
+      notice: {
+        ranOk: "The agent's dollars now read as you set them",
+        next: "Choose it again to switch back",
+      },
+    },
+    es: {
+      does: "Cambia cómo se etiquetan los dólares del agente: «Coste» cuando pagas por uso de la API, si no «≈ precio de API» — con una suscripción de Claude, Claude Code informa de lo que costaría el trabajo a precios de API, no de un cargo. Los tokens y los turnos se muestran siempre.",
+      command: "Ninguno: el studio solo cambia la etiqueta.",
+      files: "Ninguno: la elección se guarda en esta máquina, con el idioma y el tema.",
+      doesNot:
+        "No ejecuta ningún comando, no cambia ninguna facturación y no escribe nada en el proyecto.",
+      next: "Elígelo otra vez para volver.",
+      notice: {
+        ranOk: "Los dólares del agente se leen ahora como has elegido",
+        next: "Elígelo otra vez para volver",
+      },
     },
   },
   "panel-maximize": {

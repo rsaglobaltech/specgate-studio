@@ -73,6 +73,8 @@ export interface Estimate {
 export interface BuildList {
   ready: BuildItem[];
   waiting: WaitingItem[];
+  /** Built, only its status left to update (`NEEDS_STATUS_UPDATE`): "Listos para cerrar", each with Aplicar (demo-findings REQ-101). */
+  toClose: BuildItem[];
   /** One requirement's estimate; null when specgate could not give one. */
   estimate: Estimate | null;
   /** Who codes: the program of `agent` in harness.config.yaml (A4), e.g. `claude`. */
@@ -93,8 +95,8 @@ export const BASELINE = "REQ-000";
 /** The command Build names when no agent is set (A4). */
 export const SET_AGENT = "specgate agents init --tool claude";
 
-/** What is built already: delivered, or only its status left to update. */
-const BUILT = new Set(["DONE", "NEEDS_STATUS_UPDATE"]);
+/** Built, its test in place: only `specgate apply` is left (REQ-101). */
+const TO_CLOSE = "NEEDS_STATUS_UPDATE";
 
 const str = (v: unknown): string | null => (typeof v === "string" && v !== "" ? v : null);
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
@@ -150,10 +152,11 @@ export function buildList(
   }
   const ready: BuildItem[] = [];
   const waiting: WaitingItem[] = [];
+  const toClose: BuildItem[] = [];
   for (const r of Array.isArray(all) ? (all as Array<Record<string, unknown>>) : []) {
     const id = str(r.id);
     const category = str(r.category);
-    if (!id || !category || BUILT.has(category)) continue;
+    if (!id || !category || category === "DONE") continue;
     // The adoption baseline, only once named (A10): not even among what waits.
     if (id === BASELINE && named !== BASELINE) continue;
     const item: BuildItem = {
@@ -162,7 +165,10 @@ export function buildList(
       change: str(r.change),
       ...(estimates[id] ? { estimate: estimates[id] } : {}),
     };
-    if (category === "WAITING_FOR_ANSWER" || blockedBy.has(id))
+    // Its test in place: ready to close, with Aplicar, not to build (demo-findings REQ-101).
+    if (category === TO_CLOSE)
+      toClose.push({ id: item.id, title: item.title, change: item.change });
+    else if (category === "WAITING_FOR_ANSWER" || blockedBy.has(id))
       waiting.push({
         ...item,
         why: "question",
@@ -178,6 +184,7 @@ export function buildList(
   return {
     ready,
     waiting,
+    toClose,
     estimate: estimateOf(report),
     agent: agentCommand ? agentProgram(agentCommand) : null,
     agentCommand,
