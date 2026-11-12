@@ -316,6 +316,15 @@ export {
   type SettingScope,
   type SettingsView,
 } from "./domain/settings.js";
+/** Report's figures, for the project and each module (draft-report REQ-131). */
+export {
+  MEASURE_COMMAND,
+  reportOf,
+  type Figure,
+  type ReportCost,
+  type ReportInput,
+  type ReportView,
+} from "./domain/report.js";
 export type { UserSettingsPort } from "./ports/UserSettingsPort.js";
 export { InMemoryUserSettings } from "./fakes/InMemoryUserSettings.js";
 export {

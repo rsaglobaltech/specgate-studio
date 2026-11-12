@@ -73,6 +73,7 @@ import { Explorer } from "./Explorer.js";
 import { Home } from "./views/Home.js";
 import { HelpView } from "./views/HelpView.js";
 import { SettingsEditor } from "./views/Settings.js";
+import { Report } from "./views/Report.js";
 import { fileType, modulesOf } from "./tree.js";
 
 type Sections = Partial<
@@ -1919,25 +1920,15 @@ function View(p: ViewProps) {
       );
     }
     case "report":
+      // Built of the total, scenarios, coverage, mutation, cost and time (draft-report REQ-131).
       return (
-        <>
-          {title}
-          <div class="card">
-            <div class="k">{p.tr("home.requirements")}</div>
-            {/* The same count as Home: `report --json`'s total leaves out open changes. */}
-            <div class="v" data-testid="report-total">
-              {p.total}
-            </div>
-            {p.reportTotal !== undefined && (
-              <div class="muted" data-testid="report-split">
-                {p.tr("report.split", {
-                  spec: String(p.reportTotal),
-                  changes: String(Math.max(0, p.total - p.reportTotal)),
-                })}
-              </div>
-            )}
-          </div>
-        </>
+        <Report
+          rpc={p.rpc}
+          lang={p.lang}
+          tr={p.tr}
+          total={p.total}
+          reportTotal={p.reportTotal}
+        />
       );
     case "help":
       return <HelpView rpc={p.rpc} lang={p.lang} tr={p.tr} />;

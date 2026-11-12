@@ -395,6 +395,13 @@ h1 {
   font-size: 26px;
   font-weight: 700;
 }
+/* Report's module chooser (draft-report REQ-131). */
+.report-module {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+}
 .next {
   border: 1px solid #4a2a1c;
   border-radius: 4px;

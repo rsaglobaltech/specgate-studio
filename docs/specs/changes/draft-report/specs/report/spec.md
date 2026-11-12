@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-131 — Built of the total, scenarios proven, coverage, mutation score, cost and time
 
-<!-- specgate:trace actor=Reviewer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Reviewer kind=functional -->
 
 The system SHALL show in Report, for the whole project and for each module, the requirements built of the total, the scenarios proven of the total, the coverage, the mutation score, the cost and the time spent building — each read from specgate's JSON, and each one specgate has not measured shown as not measured with the command that measures it, never as 0. Coverage SHALL be shown as two labelled figures: the diff coverage the harness measured per requirement, and the project's line coverage when it exists. Cost SHALL be the cost measured from the agent's tokens when it exists, labelled measured, and otherwise the estimate declared per agent profile, labelled estimated.
 

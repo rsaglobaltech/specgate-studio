@@ -84,6 +84,9 @@ import type {
   SettingScope,
   SettingsView,
   UserSettingResult,
+  Figure,
+  ReportCost,
+  ReportView,
 } from "@specgate-studio/core";
 
 export type { CommandEvent, RunResult, Section, SectionData, SpecgateCommand };
@@ -155,6 +158,8 @@ export type { BriefModule, BriefView, DraftResult };
 export type { BriefForm, BriefFormActor, BriefFormModule, BriefFormResult, BriefFormView };
 /** The settings editor: two scopes and its search (draft-settings REQ-141). */
 export type { Setting, SettingScope, SettingsView, UserSettingResult };
+/** Report's figures, for the project and each module (draft-report REQ-131). */
+export type { Figure, ReportCost, ReportView };
 
 /** What the UI may ask, and what it gets back. */
 export interface Requests {
@@ -171,6 +176,8 @@ export interface Requests {
   "files.list": { params: Record<string, never>; result: string[] };
   /** Home's next step, route, agent's cost and activity (draft-design-conformance REQ-173). */
   "home.get": { params: Record<string, never>; result: HomeView };
+  /** Report's figures for the project, or one module (draft-report REQ-131). */
+  "report.get": { params: { module: string | null }; result: ReportView };
   /** One folder's entries, folders first, nothing ignored (draft-explorer-tree REQ-161). */
   "files.children": { params: { path: string }; result: { entries: TreeEntry[] } };
   /** Git's letter of each changed file (REQ-163). */
