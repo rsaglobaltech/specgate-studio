@@ -41,6 +41,14 @@ export function buildAnswers(agent: string | null): NonNullable<StudioOptions["s
       findings: [],
       exitCode: 0,
     },
+    // "Stop after this requirement" asks specgate's harness too (specgate 0.34, REQ-491).
+    "harness stop --after-current": {
+      data: {
+        stop: { requested: true, run: { pid: 4242, requirements: ["REQ-030"], startedAt: 0 } },
+      },
+      findings: [],
+      exitCode: 0,
+    },
     "change show draft-pedidos": {
       data: {
         change: {
@@ -63,3 +71,36 @@ export function files325(): string[] {
     ...Array.from({ length: 25 }, (_, i) => `test/t${i}.test.ts`),
   ];
 }
+
+/**
+ * The studio's own draft-settings as the demo built it (draft-live-polish):
+ * REQ-141 and REQ-142 ready, REQ-000 the adoption baseline not delivered yet.
+ */
+export const SETTINGS = [
+  { id: "REQ-000", title: "Health baseline", category: "NEEDS_EVERYTHING", needs: "its code" },
+  { id: "REQ-139", title: "Done before", category: "DONE", needs: null },
+  {
+    id: "REQ-141",
+    title: "A settings editor with search, and two scopes: project and user",
+    category: "NEEDS_EVERYTHING",
+    needs: "a test and code",
+  },
+  {
+    id: "REQ-142",
+    title: "Each project setting says which `specgate config set` command and file it uses",
+    category: "NEEDS_EVERYTHING",
+    needs: "a test and code",
+  },
+];
+
+/** `specgate plan --json`'s estimates (specgate REQ-493): REQ-141 and REQ-142 ~6 min each. */
+export const PLAN = {
+  data: {
+    estimates: [
+      { requirement: "REQ-141", time: { ms: 360_000, basis: "size", samples: 5 } },
+      { requirement: "REQ-142", time: { ms: 360_000, basis: "size", samples: 5 } },
+    ],
+  },
+  findings: [],
+  exitCode: 0,
+};

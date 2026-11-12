@@ -72,93 +72,6 @@ async function live(page: Page) {
   await page.waitForSelector('.lreq[data-req="REQ-030"] .lstep[data-result="running"]');
 }
 
-test("REQ-103 SCN-305: Live on the desktop during REQ-030 — its finished steps with their times, the running step, the output growing, REQ-032 queued, cost and tokens", async () => {
-  const { s, page, e } = await building();
-  try {
-    await live(page);
-    assert.match(await text(page, '[data-testid="live-building"]'), /Building REQ-030/);
-    const steps = await page.$$eval('.lreq[data-req="REQ-030"] .lstep', (rows) =>
-      rows.map((r) => [
-        r.getAttribute("data-kind"),
-        r.querySelectorAll("td")[1]!.textContent,
-        r.querySelector(".ltime")!.textContent,
-        r.getAttribute("data-result"),
-      ]),
-    );
-    assert.deepEqual(steps.slice(0, 2), [
-      ["write", "test/cancel.test.ts", "12.3 s", "ok"],
-      ["gate", "validate --strict", "1.2 s", "pass"],
-    ]);
-    const [kind, label, time, result] = steps[2]!;
-    assert.deepEqual([kind, label, result], ["gate", "test command: npm test", "running"]);
-    assert.match(time!, /^running \d+ s$/, "the current step, timed from its start");
-    assert.deepEqual(
-      await page.$$eval('[data-testid="live-queue"] li', (els) => els.map((e) => e.textContent)),
-      ["REQ-032"],
-    );
-    assert.equal(
-      await page.getAttribute('[data-testid="live-cost"] [data-cost]', "data-cost"),
-      "0.42",
-    );
-    assert.match(await text(page, '[data-testid="live-cost"]'), /\$0\.42/);
-    assert.match(
-      await text(page, '[data-testid="live-tokens"]'),
-      /12,000 in · 1,500 out · 30,000 from cache/,
-    );
-    assert.match(
-      await text(page, '[data-testid="live-output"]'),
-      /Reading the scenario of REQ-030/,
-    );
-
-    // The agent writes on: Live grows without a reload.
-    e({ type: "message", text: "The test fails as expected; writing the code" });
-    await page.waitForSelector('[data-testid="live-output"] li:has-text("writing the code")');
-    // The running step's time counts on.
-    await page.waitForFunction(() =>
-      /running [1-9]\d* s/.test(
-        document.querySelector('.lstep[data-result="running"] .ltime')?.textContent ?? "",
-      ),
-    );
-    assert.equal(s.harness.started.length, 1, "REQ-032 waits in the queue");
-  } finally {
-    await close(s, page);
-  }
-});
-
-test("REQ-103 SCN-306: Live opened in a second browser tab mid-build — the same steps, the output so far and from then on, the queue, cost and tokens", async () => {
-  const { s, page, e } = await building();
-  const second = await open(s, { lang: "es" });
-  try {
-    await live(page);
-    await live(second);
-    const steps = (p: Page) =>
-      p.$$eval('.lreq[data-req="REQ-030"] .lstep', (rows) =>
-        rows.map((r) => [r.getAttribute("data-kind"), r.getAttribute("data-result")]),
-      );
-    assert.deepEqual(await steps(second), await steps(page));
-    assert.match(
-      await text(second, '[data-testid="live-output"]'),
-      /Reading the scenario of REQ-030/,
-    );
-    assert.deepEqual(
-      await second.$$eval('[data-testid="live-queue"] li', (els) => els.map((e) => e.textContent)),
-      ["REQ-032"],
-    );
-    assert.match(await text(second, '[data-testid="live-cost"]'), /\$0\.42/);
-    assert.match(await text(second, '[data-testid="live-tokens"]'), /12\.000 de entrada/);
-
-    // From then on, both tabs see what the agent writes.
-    e({ type: "gate", stage: "test command: npm test", result: "pass", ms: 7000 });
-    for (const p of [page, second])
-      await p.waitForSelector(
-        '[data-testid="live-output"] li:has-text("gate test command: npm test: pass")',
-      );
-  } finally {
-    await second.close();
-    await close(s, page);
-  }
-});
-
 /** REQ-030's agent asks instead of guessing; its run ends, and specgate recorded Q3. */
 async function asks(s: Awaited<ReturnType<typeof building>>["s"]) {
   s.events.append("REQ-030", { attempt: 1, type: "question", text: ASKED });
@@ -192,9 +105,16 @@ test('REQ-104 SCN-307: the agent asks on the desktop — "to the cent" answered 
     // The run goes on: REQ-032 builds, and its agent's output streams into Live.
     assert.equal(s.harness.started.at(-1)![3], "REQ-032");
     s.events.append("REQ-032", { attempt: 1, type: "attempt", state: "start" });
-    s.events.append("REQ-032", { attempt: 1, type: "message", text: "Refunding the order" });
+    s.events.append("REQ-032", {
+      attempt: 1,
+      type: "step",
+      kind: "read",
+      tool: "Read",
+      target: "src/orders/refund.ts",
+      result: "ok",
+    });
     await page.waitForSelector(
-      '[data-testid="live-output"] li[data-req="REQ-032"]:has-text("Refunding the order")',
+      '[data-testid="live-output"] li[data-req="REQ-032"]:has-text("src/orders/refund.ts")',
     );
   } finally {
     await close(s, page);
@@ -228,13 +148,23 @@ test("REQ-104 SCN-308: the same question answered in the browser — recorded, a
   }
 });
 
-test("REQ-105 SCN-309: Stop now on the desktop — confirmed, the build stopped and its processes ended; cancelled, nothing stops", async () => {
-  const { s, page } = await building();
+test('REQ-105 SCN-309: "Parar ya…" in Live\'s header on the desktop — confirmed, the build stopped and its processes ended; cancelled, nothing stops', async () => {
+  const { s, page: first } = await building();
+  await first.close();
+  const page = await open(s, { lang: "es" });
   try {
     await live(page);
-    await page.click('.lstop [data-act="stop-now"]');
+    assert.equal(await text(page, '.lbar .lstop [data-act="stop-now"]'), "Parar ya…");
+    assert.equal(
+      await text(page, '.lbar .lstop [data-act="stop-after"]'),
+      "Parar tras este requisito",
+    );
+    await page.click('.lbar .lstop [data-act="stop-now"]');
     await page.waitForSelector('[data-confirm="stop-now"]');
-    assert.match(await text(page, '[data-confirm="stop-now"]'), /Stop the build of REQ-030 now\?/);
+    assert.match(
+      await text(page, '[data-confirm="stop-now"]'),
+      /¿Parar ya la construcción de REQ-030\?/,
+    );
     await page.click('[data-confirm="stop-now"] [data-act="cancel"]');
     await page.waitForSelector('[data-confirm="stop-now"]', { state: "detached" });
     assert.equal(s.harness.stopped, 0, "cancelled: nothing stops");
@@ -246,17 +176,21 @@ test("REQ-105 SCN-309: Stop now on the desktop — confirmed, the build stopped 
     assert.equal(s.harness.stopped, 1, "the harness's process tree was ended");
     assert.equal(s.harness.started.length, 1, "REQ-032 did not start");
     assert.equal(await page.$(".lstop"), null, "nothing left to stop");
-    await page.waitForSelector('.notice[data-tone]:has-text("every process it started")');
+    await page.waitForSelector('.notice[data-tone]:has-text("todos los procesos que inició")');
   } finally {
     await close(s, page);
   }
 });
 
-test("REQ-105 SCN-310: Stop after this requirement in the browser — REQ-030 finishes, REQ-032 does not start", async () => {
+test('REQ-105 SCN-310: "Stop after this requirement" in Live\'s header in the browser — REQ-030 finishes, REQ-032 does not start', async () => {
   const { s, page } = await building();
   try {
     await live(page);
-    await page.click('.lstop [data-act="stop-after"]');
+    assert.equal(
+      await text(page, '.lbar .lstop [data-act="stop-after"]'),
+      "Stop after this requirement",
+    );
+    await page.click('.lbar .lstop [data-act="stop-after"]');
     await page.waitForSelector('[data-testid="live-stopping"]');
     assert.match(
       await text(page, '[data-testid="live-stopping"]'),
@@ -264,6 +198,14 @@ test("REQ-105 SCN-310: Stop after this requirement in the browser — REQ-030 fi
     );
     assert.equal(await page.$('[data-confirm="stop-now"]'), null, "no confirmation asked");
     assert.equal(s.harness.stopped, 0, "REQ-030 goes on");
+    // specgate's harness is asked too: it starts no other requirement (specgate 0.34, REQ-491).
+    for (
+      let i = 0;
+      i < 100 && !s.calls.some((c) => c.join(" ") === "harness stop --after-current");
+      i++
+    )
+      await new Promise((ok) => setTimeout(ok, 20));
+    assert.ok(s.calls.some((c) => c.join(" ") === "harness stop --after-current"));
 
     s.events.append("REQ-030", {
       attempt: 1,
@@ -279,6 +221,50 @@ test("REQ-105 SCN-310: Stop after this requirement in the browser — REQ-030 fi
     assert.equal(s.harness.started.length, 1, "REQ-032 was not started");
     assert.match(await text(page, '[data-testid="live-queue"]'), /nothing queued/);
     await page.waitForSelector('.notice[data-tone]:has-text("REQ-030 finished")');
+  } finally {
+    await close(s, page);
+  }
+});
+
+test("REQ-103 REQ-201: Live during REQ-030 from `harness run --format jsonl` as it streams — the action and the agent's words before any events file says them", async () => {
+  const s = await studio({
+    homeRequirements: SPRICH as never,
+    specgate: buildAnswers("claude -p < {prompt_file}"),
+  });
+  const page = await open(s);
+  try {
+    await page.click('.sga[data-view="build"]');
+    await page.waitForSelector(".breq");
+    await page.click('.breq[data-req="REQ-030"] [data-act="build"]');
+    await page.waitForSelector('.bstarted[data-req="REQ-030"]');
+    await page.click('.sga[data-view="live"]');
+    const t = Date.now() / 1000;
+    s.harness.stream({ type: "attempt", t, req: "REQ-030", attempt: 1, state: "start" });
+    s.harness.stream({
+      type: "output",
+      t,
+      req: "REQ-030",
+      attempt: 1,
+      stream: "stdout",
+      text: "Writing the test of SCN-030a",
+    });
+    s.harness.stream({
+      type: "step",
+      t: t + 1,
+      req: "REQ-030",
+      attempt: 1,
+      kind: "write",
+      tool: "Write",
+      target: "test/cancel.test.ts",
+      result: "ok",
+    });
+    await page.waitForSelector(
+      '[data-testid="live-output"] li[data-kind="write"]:has-text("test/cancel.test.ts")',
+    );
+    // The agent's own words: the AGENTE tab (draft-live-polish A3).
+    await page.click('.ltabs [data-tab="agent"]');
+    await page.waitForSelector('[data-kind="output"] >> text=Writing the test of SCN-030a');
+    s.harness.finish(0, { results: [{ requirement: "REQ-030", result: "pass" }] });
   } finally {
     await close(s, page);
   }

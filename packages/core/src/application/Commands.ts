@@ -13,6 +13,7 @@ import { notice, type ActionId, type HelpVars, type Outcome } from "../domain/he
 import { briefCheckOutcome, draftWritten } from "../domain/brief.js";
 import { archivePreviewOf, archiveWritten, findingLine } from "../domain/changes.js";
 import { CI_GATE, HARNESS_CONFIG, initArgs } from "../domain/setup.js";
+import { configValue } from "../domain/settings.js";
 
 export interface CommandsOptions {
   /** What the notices name: the next requirement to apply, the change… (REQ-063). */
@@ -44,6 +45,8 @@ function noticed(
   switch (c.name) {
     case "check":
       return { action: "check", written: [], vars: {} };
+    case "doctor":
+      return { action: "doctor", written: [], vars: {} };
     case "answer":
       return {
         action: "answer",
@@ -98,6 +101,11 @@ function answered(c: SpecgateCommand): {
       return { action: "brief-check", vars: {}, outcome: briefCheckOutcome };
     case "draft-module":
       return { action: "draft-modules", vars: { module: c.module, agent: c.agent } };
+    case "redraft":
+      return {
+        action: "redraft",
+        vars: { module: c.module, agent: c.agent, count: String(c.open) },
+      };
     case "apply":
       return { action: "apply", vars: { req: c.req } };
     case "archive":
@@ -106,6 +114,8 @@ function answered(c: SpecgateCommand): {
       return { action: "archive-preview", vars: { change: c.change } };
     case "propose-ticket":
       return { action: "propose-ticket", vars: { key: c.key } };
+    case "settings-save":
+      return { action: "settings-save", vars: { key: c.key, to: configValue(c.value) } };
     default:
       return null;
   }
@@ -114,7 +124,14 @@ function answered(c: SpecgateCommand): {
 /** What a `--json` command wrote, from its answer. */
 function writtenIn(c: SpecgateCommand, data: unknown): string[] {
   if (c.name === "archive") return archiveWritten(data);
-  if (c.name === "draft-module") return draftWritten(data);
+  if (c.name === "draft-module" || c.name === "redraft") return draftWritten(data);
+  // `config set --json` names the file of the key it saved (specgate 0.34, REQ-505).
+  if (c.name === "settings-save") {
+    const files = (data as { files?: unknown } | null)?.files;
+    return files && typeof files === "object"
+      ? Object.values(files).filter((f): f is string => typeof f === "string")
+      : [];
+  }
   if (c.name === "propose-ticket") {
     const created = (data as { created?: unknown } | null)?.created;
     return Array.isArray(created)

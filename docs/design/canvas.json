@@ -1,0 +1,281 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-08T12:41:16Z"
+ },
+ "title": "Specgate Studio — rediseño",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Main.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1440,
+   "h": 960,
+   "title": "Inicio",
+   "expand": "fill"
+  },
+  "Preguntas.dc.html": {
+   "x": 1520,
+   "y": 0,
+   "w": 1440,
+   "h": 960,
+   "title": "Preguntas",
+   "expand": "fill"
+  },
+  "Cambios.dc.html": {
+   "x": 0,
+   "y": 1080,
+   "w": 1440,
+   "h": 960,
+   "title": "Cambios",
+   "expand": "fill"
+  },
+  "Construir.dc.html": {
+   "x": 1520,
+   "y": 1080,
+   "w": 1440,
+   "h": 960,
+   "title": "Construir",
+   "expand": "fill"
+  },
+  "Live.dc.html": {
+   "x": 0,
+   "y": 2160,
+   "w": 1440,
+   "h": 960,
+   "title": "En vivo (tema oscuro)",
+   "expand": "fill"
+  },
+  "Estados.dc.html": {
+   "x": 0,
+   "y": 3240,
+   "w": 1440,
+   "h": 1240,
+   "title": "Estados: carga, acciones, errores",
+   "expand": "fill"
+  },
+  "IDE.dc.html": {
+   "x": 0,
+   "y": 4900,
+   "w": 1440,
+   "h": 900,
+   "title": "IDE · Banco de trabajo: requisito, terminal y agente",
+   "expand": "fill"
+  },
+  "IDE-Cambios.dc.html": {
+   "x": 1520,
+   "y": 4900,
+   "w": 1440,
+   "h": 900,
+   "title": "IDE · Cambios: revisar un borrador, «?» abierto",
+   "expand": "fill"
+  },
+  "IDE-Construir.dc.html": {
+   "x": 0,
+   "y": 5920,
+   "w": 1440,
+   "h": 900,
+   "title": "IDE · Construir: árbol sucio, explicado y resuelto",
+   "expand": "fill"
+  },
+  "IDE-Paleta.dc.html": {
+   "x": 1520,
+   "y": 5920,
+   "w": 1440,
+   "h": 900,
+   "title": "IDE · Paleta de comandos",
+   "expand": "fill"
+  },
+  "IDE-Inicio.dc.html": {
+   "x": 0,
+   "y": 6940,
+   "w": 1440,
+   "h": 900,
+   "title": "IDE · Inicio: siguiente paso y estado del proyecto",
+   "expand": "fill"
+  },
+  "IDE-Brief.dc.html": {
+   "x": 1520,
+   "y": 6940,
+   "w": 1440,
+   "h": 900,
+   "title": "IDE · Brief: formulario, markdown y comprobaciones",
+   "expand": "fill"
+  },
+  "IDE-Preguntas.dc.html": {
+   "x": 0,
+   "y": 7960,
+   "w": 1440,
+   "h": 900,
+   "title": "IDE · Preguntas: responder y confirmar",
+   "expand": "fill"
+  },
+  "IDE-EnVivo.dc.html": {
+   "x": 1520,
+   "y": 7960,
+   "w": 1440,
+   "h": 900,
+   "title": "IDE · En vivo: la construcción paso a paso",
+   "expand": "fill"
+  },
+  "IDE-Trazabilidad.dc.html": {
+   "x": 0,
+   "y": 8980,
+   "w": 1440,
+   "h": 900,
+   "title": "IDE · Trazabilidad: requisito → prueba → código",
+   "expand": "fill"
+  },
+  "IDE-Informe.dc.html": {
+   "x": 1520,
+   "y": 8980,
+   "w": 1440,
+   "h": 900,
+   "title": "IDE · Informe, gate y calidad",
+   "expand": "fill"
+  },
+  "IDE-Ajustes.dc.html": {
+   "x": 0,
+   "y": 10000,
+   "w": 1440,
+   "h": 900,
+   "title": "IDE · Ajustes: agentes, preferencias, calidad, ALM",
+   "expand": "fill"
+  },
+  "IDE-Nuevo.dc.html": {
+   "x": 1520,
+   "y": 10000,
+   "w": 1440,
+   "h": 900,
+   "title": "IDE · Carpeta nueva: crear o adoptar",
+   "expand": "fill"
+  },
+  "IDE-Estados.dc.html": {
+   "x": 0,
+   "y": 11020,
+   "w": 1440,
+   "h": 900,
+   "title": "IDE · Estados: carga, sin conexión, error, éxito",
+   "expand": "fill"
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "Preguntas.dc.html",
+  "Cambios.dc.html",
+  "Construir.dc.html",
+  "Live.dc.html",
+  "Estados.dc.html",
+  "IDE.dc.html",
+  "IDE-Cambios.dc.html",
+  "IDE-Construir.dc.html",
+  "IDE-Paleta.dc.html",
+  "IDE-Inicio.dc.html",
+  "IDE-Brief.dc.html",
+  "IDE-Preguntas.dc.html",
+  "IDE-EnVivo.dc.html",
+  "IDE-Trazabilidad.dc.html",
+  "IDE-Informe.dc.html",
+  "IDE-Ajustes.dc.html",
+  "IDE-Nuevo.dc.html",
+  "IDE-Estados.dc.html"
+ ],
+ "notes": {
+  "title": {
+   "x": 0,
+   "y": -300,
+   "text": "Specgate Studio — rediseño (fase 3)",
+   "kind": "title1",
+   "maxW": 2960
+  },
+  "n1": {
+   "x": 3040,
+   "y": 0,
+   "w": 380,
+   "text": "Una sola app: Inicio, Preguntas, Cambios, Construir, Informe y Ajustes en la barra lateral; cada vista con su URL. Lo que hoy está en /live, /report y /overview vive aquí.",
+   "fill": "yellow"
+  },
+  "n2": {
+   "x": 3040,
+   "y": 560,
+   "w": 380,
+   "text": "Cada bloqueo dice qué falta y trae su botón para resolverlo: nada de botones grises sin explicación.",
+   "fill": "blue"
+  },
+  "n3": {
+   "x": 3040,
+   "y": 1080,
+   "w": 380,
+   "text": "Sin asistente configurado, Construir muestra el formulario con el que esté instalado ya elegido (claude detectado).",
+   "fill": "green"
+  },
+  "n4": {
+   "x": 1520,
+   "y": 2160,
+   "w": 380,
+   "text": "En vivo dentro de la misma app (no una página aparte): etapas, registro tipo terminal que sigue solo, cola, coste, y las preguntas del agente se responden sin salir. Tema oscuro de la web de specgate.",
+   "fill": "orange"
+  },
+  "n5": {
+   "x": 1520,
+   "y": 2700,
+   "w": 380,
+   "text": "Identidad: la de rsaglobaltech.github.io/specgate — papel cálido #F3EFE8, tinta #15161A, naranja #FF5B1F/#B93D0B, Syne + IBM Plex Sans/Mono, esquinas de 4 px, sombra en bloque, eyebrows [ ASÍ ].",
+   "fill": "gray"
+  },
+  "ideTitle": {
+   "x": 0,
+   "y": 4620,
+   "text": "Studio IDE — rediseño v2: specgate como un IDE",
+   "kind": "title1",
+   "maxW": 2960
+  },
+  "i1": {
+   "x": 3040,
+   "y": 4900,
+   "w": 400,
+   "text": "Banco de trabajo tipo VS Code: barra de actividad (Explorador de spec, Requisitos, Cambios, Preguntas, Construir, En vivo, Trazabilidad, Calidad), pestañas de editor, panel inferior con TERMINAL real (pty: specgate y cualquier comando), GATE, PROBLEMAS, SALIDA DEL AGENTE. Barra de estado con rama, ticket, gate y coste.",
+   "fill": "orange"
+  },
+  "i2": {
+   "x": 3040,
+   "y": 5300,
+   "w": 400,
+   "text": "El requisito se edita como código: CodeLens encima (Construir · Comprobar · Trazar · Pedir un cambio · ?), avisos subrayados con su arreglo, «peek» de la pregunta abierta. Cada acción ejecuta el mismo comando de specgate y lo muestra en el terminal.",
+   "fill": "blue"
+  },
+  "i3": {
+   "x": 3040,
+   "y": 5700,
+   "w": 400,
+   "text": "Agente a la derecha (como Kiro, con el gate de specgate debajo): antes de tocar nada dice qué archivos cambiará y qué comando correrá; se aplica con confirmación y el diff queda en Cambios.",
+   "fill": "green"
+  },
+  "i4": {
+   "x": 3040,
+   "y": 6100,
+   "w": 400,
+   "text": "Regla: en todo momento el studio dice qué hace por debajo. Cada función tiene su «?»: qué hace, qué comando, qué archivos, qué NO hace, qué viene después. Ningún aviso dice solo «hecho».",
+   "fill": "yellow"
+  },
+  "i5": {
+   "x": 3040,
+   "y": 6940,
+   "w": 400,
+   "text": "Las demás vistas, mismo marco: barra de actividad, panel inferior con terminal y barra de estado. Cada botón con su «?»; cada aviso dice qué escribió o ejecutó y el siguiente paso.",
+   "fill": "orange"
+  },
+  "i6": {
+   "x": 3040,
+   "y": 7400,
+   "w": 400,
+   "text": "Barra lateral única en todas las pantallas: Inicio, Explorador, Brief, Cambios, Preguntas, Construir, En vivo, Trazabilidad, Informe · abajo Ayuda y Ajustes. Mismo orden, mismos iconos y avisos; solo cambia la vista activa.",
+   "fill": "gray"
+  }
+ },
+ "designSystems": []
+}

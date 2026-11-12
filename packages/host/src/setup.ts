@@ -69,7 +69,12 @@ export function attachSetup(
     "setup.options": async () => ({
       kinds: Object.keys(PROJECT_KINDS),
       stacks: Object.entries(STACKS).map(([id, s]) => ({ id, label: s.stack })),
-      agents: Object.entries(AGENT_TOOLS).map(([id, label]) => ({ id, label })),
+      // Each agent said detected or not, as the cards show it (draft-design-conformance REQ-174).
+      agents: Object.entries(AGENT_TOOLS).map(([id, label]) => ({
+        id,
+        label,
+        detected: wiring.onPath ? wiring.onPath(id) : false,
+      })),
       architectures: [...ARCHITECTURES],
       name: slug,
     }),

@@ -71,7 +71,10 @@ export function attachBuilds(
   });
   return {
     handlers: {
-      "build.get": () => builds.list(),
+      "build.get": (params) => {
+        const named = (params as { named?: unknown } | null)?.named;
+        return builds.list(typeof named === "string" ? named : null);
+      },
       "live.get": () => builds.live(),
       // Stop now arrives only once the Developer confirmed it in the UI (REQ-105).
       "build.stop": (params) => builds.stop((params as { now?: unknown } | null)?.now === true),

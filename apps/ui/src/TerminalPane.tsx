@@ -3,6 +3,7 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import type { Rpc } from "./rpc.js";
+import { currentPrefs, onPrefs } from "./prefs.js";
 
 /** The studio's own terminal: what the studio runs, shown, never typed into (REQ-053, REQ-054). */
 export const STUDIO = "specgate";
@@ -17,7 +18,16 @@ export interface TerminalPaneProps {
   showStudio: number;
   /** Bumped when a new terminal of the Developer's should open (Ctrl+`, "Open a terminal"). */
   openShell: number;
-  labels: { newTerminal: string; close: string; readonly: string; openTerminal: string };
+  /** A terminal to open in a folder of the project: "Open in terminal" (draft-explorer-tree A15). */
+  openShellIn?: { n: number; cwd: string } | null;
+  labels: {
+    newTerminal: string;
+    close: string;
+    readonly: string;
+    openTerminal: string;
+    /** What the panel says while no terminal is open (draft-workbench-v2 REQ-184). */
+    empty: string;
+  };
 }
 
 interface Entry {
@@ -72,10 +82,12 @@ export default function TerminalPane(p: TerminalPaneProps) {
     host.dataset.terminal = id;
     host.dataset.name = name;
     box.current!.appendChild(host);
+    // The user's terminal settings (draft-settings REQ-143): font size and scrollback.
+    const prefs = currentPrefs();
     const term = new Terminal({
-      scrollback: SCROLLBACK,
+      scrollback: prefs["terminal.scrollback"] ?? SCROLLBACK,
       fontFamily: "'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace",
-      fontSize: 12,
+      fontSize: prefs["terminal.fontSize"],
       cursorBlink: id !== STUDIO,
       disableStdin: false,
       theme: THEMES[props.current.theme],
@@ -108,8 +120,8 @@ export default function TerminalPane(p: TerminalPaneProps) {
     setSelected(id);
   }
 
-  async function openShell() {
-    const size = { cols: 100, rows: 24 };
+  async function openShell(cwd?: string) {
+    const size = { cols: 100, rows: 24, ...(cwd ? { cwd } : {}) };
     const { id, name } = await props.current.rpc.ask("terminal.open", size);
     add(id, name);
   }
@@ -169,8 +181,29 @@ export default function TerminalPane(p: TerminalPaneProps) {
   }, [p.openShell]);
 
   useEffect(() => {
+    if (p.openShellIn) void openShell(p.openShellIn.cwd);
+  }, [p.openShellIn?.n]);
+
+  useEffect(() => {
     for (const e of entries.current.values()) e.term.options.theme = THEMES[p.theme];
   }, [p.theme]);
+
+  // A terminal setting chosen in Settings applies to every terminal open (REQ-143).
+  useEffect(
+    () =>
+      onPrefs((q) => {
+        for (const e of entries.current.values()) {
+          e.term.options.fontSize = q["terminal.fontSize"];
+          e.term.options.scrollback = q["terminal.scrollback"];
+          try {
+            e.fit.fit();
+          } catch {
+            // Not laid out yet.
+          }
+        }
+      }),
+    [],
+  );
 
   // Only the selected terminal shows — in the same frame as its tab — the others
   // stay mounted with their scrollback.
@@ -204,9 +237,34 @@ export default function TerminalPane(p: TerminalPaneProps) {
     return () => ro.disconnect();
   }, [selected]);
 
+  // The panel's "+" opens a terminal (draft-workbench-v2 REQ-184); the list of
+  // terminals sits on the right once there are two, as VS Code shows it.
   return (
-    <div class="terms">
-      <div class="term-tabs" role="tablist" aria-label="Terminals">
+    <div
+      class="terms"
+      data-many={list.length > 1 ? "1" : undefined}
+      data-one={list.length === 1 ? "1" : undefined}
+    >
+      <div class="term-main">
+        {note && selected === STUDIO && (
+          <div class="term-note" role="note">
+            {p.labels.readonly}{" "}
+            <button type="button" class="btn" onClick={() => void openShell()}>
+              {p.labels.openTerminal}
+            </button>
+          </div>
+        )}
+        {list.length === 0 && (
+          <div class="term-empty" data-testid="term-empty">
+            {p.labels.empty}{" "}
+            <button type="button" class="btn" onClick={() => void openShell()}>
+              {p.labels.openTerminal}
+            </button>
+          </div>
+        )}
+        <div class="term-box" ref={box} />
+      </div>
+      <div class="term-tabs" role="tablist" aria-label="Terminals" aria-orientation="vertical">
         {list.map((t) => (
           <button
             type="button"
@@ -233,25 +291,7 @@ export default function TerminalPane(p: TerminalPaneProps) {
             )}
           </button>
         ))}
-        <button
-          type="button"
-          class="term-new"
-          aria-label={p.labels.newTerminal}
-          title={p.labels.newTerminal}
-          onClick={() => void openShell()}
-        >
-          +
-        </button>
       </div>
-      {note && selected === STUDIO && (
-        <div class="term-note" role="note">
-          {p.labels.readonly}{" "}
-          <button type="button" class="btn" onClick={() => void openShell()}>
-            {p.labels.openTerminal}
-          </button>
-        </div>
-      )}
-      <div class="term-box" ref={box} />
     </div>
   );
 }

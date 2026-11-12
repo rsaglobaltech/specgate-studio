@@ -12,11 +12,54 @@ import {
   type BriefView,
 } from "../domain/brief.js";
 import type { SpecgateAnswer, SpecgatePort } from "../ports/SpecgatePort.js";
+import type { ScratchPort } from "../ports/ScratchPort.js";
+import type { Commands, Tracked } from "./Commands.js";
+import { findingLine } from "../domain/changes.js";
+import {
+  acceptProposal,
+  briefFormInput,
+  briefFormOf,
+  formFromWire,
+  type BriefForm,
+} from "../domain/briefForm.js";
 
 /** What runs the brief's commands: Commands, which tells every run and guards writes. */
 export interface CommandRunner {
   run(command: SpecgateCommand): Promise<RunResult>;
 }
+
+/** The brief as a form, and what specgate's checks found in it (REQ-071). */
+export interface BriefFormView {
+  form: BriefForm | null;
+  findings: Finding[];
+  /** The proposal the client's text made, waiting for Accept or Discard (REQ-074); null when none. */
+  proposal: BriefForm | null;
+}
+
+/** How saving the form, proposing one from the client's text, accepting or discarding it ended. */
+export type BriefFormResult =
+  | { ok: true; view: BriefFormView; written: string[] }
+  | {
+      ok: false;
+      code: "form_invalid" | "no_agent" | "no_proposal" | "write_busy" | "failed";
+      message: string;
+      notice?: Record<Lang, Notice>;
+    };
+
+const DISCARDED: Record<Lang, Notice> = {
+  en: {
+    tone: "ok",
+    ran: "The proposal was discarded: no command ran.",
+    wrote: "Nothing was written: docs/brief.md is as it was.",
+    next: "specgate propose --from-brief --form",
+  },
+  es: {
+    tone: "ok",
+    ran: "Se descartó la propuesta: no se ejecutó ningún comando.",
+    wrote: "No se escribió nada: docs/brief.md está como estaba.",
+    next: "specgate propose --from-brief --form",
+  },
+};
 
 /** How "Draft the modules" ended (REQ-073). */
 export type DraftResult =
@@ -48,11 +91,148 @@ export class Brief {
   private checks = 0;
   /** The draft running now, as the person would type it; null when none runs. */
   private drafting: string | null = null;
+  /** What the client's text proposed, until it is accepted or discarded (REQ-074). */
+  private proposal: BriefForm | null = null;
 
   constructor(
-    private readonly commands: CommandRunner,
+    private readonly commands: CommandRunner & Partial<Pick<Commands, "track">>,
     private readonly specgate: Pick<SpecgatePort, "call">,
+    /** Files outside the project for what specgate reads from a file (REQ-071, REQ-074). */
+    private readonly scratch?: ScratchPort,
   ) {}
+
+  /** The brief as a form, read by specgate; and the proposal waiting, if any (REQ-071, REQ-074). */
+  async form(): Promise<BriefFormView> {
+    const answer = await this.read({ name: "brief-form" }).catch(() => null);
+    return {
+      form: answer ? briefFormOf(answer.data) : null,
+      findings: posixFindings(answer?.findings ?? []),
+      proposal: this.proposal,
+    };
+  }
+
+  /**
+   * Save the form (REQ-071): `propose --from-brief --form <file>`, the file
+   * outside the project; specgate rewrites only the fields that changed and
+   * keeps every other line of docs/brief.md byte for byte.
+   */
+  async saveForm(raw: unknown): Promise<BriefFormResult> {
+    const form = formFromWire(raw);
+    if (!form) return { ok: false, code: "form_invalid", message: "Not a brief's form." };
+    return this.write(form);
+  }
+
+  /**
+   * The client's text (REQ-074): the project's agent proposes the form from
+   * it — `propose --from-brief --brief <file> --agent <agent>` on a file
+   * outside the project — and nothing of the project is written.
+   */
+  async propose(text: unknown): Promise<BriefFormResult> {
+    if (typeof text !== "string" || !text.trim())
+      return { ok: false, code: "form_invalid", message: "Paste the client's text first." };
+    const agent = agentOf((await this.read({ name: "config-list" }).catch(() => null))?.data);
+    if (!agent)
+      return {
+        ok: false,
+        code: "no_agent",
+        message: "No agent is set for the project.",
+        notice: noAgentNotice(),
+      };
+    const { scratch, track } = this.wiredForm();
+    const file = await scratch.write("client-brief.md", text);
+    try {
+      const command: SpecgateCommand = { name: "brief-propose", file, agent };
+      const args = commandLine(command)!.args;
+      let proposed: BriefForm | null = null;
+      const run = await track(shown(args), false, async (output): Promise<Tracked> => {
+        const answer = await this.specgate.call(args);
+        for (const f of answer.findings) output(findingLine(f));
+        proposed = briefFormOf(answer.data);
+        const refused = !proposed || answer.findings.some((f) => f.severity === "error");
+        return {
+          exitCode: refused ? answer.exitCode || 1 : 0,
+          action: "brief-propose",
+          vars: { agent },
+          findings: answer.findings.filter((f) => f.severity === "error"),
+          written: [],
+        };
+      });
+      if (!run.ok) return { ok: false, code: "write_busy", message: run.message };
+      if (!proposed)
+        return {
+          ok: false,
+          code: "failed",
+          message: "The agent proposed no form: see the terminal.",
+        };
+      this.proposal = proposed;
+      return { ok: true, view: await this.form(), written: [] };
+    } finally {
+      await scratch.remove(file).catch(() => undefined);
+    }
+  }
+
+  /** Accept the proposal (REQ-074): written into docs/brief.md, as a save of the form is. */
+  async accept(): Promise<BriefFormResult> {
+    if (!this.proposal)
+      return { ok: false, code: "no_proposal", message: "No proposal to accept." };
+    const current = (await this.form()).form;
+    const r = await this.write(acceptProposal(current, this.proposal));
+    if (r.ok) {
+      this.proposal = null;
+      r.view.proposal = null;
+    }
+    return r;
+  }
+
+  /** Discard the proposal (REQ-074): nothing runs, nothing is written. */
+  async discard(): Promise<BriefFormResult & { notice?: Record<Lang, Notice> }> {
+    this.proposal = null;
+    return { ok: true, view: await this.form(), written: [], notice: DISCARDED };
+  }
+
+  private async write(form: BriefForm): Promise<BriefFormResult> {
+    const { scratch, track } = this.wiredForm();
+    const file = await scratch.write("brief-form.json", JSON.stringify(briefFormInput(form)));
+    try {
+      const args = commandLine({ name: "brief-form-write", file })!.args;
+      let written: string[] = [];
+      let findings: Finding[] = [];
+      const run = await track(shown(args), true, async (output): Promise<Tracked> => {
+        const answer = await this.specgate.call(args);
+        findings = posixFindings(answer.findings);
+        for (const f of findings) output(findingLine(f));
+        // The brief's own findings (B1–B13) are Problems, not a refusal: only no form back is one.
+        const back = (answer.data as { form?: { written?: unknown } } | null)?.form;
+        written = back && back.written === true ? [BRIEF_FILE] : [];
+        for (const f of written) output(`  wrote ${f}\n`);
+        return {
+          exitCode: back ? 0 : answer.exitCode || 1,
+          action: "brief-form",
+          vars: {},
+          findings: back ? [] : answer.findings.filter((f) => f.severity === "error"),
+          written,
+        };
+      });
+      if (!run.ok) return { ok: false, code: "write_busy", message: run.message };
+      if (run.exitCode !== 0)
+        return {
+          ok: false,
+          code: "failed",
+          message: "specgate did not write the form: see the terminal.",
+        };
+      // What specgate's checks found is what Problems lists (REQ-072).
+      this.findings = findings;
+      return { ok: true, view: await this.form(), written };
+    } finally {
+      await scratch.remove(file).catch(() => undefined);
+    }
+  }
+
+  private wiredForm() {
+    const track = this.commands.track?.bind(this.commands);
+    if (!this.scratch || !track) throw new Error("The brief's form is not wired in this host.");
+    return { scratch: this.scratch, track };
+  }
 
   /**
    * A file was saved, from the form or as markdown: when it is the brief, its

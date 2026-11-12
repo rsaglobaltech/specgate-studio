@@ -11,7 +11,9 @@ import {
   NodeFileSystem,
   NodeGit,
   NodeHarnessEvents,
+  NodeScratch,
   NodeStore,
+  NodeUserSettings,
   NodeWatcher,
   caseInsensitivePaths,
   systemClock,
@@ -65,7 +67,8 @@ export async function startProjectHost(
   const fs = new NodeFileSystem();
   const git = new NodeGit();
   const caseInsensitive = caseInsensitivePaths();
-  const recent = new RecentProjects(new NodeStore(options.home), systemClock, caseInsensitive);
+  const store = new NodeStore(options.home);
+  const recent = new RecentProjects(store, systemClock, caseInsensitive);
   const registry: HostRegistry =
     options.registry ??
     new HostRegistry(
@@ -100,6 +103,10 @@ export async function startProjectHost(
     }),
     port: options.port ?? 0,
     workspace: { fs, git, watcher: new NodeWatcher(), recent, registry },
+    // The folders the Explorer leaves open, kept per project (draft-explorer-tree A4).
+    store,
+    // The Developer's own settings file, Settings' User scope (draft-settings REQ-141, A2).
+    userSettings: new NodeUserSettings(options.home),
     ...(options.ui ? { ui: options.ui } : {}),
     ...(options.files ? { files: options.files(projectDir) } : {}),
     ...(options.findings ? { findings: options.findings(projectDir) } : {}),
@@ -127,7 +134,9 @@ export async function startProjectHost(
     },
     setup: { port: new SpecgateSetup(cli), fs, onPath: options.onPath ?? (() => false) },
     // The brief's checks and drafts, with --json through the CLI (draft-brief).
-    brief: { specgate: cli },
+    brief: { specgate: cli, scratch: new NodeScratch() },
+    // The agent panel's plans, through the CLI (draft-workbench-v2 REQ-181 … REQ-183).
+    agent: { specgate: cli },
   });
   await recent.opened(projectDir);
   registry.add(projectDir, host);

@@ -199,12 +199,17 @@ async function changes(page: Page) {
   await page.waitForSelector('.cgroup[data-group="ready"] .change');
 }
 
-const heading = (page: Page, g: string) => page.textContent(`.cgroup[data-group="${g}"] h2`);
+const heading = (page: Page, g: string) => page.textContent(`.cgroup[data-group="${g}"] .sgroup`);
 const cards = (page: Page, g: string) =>
   page.$$eval(`.cgroup[data-group="${g}"] .change`, (els) =>
     els.map((e) => e.getAttribute("data-change")),
   );
 const text = (page: Page, part: string) => page.textContent(`.notice [data-part="${part}"]`);
+/** A change chosen in the side panel: shown beside it (draft-design-conformance REQ-175). */
+async function pick(page: Page, id: string) {
+  await page.click(`.crow[data-change="${id}"]`);
+  await page.waitForSelector(`.detail .card.change[data-change="${id}"]`);
+}
 
 test('REQ-081 SCN-241: sprich in Changes — "To review (1)" draft-pedidos, "In progress (1)" add-coupons, "Ready to archive (1)" fix-rounding', async () => {
   const s = await sprich();
@@ -229,6 +234,7 @@ test("REQ-081 SCN-242: add-coupons' last requirement applied, Changes opened aga
   try {
     await changes(page);
     assert.deepEqual(await cards(page, "progress"), ["add-coupons"]);
+    await pick(page, "add-coupons");
     await page.click(
       '.change[data-change="add-coupons"] li[data-req="REQ-031"] [data-action="apply"]',
     );
@@ -321,7 +327,12 @@ test("REQ-084 SCN-248: the review of KAN-13 closed without confirming — no com
     await page.waitForSelector(".ticket-review", { state: "detached" });
     assert.deepEqual(s.runs, [], "no command ran");
     assert.deepEqual(
-      s.calls.filter((c) => c[0] !== "change"),
+      // Home reads the agent's cost (`harness report`, read-only) beside it (draft-design-conformance REQ-173),
+      // and the agent panel which agent is set (`config list`, read-only; draft-workbench-v2 REQ-181).
+      s.calls.filter(
+        (c) =>
+          c[0] !== "change" && c.join(" ") !== "harness report" && c.join(" ") !== "config list",
+      ),
       [["propose", "--from-ticket", "KAN-13", "--check"]],
       "only the review was read: no propose that opens, branches, commits or pushes",
     );
@@ -337,6 +348,7 @@ test("REQ-085 SCN-249: Archive on fix-rounding — `archive fix-rounding --dry-r
   const page = await open(s);
   try {
     await changes(page);
+    await pick(page, "fix-rounding");
     await page.click('.change[data-change="fix-rounding"] [data-action="archive"]');
     await page.waitForSelector(".archive-preview");
     assert.deepEqual(
@@ -380,6 +392,7 @@ test("REQ-085: the preview cancelled — nothing archived", async () => {
   const page = await open(s);
   try {
     await changes(page);
+    await pick(page, "fix-rounding");
     await page.click('.change[data-change="fix-rounding"] [data-action="archive"]');
     await page.waitForSelector(".archive-preview");
     await page.click(".archive-preview .btn:not(.pri)");
@@ -398,6 +411,7 @@ test("REQ-085 SCN-250: add-coupons in the browser — no Archive offered, and it
   const page = await open(s);
   try {
     await changes(page);
+    await pick(page, "add-coupons");
     assert.equal(await page.$('.change[data-change="add-coupons"] [data-action="archive"]'), null);
     assert.equal(
       await page.textContent('.change[data-change="add-coupons"] [data-part="to-apply"]'),
@@ -414,6 +428,7 @@ test('REQ-085: the "?" beside Archive — the preview and the archive, each in i
   try {
     await page.click('.sga[data-view="changes"]');
     await page.waitForSelector('.cgroup[data-group="ready"] .change');
+    await pick(page, "fix-rounding");
     await page.click('.change[data-change="fix-rounding"] .hq');
     await page.waitForSelector('.help section[data-action="archive"] [data-part="next"]');
     assert.equal(
@@ -442,6 +457,7 @@ test("REQ-086 SCN-251: Apply on REQ-031 refused on the desktop — `specgate app
   const page = await open(s);
   try {
     await changes(page);
+    await pick(page, "add-coupons");
     await page.click(
       '.change[data-change="add-coupons"] li[data-req="REQ-031"] [data-action="apply"]',
     );
@@ -468,6 +484,7 @@ test("REQ-063 SCN-186: Apply on REQ-031 with no test that names it, in the brows
   const page = await open(s);
   try {
     await changes(page);
+    await pick(page, "add-coupons");
     await page.click(
       '.change[data-change="add-coupons"] li[data-req="REQ-031"] [data-action="apply"]',
     );
@@ -489,6 +506,7 @@ test("REQ-086 SCN-252: Apply on REQ-030 in the browser — `specgate apply REQ-0
   const page = await open(s);
   try {
     await changes(page);
+    await pick(page, "add-coupons");
     await page.click(
       '.change[data-change="add-coupons"] li[data-req="REQ-030"] [data-action="apply"]',
     );

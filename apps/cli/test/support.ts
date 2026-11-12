@@ -13,6 +13,9 @@ import {
   InMemoryHarnessEvents,
   InMemoryFileSystem,
   InMemoryGit,
+  InMemoryUserSettings,
+  InMemoryWatcher,
+  IgnoreRules,
   type Finding,
   type ProcessRunner,
   type Section,
@@ -60,8 +63,11 @@ export interface StudioOptions {
   findings?: Finding[];
   /** The project's git branch, read through the workspace (draft-workspace). */
   branch?: string | null;
-  /** Sections over the defaults (draft-changes). */
-  sections?: Partial<Record<Section, unknown>>;
+  /**
+   * Sections over the defaults (draft-changes); a function reads the files on
+   * disk each time, as specgate would read the project again (draft-traceability).
+   */
+  sections?: Partial<Record<Section, unknown | ((disk: Record<string, string>) => unknown)>>;
   /**
    * specgate's `--json` answers, by the arguments joined with spaces; a
    * function may change the sections, as the command would, read the files
@@ -81,6 +87,23 @@ export interface StudioOptions {
   homeRequirements?: Array<{ id: string; title: string; category: string; needs: string | null }>;
   /** The project's uncommitted files (draft-build-live); none by default. */
   uncommitted?: string[];
+  /** git's two letters of some uncommitted files: `"??"`, `"A "` (draft-explorer-tree). */
+  status?: Record<string, string>;
+  /** Empty folders of the project, and links to folders outside it (draft-explorer-tree). */
+  folders?: string[];
+  links?: string[];
+  /** Sections read slowly, in ms (draft-design-conformance REQ-178). */
+  slow?: Partial<Record<Section, number>>;
+  /** The port to serve on; a free one by default. */
+  port?: number;
+  /**
+   * Files the host writes outside the project for specgate to read — the
+   * brief's form, the client's text (draft-brief REQ-071, REQ-074) — by path:
+   * `/scratch/<name>`, so specgate's answers can be recorded for them.
+   */
+  scratch?: Map<string, string>;
+  /** What the Developer's own settings file holds; nothing by default (draft-settings REQ-141). */
+  user?: Record<string, unknown>;
   /** Started as the desktop app's sidecar starts it: its lock written there (draft-desktop REQ-158). */
   locks?: HostLocks;
 }
@@ -108,12 +131,39 @@ export async function studio(opts: StudioOptions = {}) {
         ],
       },
     },
-    matrix: { matrix: { derived: true, written: false, rows } },
+    // One row per scenario, as specgate 0.34.0 answers (draft-traceability A5): one scenario each.
+    matrix: {
+      matrix: {
+        derived: true,
+        written: false,
+        rows,
+        scenarios: (opts.homeRequirements ?? requirements(rows)).map((r) => ({
+          requirement: r.id,
+          scenario: `SCN-${r.id.slice(4)}a`,
+          feature: `features/${r.id}.feature`,
+          tests: r.category === "DONE" ? [`test/${r.id}.test.ts`] : [],
+          code: r.category === "DONE" ? [`src/${r.id}.ts`] : [],
+          status: r.category === "DONE" ? "Implemented" : "Approved",
+          gaps: r.category === "DONE" ? [] : ["test", "code"],
+          waiting: null,
+        })),
+      },
+    },
     report: { total: rows },
     ...opts.sections,
   };
   const reader: SectionReader = {
-    read: async (s) => (reads.push(s), structuredClone(data[s])),
+    read: async (s) => {
+      reads.push(s);
+      const wait = opts.slow?.[s];
+      if (wait) await new Promise((ok) => setTimeout(ok, wait));
+      // A section given as an Error cannot be read (draft-design-conformance REQ-178).
+      if (data[s] instanceof Error) throw data[s];
+      // A section given as a function is read from the files on disk (draft-traceability).
+      if (typeof data[s] === "function")
+        return structuredClone((data[s] as (d: Record<string, string>) => unknown)(disk));
+      return structuredClone(data[s]);
+    },
   };
   const runs: string[][] = [];
   const runner: ProcessRunner = {
@@ -149,8 +199,20 @@ export async function studio(opts: StudioOptions = {}) {
     "spec.md": "# spec.md\n",
   };
   const writes: string[] = [];
+  // Empty folders the tree made, and links to folders outside the project (draft-explorer-tree).
+  const folders = new Set<string>(opts.folders ?? []);
+  const links = new Set<string>(opts.links ?? []);
+  const trash: string[] = [];
+  const childrenReads: string[] = [];
+  const refusal = (code: string, message: string) => Object.assign(new Error(message), { code });
+  const throughLink = (p: string) => [...links].some((l) => p === l || p.startsWith(`${l}/`));
+  const isFolder = (p: string) =>
+    folders.has(p) || links.has(p) || Object.keys(disk).some((f) => f.startsWith(`${p}/`));
+  const exists = (p: string) => p in disk || isFolder(p);
+  // What the project's .gitignore names and the workspace's rules, left out as the real port does.
+  const ignored = (p: string) => new IgnoreRules(disk[".gitignore"] ?? "").ignores(p);
   const files: ProjectFiles = {
-    list: async () => Object.keys(disk),
+    list: async () => Object.keys(disk).filter((p) => !ignored(p)),
     read: async (p) => {
       if (!(p in disk)) throw new Error(`no ${p}`);
       return disk[p]!;
@@ -158,6 +220,49 @@ export async function studio(opts: StudioOptions = {}) {
     write: async (p, text) => {
       writes.push(p);
       disk[p] = text;
+    },
+    children: async (dir) => {
+      childrenReads.push(dir);
+      if (dir && !isFolder(dir)) throw refusal("missing", `no folder ${dir}`);
+      const prefix = dir ? `${dir}/` : "";
+      const out = new Map<string, boolean>();
+      for (const p of [...Object.keys(disk), ...folders, ...links]) {
+        if (!p.startsWith(prefix) || p === dir) continue;
+        const rest = p.slice(prefix.length);
+        const at = rest.indexOf("/");
+        if (at < 0) out.set(rest, out.get(rest) ?? (folders.has(p) || links.has(p)));
+        else out.set(rest.slice(0, at), true);
+      }
+      // What is ignored is marked, never left out (draft-workbench-v2 REQ-186).
+      return [...out].map(([name, isDir]) => ({
+        name,
+        dir: isDir,
+        ...(ignored(prefix + name) ? { ignored: true } : {}),
+      }));
+    },
+    create: async (p, dir) => {
+      if (throughLink(p)) throw refusal("outside", "not inside the project");
+      if (exists(p)) throw refusal("exists", `${p} already exists`);
+      if (dir) folders.add(p);
+      else disk[p] = "";
+    },
+    rename: async (from, to) => {
+      if (throughLink(from) || throughLink(to)) throw refusal("outside", "not inside the project");
+      if (!exists(from)) throw refusal("missing", `${from} is not there`);
+      if (exists(to)) throw refusal("exists", `${to} already exists`);
+      for (const f of Object.keys(disk))
+        if (f === from || f.startsWith(`${from}/`)) {
+          disk[to + f.slice(from.length)] = disk[f]!;
+          delete disk[f];
+        }
+      if (folders.delete(from)) folders.add(to);
+    },
+    remove: async (p, permanent) => {
+      if (throughLink(p)) throw refusal("outside", "not inside the project");
+      if (!exists(p)) throw refusal("missing", `${p} is not there`);
+      if (!permanent) trash.push(p);
+      for (const f of Object.keys(disk)) if (f === p || f.startsWith(`${p}/`)) delete disk[f];
+      folders.delete(p);
     },
   };
   const projectDir = path.join(dir, "sprich");
@@ -170,13 +275,17 @@ export async function studio(opts: StudioOptions = {}) {
   // Build's harness: a build ends when the test says (draft-build-live).
   const harness = new FakeHarness();
   const events = new InMemoryHarnessEvents();
+  if (opts.status) git.setStatus(projectDir, opts.status);
+  const watcher = new InMemoryWatcher();
   const workspace = {
     fs: new InMemoryFileSystem({
       [path.join(projectDir, "docs/specs/traceability.md")]: "# Matrix\n",
     }),
     git,
+    watcher,
   };
   const calls: string[][] = [];
+  const scratchFiles = opts.scratch ?? new Map<string, string>();
   const answers = opts.specgate;
   const specgate = answers && {
     call: async (args: readonly string[]): Promise<SpecgateAnswer> => {
@@ -186,9 +295,15 @@ export async function studio(opts: StudioOptions = {}) {
       return structuredClone(typeof a === "function" ? await a(data, disk) : a);
     },
   };
+  // The Developer's own settings file, outside sprich (draft-settings A2).
+  const userSettings = new InMemoryUserSettings(
+    path.join(dir, "home", ".config", "specgate-studio", "settings.json"),
+    opts.user ?? {},
+  );
   const options = {
     projectDir,
-    port: 0,
+    port: opts.port ?? 0,
+    userSettings,
     reader,
     runner,
     files,
@@ -196,6 +311,14 @@ export async function studio(opts: StudioOptions = {}) {
     workspace,
     ...(specgate ? { specgate } : {}),
     builds: { git, harness, events, pollMs: 50 },
+    scratch: {
+      write: async (name: string, text: string) => {
+        const at = `/scratch/${name}`;
+        scratchFiles.set(at, text);
+        return at;
+      },
+      remove: async () => undefined,
+    },
   };
   let host: Host;
   if (opts.locks) {
@@ -211,10 +334,17 @@ export async function studio(opts: StudioOptions = {}) {
     writes,
     disk,
     git,
+    watcher,
+    trash,
+    childrenReads,
+    folders,
     harness,
     events,
+    scratch: scratchFiles,
+    userSettings,
     projectDir,
     url: host.url.replace(/^ws/, "http"),
+    newPage: () => browser.newPage({ locale: "en-US" }),
   };
 }
 
@@ -223,6 +353,12 @@ export async function open(
   init?: { lang?: "en" | "es"; theme?: "dark" | "light" },
 ): Promise<Page> {
   const page = await browser.newPage({ locale: "en-US" });
+  // A slow CI runner, reproduced: STUDIO_CPU_THROTTLE=6 runs the page six times slower.
+  const throttle = Number(process.env.STUDIO_CPU_THROTTLE ?? 0);
+  if (throttle > 1) {
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Emulation.setCPUThrottlingRate", { rate: throttle });
+  }
   if (init?.lang) {
     await page.addInitScript(
       (s) => localStorage.setItem("specgate-studio.settings", JSON.stringify(s)),
@@ -235,7 +371,7 @@ export async function open(
   await page.goto(host.url);
   await page.waitForSelector("body[data-ready] .activity .sga");
   // Settled: the terminals' chunk too, which asks the host for its terminals once.
-  await page.waitForSelector(".term-tabs");
+  await page.waitForSelector(".term-tabs", { state: "attached" });
   return page;
 }
 
@@ -266,4 +402,31 @@ export async function untilTerm(page: Page, id: string, re: RegExp, ms = 20_000)
       throw new Error(`terminal ${id}: no ${re} in ${JSON.stringify(text.slice(-400))}`);
     await new Promise((ok) => setTimeout(ok, 50));
   }
+}
+
+/** The bottom panel's body shown: Ctrl/Cmd+J folds it to its tabs (draft-workbench-v2 REQ-184). */
+export async function showPanel(page: Page): Promise<void> {
+  if (await page.$(".panel[data-collapsed]")) {
+    await page.keyboard.press(`${MOD}+J`);
+    await page.waitForSelector(".panel:not([data-collapsed])");
+  }
+}
+
+/** The bottom panel folded to its tabs: always there, never removed (REQ-184). */
+export async function hidePanel(page: Page): Promise<void> {
+  if (!(await page.$(".panel[data-collapsed]"))) {
+    await page.keyboard.press(`${MOD}+J`);
+    await page.waitForSelector(".panel[data-collapsed]");
+  }
+}
+
+/**
+ * A file opened from the Explorer: its tree in the side panel, the file found
+ * with the filter inside the tree (draft-explorer-tree REQ-167), then chosen.
+ */
+export async function openFromExplorer(page: Page, file: string): Promise<void> {
+  await page.click('.sga[data-view="explorer"]');
+  await page.fill(".explorer .filter", file);
+  await page.click(`.explorer .row[title="${file}"]`);
+  await page.fill(".explorer .filter", "");
 }

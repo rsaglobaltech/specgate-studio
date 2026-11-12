@@ -81,7 +81,7 @@ test('REQ-063 SCN-185: Check passes — the notice names `specgate check` and it
     await page.waitForFunction(
       () => document.querySelector(".next .mono")?.textContent === "specgate apply REQ-031",
     );
-    await page.click(".actions .btn.pri");
+    await page.click('.actions [data-act="check"]');
     await page.waitForSelector('.notice[data-tone="ok"]');
     const text = (sel: string) => page.textContent(`.notice [data-part="${sel}"]`);
     assert.match(

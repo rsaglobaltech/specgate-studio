@@ -1,9 +1,11 @@
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import type {
   BuildItem,
   BuildList,
   BuildStart,
   Estimate,
+  RunResult,
+  SpecgateCommand,
   Uncommitted,
   WaitingItem,
 } from "@specgate-studio/protocol";
@@ -23,8 +25,15 @@ export interface BuildProps {
   onHelp: (feature: string, requests: HelpRequest[]) => void;
   /** Names the button whose command runs next, in the terminal's echo (REQ-053). */
   announce: (label: string) => void;
+  /**
+   * Names the button that builds `req`, kept until its run starts — a queued
+   * one's echo names its own (demo-findings REQ-103); `null` forgets it.
+   */
+  announceBuild: (req: string, label: string | null) => void;
   /** Opens Live. */
   onLive: () => void;
+  /** Runs a specgate command for a button, in the terminal (REQ-053): "Configurar agente". */
+  run: (label: string, command: SpecgateCommand) => Promise<RunResult>;
 }
 
 type Waits = Extract<BuildStart, { code: "build_waits" }>;
@@ -41,20 +50,29 @@ export function Build(p: BuildProps) {
   const [list, setList] = useState<BuildList | null>(null);
   const [unreadable, setUnreadable] = useState(false);
   const [waits, setWaits] = useState<Waits | null>(null);
-  const [confirm, setConfirm] = useState<"commit" | "stash" | null>(null);
+  const [confirm, setConfirm] = useState<"commit" | "stash" | "ignore" | null>(null);
   const [started, setStarted] = useState<{ req: string; queued: boolean } | null>(null);
   const [refused, setRefused] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [chosen, setChosen] = useState<ReadonlySet<string>>(new Set());
+  const [setUp, setSetUp] = useState(false);
 
   useEffect(() => {
     let live = true;
-    p.rpc.ask("build.get", {}).then(
+    // REQ-000 is listed only once named: Build opened on it (draft-live-polish REQ-101, A10).
+    p.rpc.ask("build.get", { named: p.focus }).then(
       (l) => live && (setList(l), setUnreadable(false)),
       () => live && setUnreadable(true),
     );
     return () => {
       live = false;
     };
-  }, [p.rpc, ...p.stamp]);
+  }, [p.rpc, p.focus, ...p.stamp]);
+
+  // Opened on a requirement, it is the one chosen (SCN-609).
+  useEffect(() => {
+    if (p.focus) (setChosen(new Set([p.focus])), setSelected(p.focus));
+  }, [p.focus]);
 
   if (unreadable) return <p class="muted">{t("build.unreadable")}</p>;
   if (!list) return null;
@@ -68,20 +86,28 @@ export function Build(p: BuildProps) {
     } else if (r.code === "build_waits") {
       setWaits(r);
       setRefused(null);
-    } else setRefused(r.message);
+    } else {
+      // Refused: its button names no later run.
+      p.announceBuild(r.req, null);
+      setRefused(r.message);
+    }
   };
   const start = (req: string) => {
     setStarted(null);
-    p.announce(t("build.req", { req }));
-    p.rpc.ask("build.start", { req }).then(answered, (e: Error) => setRefused(e.message));
+    p.announceBuild(req, t("build.req", { req }));
+    p.rpc.ask("build.start", { req }).then(answered, (e: Error) => {
+      p.announceBuild(req, null);
+      setRefused(e.message);
+    });
   };
-  const resolve = (choice: "commit" | "stash", message: string) => {
+  /** "Aplicar": `specgate apply <REQ>` for a requirement whose test is in place (demo-findings REQ-101). */
+  const apply = (r: BuildItem) =>
+    void p.run(t("build.apply.req", { req: r.id }), { name: "apply", req: r.id });
+  const resolve = (choice: "commit" | "stash" | "ignore", message: string) => {
     if (!waits) return;
-    p.announce(t(choice === "commit" ? "build.commit" : "build.stash"));
+    p.announce(t(`build.${choice}`));
     const params =
-      choice === "commit"
-        ? { req: waits.req, choice, message }
-        : { req: waits.req, choice: "stash" as const };
+      choice === "commit" ? { req: waits.req, choice, message } : { req: waits.req, choice };
     p.rpc.ask("build.resolve", params).then(answered, (e: Error) => setRefused(e.message));
   };
 
@@ -90,110 +116,275 @@ export function Build(p: BuildProps) {
       { action: "build", feature: t("build.req", { req }), vars: { req } },
     ]);
 
+  const chosenReady = list.ready.filter((r) => chosen.has(r.id));
+  const shown =
+    list.ready.find((r) => r.id === (selected ?? p.focus)) ??
+    list.waiting.find((w) => w.id === (selected ?? p.focus)) ??
+    list.ready[0] ??
+    list.waiting[0] ??
+    null;
+  const buildChosen = () => {
+    // One after the other: the host queues them in this order (REQ-101).
+    for (const r of chosenReady) start(r.id);
+    setChosen(new Set());
+  };
+
   return (
-    <div class="build" data-agent={list.agent ?? ""}>
-      <p class="muted">{t("build.intro")}</p>
-      <div class="cards">
-        <div class="card" data-testid="build-agent">
+    <div class="split build" data-view="build" data-agent={list.agent ?? ""}>
+      <aside class="side" aria-label={t("build.side")}>
+        <div class="shead">
+          <h1 class="shead-h">{t("build.side")}</h1>
+          <HelpButton
+            label={t("build.help")}
+            onOpen={() =>
+              p.onHelp(t("build.feature"), [{ action: "build", feature: t("build.feature") }])
+            }
+          />
+        </div>
+        <div class="bwho" data-testid="build-agent">
           <div class="k">{t("build.agent")}</div>
           {list.agent ? (
-            <div class="v mono" title={list.agentCommand ?? ""}>
+            <div class="field mono" title={list.agentCommand ?? ""}>
               {list.agent}
             </div>
           ) : (
             <div class="noagent">
               <p style="margin:4px 0">{t("build.noAgent")}</p>
-              <span class="muted">{t("build.setAgent")} </span>
-              <code class="mono" data-testid="set-agent">
-                {list.setAgent}
-              </code>
-              <HelpButton
-                label={`? ${list.setAgent}`}
-                onOpen={() =>
-                  p.onHelp(list.setAgent, [{ action: "agents-init", feature: list.setAgent }])
-                }
-              />
+              {/* A button that runs it, after a confirmation (draft-live-polish REQ-203, A13). */}
+              <div class="actions">
+                <button
+                  type="button"
+                  class="btn pri"
+                  data-act="set-up-agent"
+                  onClick={() => setSetUp(true)}
+                >
+                  {t("build.setUp")}
+                </button>
+                <HelpButton
+                  label={`? ${t("build.setUp")}`}
+                  onOpen={() =>
+                    p.onHelp(t("build.setUp"), [
+                      { action: "agents-init", feature: t("build.setUp") },
+                    ])
+                  }
+                />
+              </div>
+              <p class="muted bset">
+                {t("build.setAgent")}{" "}
+                <code class="mono" data-testid="set-agent">
+                  {list.setAgent}
+                </code>
+              </p>
             </div>
           )}
         </div>
-        <div class="card" data-testid="build-estimate">
-          <div class="k">{t("build.estimate")}</div>
-          <div class="v" style="font-size:16px">
-            <EstimateText estimate={list.estimate} t={t} />
-          </div>
-          {list.estimate && list.estimate.runs > 0 && (
-            <div class="muted" style="font-size:12px">
-              {t("build.estimateFrom", { runs: list.estimate.runs })}
+        <div class="sgroup">{t("build.readyGroup")}</div>
+        {list.ready.length === 0 && <p class="muted side-empty">{t("build.noneReady")}</p>}
+        <ul class="breqs" data-group="ready">
+          {list.ready.map((r) => (
+            <ReadyRow
+              key={r.id}
+              r={r}
+              focus={p.focus === r.id}
+              current={shown?.id === r.id}
+              chosen={chosen.has(r.id)}
+              estimate={list.estimate}
+              agent={list.agent}
+              t={t}
+              onSelect={() => setSelected(r.id)}
+              onChoose={(on) =>
+                setChosen((c) => {
+                  const next = new Set(c);
+                  if (on) next.add(r.id);
+                  else next.delete(r.id);
+                  return next;
+                })
+              }
+              onBuild={() => start(r.id)}
+              onHelp={() => help(r.id)}
+            />
+          ))}
+        </ul>
+        <div class="sgroup">{t("build.waitingGroup")}</div>
+        <ul class="breqs" data-group="waiting">
+          {list.waiting.map((w) => (
+            <WaitingRow
+              key={w.id}
+              w={w}
+              t={t}
+              current={shown?.id === w.id}
+              onSelect={() => setSelected(w.id)}
+            />
+          ))}
+        </ul>
+        {list.toClose.length > 0 && (
+          <>
+            <div class="sgroup" data-testid="build-close-group">
+              {t("build.closeGroup")}
             </div>
-          )}
-        </div>
-      </div>
-
-      {started && (
-        <div
-          class="card bstarted"
-          role="status"
-          data-req={started.req}
-          data-queued={started.queued ? "1" : undefined}
-        >
-          {t(started.queued ? "build.queued" : "build.started", { req: started.req })}{" "}
-          <button type="button" class="btn" onClick={p.onLive}>
-            {t("build.openLive")}
+            <ul class="breqs" data-group="close">
+              {list.toClose.map((r) => (
+                <CloseRow
+                  key={r.id}
+                  r={r}
+                  t={t}
+                  onApply={() => apply(r)}
+                  onHelp={() =>
+                    p.onHelp(t("build.apply.req", { req: r.id }), [
+                      {
+                        action: "apply",
+                        feature: t("build.apply.req", { req: r.id }),
+                        vars: { req: r.id, ...(r.change ? { change: r.change } : {}) },
+                      },
+                    ])
+                  }
+                />
+              ))}
+            </ul>
+          </>
+        )}
+        <div class="grow" />
+        <div class="bfoot">
+          <button
+            type="button"
+            class="btn pri wide"
+            data-act="build-chosen"
+            disabled={chosenReady.length === 0 || !list.agent}
+            onClick={buildChosen}
+          >
+            {t(chosenReady.length === 1 ? "build.chosenOne" : "build.chosen", {
+              n: chosenReady.length,
+            })}
           </button>
+          {!list.agent && <p class="warn-text">{t("build.noAgent")}</p>}
         </div>
-      )}
-      {refused && (
-        <p class="setup-problem" role="alert">
-          {refused}
-        </p>
-      )}
-      {waits && (
-        <WaitsPanel
-          waits={waits}
-          t={t}
-          onChoose={setConfirm}
-          onHelp={(action, feature) =>
-            p.onHelp(feature, [{ action, feature, vars: { req: waits.req } }])
-          }
-        />
-      )}
-      {waits && confirm && (
-        <Confirm
-          kind={confirm}
-          waits={waits}
-          t={t}
-          onCancel={() => setConfirm(null)}
-          onConfirm={(message) => resolve(confirm, message)}
-        />
-      )}
+      </aside>
 
-      <h2 class="qhead">{t("build.ready", { n: list.ready.length })}</h2>
-      {list.ready.length === 0 && <p class="muted">{t("build.noneReady")}</p>}
-      <ul class="breqs" data-group="ready">
-        {list.ready.map((r) => (
-          <ReadyRow
-            key={r.id}
-            r={r}
-            focus={p.focus === r.id}
-            estimate={list.estimate}
-            agent={list.agent}
+      <div class="detail">
+        {started && (
+          <div
+            class="card bstarted"
+            role="status"
+            data-req={started.req}
+            data-queued={started.queued ? "1" : undefined}
+          >
+            {t(started.queued ? "build.queued" : "build.started", { req: started.req })}{" "}
+            <button type="button" class="btn" onClick={p.onLive}>
+              {t("build.openLive")}
+            </button>
+          </div>
+        )}
+        {refused && (
+          <p class="setup-problem" role="alert">
+            {refused}
+          </p>
+        )}
+        {waits && (
+          <WaitsPanel
+            waits={waits}
             t={t}
-            onBuild={() => start(r.id)}
-            onHelp={() => help(r.id)}
+            onChoose={setConfirm}
+            onHelp={(action, feature) =>
+              p.onHelp(feature, [{ action, feature, vars: { req: waits.req } }])
+            }
           />
-        ))}
-      </ul>
-
-      {list.waiting.length > 0 && (
-        <>
-          <h2 class="qhead">{t("build.waiting", { n: list.waiting.length })}</h2>
-          <ul class="breqs" data-group="waiting">
-            {list.waiting.map((w) => (
-              <WaitingRow key={w.id} w={w} t={t} />
-            ))}
-          </ul>
-        </>
-      )}
+        )}
+        {setUp && (
+          <div class="scrim" onClick={() => setSetUp(false)}>
+            <div
+              class="help"
+              role="dialog"
+              aria-label={t("build.setUp.title")}
+              data-confirm="set-up-agent"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2>{t("build.setUp.title")}</h2>
+              <p class="muted">{t("build.setUp.body")}</p>
+              <p>
+                <code class="mono">{list.setAgent}</code>
+              </p>
+              <div class="actions">
+                <button
+                  type="button"
+                  class="btn pri"
+                  data-act="confirm"
+                  onClick={() => {
+                    setSetUp(false);
+                    void p.run(t("build.setUp"), { name: "agents-init", tool: "claude" });
+                  }}
+                >
+                  {t("build.setUp.confirm")}
+                </button>
+                <button type="button" class="btn" data-act="cancel" onClick={() => setSetUp(false)}>
+                  {t("build.cancel")}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {waits && confirm && (
+          <Confirm
+            kind={confirm}
+            waits={waits}
+            t={t}
+            onCancel={() => setConfirm(null)}
+            onConfirm={(message) => resolve(confirm, message)}
+          />
+        )}
+        {shown && (
+          <section class="card bplan" data-req={shown.id}>
+            <div class="detail-head">
+              <h2 class="syne">
+                {shown.id} · {shown.title}
+              </h2>
+              <span class="muted">{t("build.planSub")}</span>
+            </div>
+            {"why" in shown ? (
+              <p class="muted">
+                {(shown as WaitingItem).why === "question"
+                  ? t("build.why.question", { q: (shown as WaitingItem).question ?? "?" })
+                  : (shown as WaitingItem).why === "review"
+                    ? t("build.why.review", { change: shown.change ?? "" })
+                    : t("build.why.scenario")}
+              </p>
+            ) : (
+              <div class="bsteps">
+                {(["branch", "agent", "gate", "apply", "commit"] as const).map((k, i) => (
+                  <div class="bstep" key={k} data-step={k}>
+                    <div class="mono bstep-k">
+                      {i + 1} · {t(`build.step.${k}`)}
+                    </div>
+                    <div>{t(`build.step.${k}.what`, { req: shown.id })}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div class="muted best-line" data-testid="build-estimate">
+              {t("build.estimate")}:{" "}
+              {"estimate" in shown && shown.estimate ? (
+                // specgate's own estimate for this requirement (REQ-493).
+                <span data-own={shown.estimate.basis}>
+                  {shown.estimate.minutes !== null
+                    ? t("build.estimateEach", { minutes: shown.estimate.minutes })
+                    : t("build.noEstimateOwn")}{" "}
+                  ·{" "}
+                  {t("build.estimateOwn", {
+                    basis: shown.estimate.basis,
+                    n: shown.estimate.samples,
+                  })}
+                </span>
+              ) : (
+                <>
+                  <EstimateText estimate={list.estimate} t={t} />
+                  {list.estimate && list.estimate.runs > 0 && (
+                    <span> · {t("build.estimateFrom", { runs: list.estimate.runs })}</span>
+                  )}
+                </>
+              )}
+            </div>
+          </section>
+        )}
+      </div>
     </div>
   );
 }
@@ -214,43 +405,120 @@ function EstimateText(props: { estimate: Estimate | null; t: T }) {
 function ReadyRow(props: {
   r: BuildItem;
   focus: boolean;
+  current: boolean;
+  chosen: boolean;
   estimate: Estimate | null;
   agent: string | null;
   t: T;
+  onSelect: () => void;
+  onChoose: (on: boolean) => void;
   onBuild: () => void;
   onHelp: () => void;
 }) {
   const { r, t } = props;
+  // specgate's own estimate for this requirement (REQ-493), else the average of past builds.
+  const own = r.estimate;
+  const minutes = own ? own.minutes : props.estimate?.minutes;
   return (
-    <li class="card breq" data-req={r.id} data-focus={props.focus ? "1" : undefined}>
-      <div class="bline">
-        <b class="mono">{r.id}</b>
-        <span>{r.title}</span>
-        {r.change && <span class="muted mono">{r.change}</span>}
-      </div>
-      <div class="bline muted">
-        <span class="best">
-          <EstimateText estimate={props.estimate} t={t} />
+    <li
+      class="tr breq bready"
+      data-req={r.id}
+      data-focus={props.focus ? "1" : undefined}
+      aria-current={props.current ? "true" : undefined}
+      onClick={props.onSelect}
+    >
+      <input
+        type="checkbox"
+        aria-label={t("build.choose", { req: r.id })}
+        checked={props.chosen}
+        onClick={(e) => e.stopPropagation()}
+        onChange={(e) => props.onChoose((e.target as HTMLInputElement).checked)}
+      />
+      <span class="rid">
+        <span class="sr">REQ-</span>
+        {r.id.replace(/^REQ-/, "")}
+      </span>
+      {/* The title on the row's width, its estimate below it (draft-live-polish REQ-101, A11). */}
+      <span class="bmain">
+        <span class="name" title={r.title ?? ""}>
+          {r.title}
         </span>
-        <span class="bagent mono" data-agent={props.agent ?? ""}>
-          {props.agent ?? "—"}
-        </span>
-        <button
-          type="button"
-          class="btn pri"
-          data-act="build"
-          disabled={!props.agent}
-          onClick={props.onBuild}
+        <span
+          class="best"
+          data-own={own ? own.basis : undefined}
+          title={
+            own
+              ? t("build.estimateOwn", { basis: own.basis, n: own.samples })
+              : minutes == null
+                ? t("build.noEstimate")
+                : undefined
+          }
         >
-          {t("build.button")}
-        </button>
-        <HelpButton label={`? ${t("build.req", { req: r.id })}`} onOpen={props.onHelp} />
-      </div>
+          {minutes != null ? (
+            <>
+              <span aria-hidden="true">~{minutes} min</span>
+              <span class="sr">
+                {own ? (
+                  t("build.estimateEach", { minutes })
+                ) : (
+                  <EstimateText estimate={props.estimate} t={t} />
+                )}
+              </span>
+            </>
+          ) : (
+            t("build.noEstimateOwn")
+          )}
+        </span>
+      </span>
+      <span class="bagent mono" data-agent={props.agent ?? ""} hidden>
+        {props.agent ?? "—"}
+      </span>
+      <button
+        type="button"
+        class="play"
+        data-act="build"
+        title={t("build.req", { req: r.id })}
+        aria-label={t("build.req", { req: r.id })}
+        disabled={!props.agent}
+        onClick={(e) => (e.stopPropagation(), props.onBuild())}
+      >
+        ▶
+      </button>
+      <HelpButton label={`? ${t("build.req", { req: r.id })}`} onOpen={props.onHelp} />
     </li>
   );
 }
 
-function WaitingRow(props: { w: WaitingItem; t: T }) {
+/** A requirement whose test is in place, ready to close with "Aplicar" (demo-findings REQ-101). */
+function CloseRow(props: { r: BuildItem; t: T; onApply: () => void; onHelp: () => void }) {
+  const { r, t } = props;
+  return (
+    <li class="tr breq bclose" data-req={r.id}>
+      <span class="rid">
+        <span class="sr">REQ-</span>
+        {r.id.replace(/^REQ-/, "")}
+      </span>
+      <span class="bmain">
+        <span class="name" title={r.title ?? ""}>
+          {r.title}
+        </span>
+        <span class="best">{t("build.closeWhy")}</span>
+      </span>
+      <button
+        type="button"
+        class="btn"
+        data-act="apply"
+        title={t("build.apply.req", { req: r.id })}
+        onClick={props.onApply}
+      >
+        {t("build.apply")}
+      </button>
+      <HelpButton label={`? ${t("build.apply.req", { req: r.id })}`} onOpen={props.onHelp} />
+    </li>
+  );
+}
+
+function WaitingRow(props: { w: WaitingItem; t: T; current: boolean; onSelect: () => void }) {
   const { w, t } = props;
   const why =
     w.why === "question"
@@ -259,12 +527,29 @@ function WaitingRow(props: { w: WaitingItem; t: T }) {
         ? t("build.why.review", { change: w.change ?? "" })
         : t("build.why.scenario");
   return (
-    <li class="card breq" data-req={w.id} data-why={w.why} data-question={w.question ?? undefined}>
-      <div class="bline">
-        <b class="mono">{w.id}</b>
-        <span>{w.title}</span>
-      </div>
-      <div class="muted">{why}</div>
+    <li
+      class="tr breq bready"
+      data-req={w.id}
+      data-why={w.why}
+      data-question={w.question ?? undefined}
+      aria-current={props.current ? "true" : undefined}
+      title={why}
+      onClick={props.onSelect}
+    >
+      <span class="dot waiting" />
+      <span class="rid">
+        <span class="sr">REQ-</span>
+        {w.id.replace(/^REQ-/, "")}
+      </span>
+      <span class="bmain">
+        <span class="name" title={w.title ?? ""}>
+          {w.title}
+        </span>
+        <span class="best">
+          {w.why === "question" ? (w.question ?? "?") : t(`build.short.${w.why}`)}
+        </span>
+      </span>
+      <span class="sr">{why}</span>
     </li>
   );
 }
@@ -295,7 +580,7 @@ function Groups(props: { files: Uncommitted; t: T }) {
 function WaitsPanel(props: {
   waits: Waits;
   t: T;
-  onChoose: (kind: "commit" | "stash") => void;
+  onChoose: (kind: "commit" | "stash" | "ignore") => void;
   onHelp: (action: "build-commit" | "build-stash" | "build-ignore", feature: string) => void;
 }) {
   const { waits, t } = props;
@@ -332,8 +617,8 @@ function WaitsPanel(props: {
           type="button"
           class="btn"
           data-act="ignore"
-          disabled
-          title={t("build.ignore.unsupported")}
+          title={t("build.ignore.title")}
+          onClick={() => props.onChoose("ignore")}
         >
           {t("build.ignore")}
         </button>
@@ -342,16 +627,13 @@ function WaitsPanel(props: {
           onOpen={() => props.onHelp("build-ignore", t("build.ignore"))}
         />
       </div>
-      <p class="muted" data-testid="ignore-unsupported" style="margin:6px 0 0;font-size:12px">
-        {t("build.ignore")}: {t("build.ignore.unsupported")}
-      </p>
     </section>
   );
 }
 
-/** The confirmation before a commit or a stash runs: the files it touches, by folder. */
+/** The confirmation before a commit, a stash or a build that ignores them runs: the files, by folder. */
 function Confirm(props: {
-  kind: "commit" | "stash";
+  kind: "commit" | "stash" | "ignore";
   waits: Waits;
   t: T;
   onCancel: () => void;
@@ -359,9 +641,16 @@ function Confirm(props: {
 }) {
   const { kind, waits, t } = props;
   const [message, setMessage] = useState("");
-  const title = t(kind === "commit" ? "build.confirm.commit" : "build.confirm.stash", {
-    n: waits.waits.total,
-  });
+  const empty = kind === "commit" && !message.trim();
+  const field = useRef<HTMLTextAreaElement>(null);
+  // The message is what is asked: the cursor is in it (A12).
+  useEffect(() => {
+    field.current?.focus();
+    // Once the click that opened it has settled: it does not take the focus back.
+    const t = window.setTimeout(() => field.current?.focus(), 0);
+    return () => window.clearTimeout(t);
+  }, []);
+  const title = t(`build.confirm.${kind}`, { n: waits.waits.total });
   return (
     <div class="scrim" onClick={props.onCancel}>
       <div
@@ -372,31 +661,40 @@ function Confirm(props: {
         onClick={(e) => e.stopPropagation()}
       >
         <h2>{title}</h2>
-        <p class="muted">
-          {t(kind === "commit" ? "build.confirm.commitBody" : "build.confirm.stashBody", {
-            req: waits.req,
-          })}
-        </p>
-        <Groups files={waits.waits} t={t} />
+        <p class="muted">{t(`build.confirm.${kind}Body`, { req: waits.req })}</p>
+        {/* The message first, labelled, in view (draft-live-polish REQ-102, A12); the files below it scroll. */}
         {kind === "commit" && (
-          <textarea
-            class="ask"
-            aria-label={t("build.message")}
-            placeholder={t("build.message")}
-            value={message}
-            onInput={(e) => setMessage((e.target as HTMLTextAreaElement).value)}
-          />
+          <div class="bmessage">
+            <label for="build-commit-message">{t("build.message")}</label>
+            <textarea
+              id="build-commit-message"
+              class="ask"
+              rows={2}
+              value={message}
+              ref={field}
+              onInput={(e) => setMessage((e.target as HTMLTextAreaElement).value)}
+            />
+          </div>
         )}
+        <div class="bconfirm-files">
+          <Groups files={waits.waits} t={t} />
+        </div>
         <div class="actions">
           <button
             type="button"
             class="btn pri"
             data-act="confirm"
-            disabled={kind === "commit" && !message.trim()}
+            disabled={empty}
+            aria-describedby={empty ? "build-confirm-why" : undefined}
             onClick={() => props.onConfirm(message.trim())}
           >
             {t("build.confirm")}
           </button>
+          {empty && (
+            <span class="muted bwhy" id="build-confirm-why" data-testid="confirm-why">
+              {t("build.needMessage")}
+            </span>
+          )}
           <button type="button" class="btn" data-act="cancel" onClick={props.onCancel}>
             {t("build.cancel")}
           </button>

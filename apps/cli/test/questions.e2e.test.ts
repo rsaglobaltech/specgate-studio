@@ -46,8 +46,9 @@ test("REQ-091 SCN-271 SCN-272: Q1 with its change and REQ-034, and the agent's q
   const page = await open(s);
   try {
     await questions(page);
+    // Every open question in the side panel; the agent's in its own group (draft-design-conformance REQ-175).
     assert.deepEqual(
-      await page.$$eval(".qcard", (els) => els.map((e) => e.getAttribute("data-question"))),
+      await page.$$eval("button.qrow", (els) => els.map((e) => e.getAttribute("data-question"))),
       ["Q1", "Q3"],
     );
     const q1 = await text(page, card("Q1"));
@@ -59,6 +60,8 @@ test("REQ-091 SCN-271 SCN-272: Q1 with its change and REQ-034, and the agent's q
       "REQ-034 is what it blocks",
     );
     assert.match(await text(page, `${card("Q1")} .qreq`), /REQ-034\s*Needs Clarification/);
+    await page.click('button.qrow[data-question="Q3"]');
+    await page.waitForSelector(card("Q3"));
     assert.equal(await page.getAttribute(`${card("Q3")} .qwhere`, "data-asked"), "build");
     assert.match(
       await text(page, card("Q3")),

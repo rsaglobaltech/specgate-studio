@@ -25,6 +25,21 @@ export function shellFor(
 }
 
 /**
+ * The folder a terminal runs in, as the panel names it (draft-workbench-v2
+ * REQ-184): under the Developer's home with `~`, in the platform's separators.
+ */
+export function folderLabel(dir: string, home: string): string {
+  if (!home) return dir;
+  const fold = /^[a-zA-Z]:[\\/]/.test(dir);
+  const d = fold ? dir.toLowerCase() : dir;
+  const h = (fold ? home.toLowerCase() : home).replace(/[\\/]+$/, "");
+  if (d === h) return "~";
+  const sep = dir.charAt(h.length);
+  if (d.startsWith(h) && (sep === "/" || sep === "\\")) return `~${dir.slice(h.length)}`;
+  return dir;
+}
+
+/**
  * A terminal's scrollback (REQ-056): its output as written, the last `lines`
  * lines of it (A7: at least 10,000), a line split across chunks kept whole.
  */

@@ -2,6 +2,7 @@ import { commandLine, shown, type SpecgateCommand } from "../domain/command.js";
 import {
   REQ_ID,
   buildList,
+  estimatesOf,
   harnessArgs,
   harnessReport,
   saveSpecification,
@@ -13,7 +14,14 @@ import {
   type StopResult,
 } from "../domain/build.js";
 import { groupChanges, changeIds } from "../domain/changes.js";
-import { foldLive, liveQuestions, queueStarted, type LiveView } from "../domain/live.js";
+import {
+  foldLive,
+  liveQuestions,
+  queueStarted,
+  streamByRequirement,
+  type LiveView,
+} from "../domain/live.js";
+import { findingLine } from "../domain/changes.js";
 import type { HarnessEventsPort } from "../ports/HarnessEventsPort.js";
 import type { SpecgateAnswer, SpecgatePort } from "../ports/SpecgatePort.js";
 import type { GitPort, GitWriter } from "../ports/GitPort.js";
@@ -83,25 +91,45 @@ export class Builds {
   private since: number | null = null;
   private poll: ReturnType<typeof setInterval> | null = null;
   private shown = "";
+  /** `--format jsonl`'s whole lines, as the run writes them (REQ-496); what is not whole yet waits. */
+  private stream: string[] = [];
+  private partial = "";
+  private telling: ReturnType<typeof setTimeout> | null = null;
+  /** When the studio started each requirement, epoch seconds: "Rama creada" counts from it (A3). */
+  private readonly startedAt: Record<string, number> = {};
+  /** Each requirement's estimate, minutes, as Build last listed it (A5). */
+  private estimates: Record<string, number | null> = {};
 
   constructor(private readonly options: BuildsOptions) {}
 
-  async list(): Promise<BuildList> {
-    const [status, changes] = await Promise.all([
+  /** What Build lists (REQ-101); REQ-000 among it only when `named` names it (A10). */
+  async list(named: string | null = null): Promise<BuildList> {
+    const [status, changes, questions] = await Promise.all([
       this.options.sections.section("home"),
       this.options.sections.section("changes"),
+      this.options.sections.section("questions").catch(() => null),
     ]);
     const shows: Record<string, unknown> = {};
-    const [report, config] = await Promise.all([
+    const [report, config, plan] = await Promise.all([
       this.data({ name: "harness-report" }),
       this.data({ name: "config-list" }),
+      // Each requirement's own estimate (specgate REQ-493).
+      this.data({ name: "plan" }),
       ...changeIds(changes).map(async (change) => {
         shows[change] = await this.data({ name: "change-show", change });
       }),
     ]);
-    // A draft no person approved waits for its review (A2).
+    // A change no person approved waits for its review (A2): a draft of the
+    // brief, and a change proposed without one alike.
     const review = new Set(groupChanges(changes, status, shows).groups.review.map((c) => c.id));
+    for (const [id, show] of Object.entries(shows)) {
+      const config = (show as { change?: { config?: Record<string, unknown> } } | null)?.change
+        ?.config;
+      if (config && config.approved == null) review.add(id);
+    }
     const settings = (config as { config?: Record<string, unknown> } | null)?.config ?? {};
+    const own = estimatesOf(plan);
+    this.estimates = Object.fromEntries(Object.entries(own).map(([r, e]) => [r, e.minutes]));
     return buildList(
       status,
       review,
@@ -109,6 +137,9 @@ export class Builds {
       Object.fromEntries(
         Object.entries(settings).filter((e): e is [string, string] => typeof e[1] === "string"),
       ),
+      questions,
+      own,
+      named,
     );
   }
 
@@ -123,7 +154,7 @@ export class Builds {
    * would be left out; otherwise the uncommitted specification is committed
    * and `specgate harness run --req <req>` starts.
    */
-  async start(req: string): Promise<BuildStart> {
+  async start(req: string, allowDirty = false): Promise<BuildStart> {
     const refused = await this.refusal(req);
     if (refused) return refused;
     const { git, root } = this.wired();
@@ -136,7 +167,8 @@ export class Builds {
         message: "This folder is not a git repository: the agent builds on a branch of its own.",
       };
     const work = uncommittedWork(files);
-    if (work.other.total > 0)
+    // "Ignore": the agent's branch leaves them out, and they stay as they are (REQ-102, specgate REQ-490).
+    if (work.other.total > 0 && !allowDirty)
       return { ok: false, code: "build_waits", req, message: WAITS, waits: work.other };
     // One build at a time: another waits in the queue, once (REQ-103).
     if (this.current) {
@@ -148,7 +180,7 @@ export class Builds {
     if (saved) return saved;
     this.since = Math.floor(this.now() / 1000);
     this.stopped.clear();
-    this.launch(req);
+    this.launch(req, allowDirty);
     return { ok: true, req, queued: false };
   }
 
@@ -163,11 +195,16 @@ export class Builds {
       ? await this.options.events.read(root, this.since ?? 0).catch(() => null)
       : null;
     const since = this.since ?? queueStarted(read?.queue ?? null) ?? 0;
-    const view = foldLive(read?.files ?? {}, since, {
+    // The stream says more, and sooner, than the events files: it wins for what it names (REQ-496).
+    const files = { ...(read?.files ?? {}), ...streamByRequirement(this.stream) };
+    const view = foldLive(files, since, {
       building: this.current?.req ?? null,
       queue: this.queue,
       stopping: this.stopping,
       stopped: this.stopped,
+      startedAt: this.startedAt,
+      estimates: this.estimates,
+      ...(this.maxAttempts() !== null ? { maxAttempts: this.maxAttempts()! } : {}),
     });
     // What the agent asked, as specgate recorded it and answered it (REQ-104).
     if (view.requirements.some((r) => r.question)) {
@@ -194,7 +231,14 @@ export class Builds {
     void this.tell();
     if (!now) {
       // Told as a run until the requirement ends: then, what was not started.
-      void commands.track(`stop after ${req}`, false, async (output) => {
+      // specgate's harness is asked too: it finishes the requirement and starts no other (REQ-491).
+      const args = commandLine({ name: "harness-stop" })!.args;
+      void commands.track(shown(args), false, async (output) => {
+        const asked = await this.options.specgate.call(args).catch((e: unknown) => {
+          output(`${e instanceof Error ? e.message : String(e)}\n`);
+          return null;
+        });
+        for (const f of asked?.findings ?? []) output(findingLine(f));
         output(`${req} goes on; ${vars.queued} will not start.\n`);
         await this.afterCurrent();
         return { exitCode: 0, action: "build-stop-after", vars };
@@ -209,6 +253,20 @@ export class Builds {
       return { exitCode: 0, action: "build-stop-now", vars };
     });
     return { ok: true, req, now, queued };
+  }
+
+  /** The attempts the run allows, from its `run-start` line (REQ-496); null before it came. */
+  private maxAttempts(): number | null {
+    for (const line of this.stream) {
+      if (!line.includes('"run-start"')) continue;
+      try {
+        const n = (JSON.parse(line) as { maxAttempts?: unknown }).maxAttempts;
+        if (typeof n === "number" && n > 0) return n;
+      } catch {
+        /* not whole */
+      }
+    }
+    return null;
   }
 
   /** Resolves once the build running now has ended, and the queue was dealt with. */
@@ -245,20 +303,13 @@ export class Builds {
   /**
    * What the Developer confirmed about the work Build waits on (REQ-102, A7):
    * a commit of the files shown with their message, or a stash; then the
-   * build starts. Ignore is refused: specgate 0.33.2's harness will not run
-   * while any file is uncommitted.
+   * build starts. Ignore builds anyway with `--allow-dirty` (specgate
+   * REQ-490): the agent's branch leaves the files out, and they stay.
    */
   async resolve(req: string, resolution: Resolution): Promise<BuildStart> {
     const refused = await this.refusal(req);
     if (refused) return refused;
-    if (resolution.choice === "ignore")
-      return {
-        ok: false,
-        code: "build_ignore_unsupported",
-        req,
-        message:
-          "specgate 0.33.2's harness refuses to start while any file is uncommitted: commit or stash them.",
-      };
+    if (resolution.choice === "ignore") return this.start(req, true);
     if (resolution.choice === "commit" && !resolution.message.trim())
       return {
         ok: false,
@@ -291,12 +342,15 @@ export class Builds {
     if (this.current) this.stopped.add(this.current.req);
     await this.current?.process?.stop();
     await this.idle();
+    if (this.telling) clearTimeout(this.telling);
+    this.telling = null;
     if (this.poll) clearInterval(this.poll);
     this.poll = null;
   }
 
   private async refusal(req: string): Promise<BuildStart | null> {
-    const list = await this.list();
+    // Pressing Build on a requirement names it (A10).
+    const list = await this.list(req);
     if (!REQ_ID.test(req) || !list.ready.some((r) => r.id === req)) {
       const waiting = list.waiting.find((w) => w.id === req);
       return {
@@ -384,29 +438,56 @@ export class Builds {
   }
 
   /** `specgate harness run --req <req>`, told as a run until it ends, with its notice. */
-  private launch(req: string): void {
+  private launch(req: string, allowDirty = false): void {
     const { harness, commands } = this.wired();
-    const args = harnessArgs(req)!;
+    const args = harnessArgs(req, allowDirty)!;
+    this.stream = [];
+    this.partial = "";
     const me: { req: string; process: BuildProcess | null; done: Promise<unknown> } = {
       req,
       process: null,
       done: Promise.resolve(),
     };
     this.current = me;
+    this.startedAt[req] = this.now() / 1000;
     // Live is read while it builds: the agent writes its events as it works (A9).
     if (this.options.onLive && !this.poll) {
       this.poll = setInterval(() => void this.tell(), this.options.pollMs ?? 250);
       this.poll.unref?.();
     }
     void this.tell();
-    // Shown as the person would type it: `--format json` is the studio's, like `--json`.
+    // Shown as the person would type it: `--format jsonl` is the studio's, like `--json`.
     me.done = commands
-      .track(shown(args.slice(0, 4)), false, async (output): Promise<Tracked> => {
-        me.process = harness.start(args, output);
+      .track(shown(args.slice(0, -2)), false, async (output): Promise<Tracked> => {
+        me.process = harness.start(args, output, (chunk) => this.streamed(chunk));
         const { exitCode, stdout } = await me.process.done;
-        return { ...this.outcome(req, exitCode, stdout), action: "build", vars: { req } };
+        return {
+          ...this.outcome(req, exitCode, stdout),
+          action: allowDirty ? "build-ignore" : "build",
+          vars: { req },
+        };
       })
       .finally(() => this.ended(me));
+  }
+
+  /** Lines of the stream as they come: Live is told at once, not at the next poll (REQ-496). */
+  private streamed(chunk: string): void {
+    const lines = (this.partial + chunk).split("\n");
+    this.partial = lines.pop() ?? "";
+    const whole = lines.map((l) => l.replace(/\r$/, "")).filter((l) => l.trim());
+    if (whole.length === 0) return;
+    this.stream.push(...whole);
+    // A long run keeps its steps; only the agent's oldest output is let go.
+    if (this.stream.length > 20_000)
+      this.stream = this.stream.filter(
+        (l, i) => i >= this.stream.length - 5_000 || !l.includes('"type":"output"'),
+      );
+    // Many lines at once are told once.
+    if (!this.telling)
+      this.telling = setTimeout(() => {
+        this.telling = null;
+        void this.tell();
+      }, 30);
   }
 
   /**

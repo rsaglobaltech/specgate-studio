@@ -62,15 +62,15 @@ test(
     const page = await open(s);
     try {
       // SCN-342: the next step, and it opens the five questions.
-      await page.waitForSelector("[data-setup-next]");
-      assert.equal(await text(page, "[data-setup-next]"), "Create the project");
+      // The five questions on Home at once, as option cards (draft-design-conformance REQ-174).
+      await page.waitForSelector('[data-setup="create"]');
+      assert.equal(await text(page, '[data-setup="create"]'), "Create the project");
       assert.equal(await page.$('[data-setup-next="adopt"]'), null);
-      await page.click("[data-setup-next]");
       await page.getByLabel("Project name").fill("academia");
-      await page.getByLabel("What it is").selectOption("web");
-      await page.getByLabel("Stack").selectOption("node-react");
-      await page.getByLabel("Agent that builds it").selectOption("claude");
-      await page.getByLabel("Architecture").selectOption("minimal");
+      await page.click('[data-q="kind"] [data-value="web"]');
+      await page.click('[data-q="stack"] [data-value="node-react"]');
+      await page.click('[data-q="agent"] [data-value="claude"]');
+      await page.click('[data-q="architecture"] [data-value="minimal"]');
 
       // SCN-332: the command those answers make, a Create button, the folder still empty.
       await page.waitForFunction(() =>
@@ -84,13 +84,18 @@ test(
       assert.match(config, /STACK: "Node.js, React, TypeScript"/);
       assert.match(config, /ARCHITECTURE: "minimal"/);
       assert.match(await text(page, ".setup"), /specgate agents init --tool claude/);
-      assert.equal(await text(page, '[data-setup="create"]'), "Create");
+      assert.equal(await text(page, '[data-setup="create"]'), "Create the project");
       assert.deepEqual(fs.readdirSync(dir), [], "nothing written before Create");
 
       // SCN-331: init runs in the studio's terminal; the project is the folder itself.
       await page.click('[data-setup="create"]');
       // The config's path is the studio's temporary folder: quoted on Windows, and long enough to wrap.
-      await untilTerm(page, "specgate", /▶ "Create" · specgate init --config /, 120_000);
+      await untilTerm(
+        page,
+        "specgate",
+        /▶ "Create the project" · specgate init --config /,
+        120_000,
+      );
       await page.waitForSelector('[data-ready="agent"][data-set="true"]', SLOW);
       assert.ok(fs.existsSync(path.join(dir, "spec.md")));
       assert.ok(fs.existsSync(path.join(dir, "docs", "specs", "traceability.md")));

@@ -6,7 +6,16 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { MOD, close, open, studio, untilTerm, type Page } from "./support.js";
+import {
+  MOD,
+  close,
+  hidePanel,
+  open,
+  studio,
+  untilTerm,
+  openFromExplorer,
+  type Page,
+} from "./support.js";
 
 const SPEC_PATH = "docs/specs/changes/draft-pedidos/specs/pedidos/spec.md";
 const SPEC = [
@@ -54,8 +63,7 @@ const sprich = () =>
 
 /** Opens the spec from Explorer and waits for Monaco to show it with its actions. */
 async function openSpec(page: Page) {
-  await page.click('.sga[data-view="explorer"]');
-  await page.click(`.row[title="${SPEC_PATH}"]`);
+  await openFromExplorer(page, SPEC_PATH);
   await page.waitForSelector(".monaco-editor .view-lines");
   await page.waitForFunction(
     () => document.querySelectorAll(".codelens-decoration a").length >= 10,
@@ -145,6 +153,8 @@ test('REQ-043 SCN-125: REQ-031\'s "until it is shipped" underlined — Q2 is ope
   const s = await sprich();
   const page = await open(s);
   try {
+    // The panel folded to its tabs: line 11 in view below the inline question.
+    await hidePanel(page);
     await openSpec(page);
     await page.waitForFunction(
       () => (window as any).__studio.monaco.editor.getModelMarkers({}).length >= 2,

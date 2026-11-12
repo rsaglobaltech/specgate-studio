@@ -2,6 +2,7 @@ import type { Finding } from "./finding.js";
 import type { Lang, Notice } from "./help.js";
 import { AGENT_TOOLS } from "./setup.js";
 import { BRIEF_FILE } from "./brief.js";
+import { PLAN_ID, validRequest } from "./agent.js";
 
 /**
  * The specgate commands the host may run, and the argument array each one is
@@ -11,10 +12,14 @@ import { BRIEF_FILE } from "./brief.js";
 export type SpecgateCommand =
   | { name: "check" }
   | { name: "status" }
+  // Home's "Doctor" (draft-design-conformance REQ-173, A9): every diagnostic, read-only.
+  | { name: "doctor" }
   | { name: "change-validate"; change: string }
   | { name: "apply"; req: string }
   | { name: "archive"; change: string }
   | { name: "config-set"; key: string; value: string }
+  // Settings' Save (draft-settings REQ-142): `config set` with --json, its file and refusal in the answer.
+  | { name: "settings-save"; key: string; value: string }
   | { name: "answer"; q: string; answer: string; change: string }
   | { name: "answer-reviewed"; q: string; change: string }
   | { name: "change-note"; change: string; text: string; req?: string }
@@ -30,13 +35,32 @@ export type SpecgateCommand =
   | { name: "ci-init" }
   // draft-build-live: Build's estimate and who codes, read with --json (REQ-101).
   | { name: "harness-report" }
+  // Build's estimate per requirement (`plan --json`'s `estimates`, specgate REQ-493).
+  | { name: "plan" }
+  // "Stop after this requirement": the run finishes its requirement and starts no other (REQ-105, specgate REQ-491).
+  | { name: "harness-stop" }
   // draft-brief: the brief's checks on every save (REQ-072), read with --json.
   | { name: "brief-check" }
   // The brief's modules and where each stands, and the project's settings (REQ-073).
   | { name: "brief-modules" }
   | { name: "config-list" }
   // A module drafted by the project's agent (REQ-073, A6): the host's, never the wire's.
-  | { name: "draft-module"; module: string; agent: string };
+  | { name: "draft-module"; module: string; agent: string }
+  // "Draft again with N requested changes" (draft-changes REQ-083): the same command, its open notes handed over by specgate.
+  | { name: "redraft"; module: string; agent: string; open: number }
+  // The brief as a form (draft-brief REQ-071): read, and written back from a file outside the project.
+  | { name: "brief-form" }
+  | { name: "brief-form-write"; file: string }
+  // The client's text proposes a form; nothing is written in the project (REQ-074, specgate REQ-488).
+  | { name: "brief-propose"; file: string; agent: string }
+  // The agent panel (draft-workbench-v2 REQ-181 … REQ-183): a plan, then applied or discarded.
+  | { name: "agent-ask"; request: string }
+  | { name: "agent-apply"; id: string }
+  | { name: "agent-discard"; id: string }
+  | { name: "agent-plans" };
+
+/** A key of specgate's catalog, a profile's or a check's included: `test_cmd`, `profiles.claude-opus.agent`. */
+const CONFIG_KEY = /^[a-z][a-z0-9_]*(\.[A-Za-z0-9][A-Za-z0-9_-]*)*$/;
 
 export interface CommandLine {
   args: string[];
@@ -53,6 +77,8 @@ const CHANGE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const TICKET_KEY = /^[A-Z][A-Z0-9_]+-\d+$/;
 /** A module of the brief: lowercase words with dashes, as specgate names them. */
 const MODULE = /^[a-z0-9][a-z0-9-]*$/;
+/** A file the host made outside the project: an absolute path, one value, never a flag. */
+const SCRATCH = /^(\/|[A-Za-z]:[\\/])[^\r\n\0]*$/;
 /** An agent's command: one value, never a flag, on one line. */
 const AGENT = /^[^-\r\n][^\r\n]*$/;
 
@@ -62,7 +88,15 @@ const AGENT = /^[^-\r\n][^\r\n]*$/;
  * names (draft-brief A6).
  */
 export function fromWire(c: SpecgateCommand): boolean {
-  return (c as { name?: unknown } | null)?.name !== "draft-module";
+  const name = (c as { name?: unknown } | null)?.name;
+  // The agent's plans go through the panel, which keeps them (REQ-181 … REQ-183).
+  return (
+    name !== "draft-module" &&
+    name !== "redraft" &&
+    name !== "brief-form-write" &&
+    name !== "brief-propose" &&
+    !(typeof name === "string" && name.startsWith("agent-"))
+  );
 }
 
 /**
@@ -75,6 +109,8 @@ export function commandLine(c: SpecgateCommand): CommandLine | null {
       return { args: ["check"], write: false };
     case "status":
       return { args: ["status"], write: false };
+    case "doctor":
+      return { args: ["doctor"], write: false };
     case "change-validate":
       return { args: ["change", "validate", c.change], write: false };
     case "apply":
@@ -83,6 +119,13 @@ export function commandLine(c: SpecgateCommand): CommandLine | null {
       return { args: ["archive", c.change], write: true, json: true };
     case "config-set":
       return { args: ["config", "set", c.key, c.value], write: true };
+    case "settings-save":
+      return typeof c.key === "string" &&
+        CONFIG_KEY.test(c.key) &&
+        typeof c.value === "string" &&
+        !c.value.includes("\0")
+        ? { args: ["config", "set", c.key, c.value], write: true, json: true }
+        : null;
     case "answer":
       return { args: ["answer", c.q, c.answer, "--change", c.change], write: true };
     // "The spec says it" (draft-questions REQ-093).
@@ -131,6 +174,11 @@ export function commandLine(c: SpecgateCommand): CommandLine | null {
       return { args: ["ci", "init"], write: true };
     case "harness-report":
       return { args: ["harness", "report"], write: false, json: true };
+    case "plan":
+      return { args: ["plan"], write: false, json: true };
+    // Writes only the stop request the running harness reads, outside the project's files.
+    case "harness-stop":
+      return { args: ["harness", "stop", "--after-current"], write: false, json: true };
     case "brief-check":
       return {
         args: ["propose", "--from-brief", "--check", "--brief", BRIEF_FILE],
@@ -142,6 +190,7 @@ export function commandLine(c: SpecgateCommand): CommandLine | null {
     case "config-list":
       return { args: ["config", "list"], write: false, json: true };
     case "draft-module":
+    case "redraft":
       return typeof c.module === "string" &&
         MODULE.test(c.module) &&
         typeof c.agent === "string" &&
@@ -152,6 +201,36 @@ export function commandLine(c: SpecgateCommand): CommandLine | null {
             json: true,
           }
         : null;
+    case "brief-form":
+      return { args: ["propose", "--from-brief", "--form"], write: false, json: true };
+    case "brief-form-write":
+      return SCRATCH.test(c.file)
+        ? { args: ["propose", "--from-brief", "--form", c.file], write: true, json: true }
+        : null;
+    case "brief-propose":
+      return SCRATCH.test(c.file) && typeof c.agent === "string" && AGENT.test(c.agent)
+        ? {
+            args: ["propose", "--from-brief", "--brief", c.file, "--agent", c.agent],
+            write: false,
+            json: true,
+          }
+        : null;
+    // Writes nothing in the project: the plan is kept in the git folder (specgate REQ-520).
+    case "agent-ask":
+      return validRequest(c.request)
+        ? { args: ["agent", "ask", c.request, "--plan"], write: false, json: true }
+        : null;
+    // Writes the plan's files, byte for byte, and runs its checks (REQ-182).
+    case "agent-apply":
+      return typeof c.id === "string" && PLAN_ID.test(c.id)
+        ? { args: ["agent", "apply", c.id], write: true, json: true }
+        : null;
+    case "agent-discard":
+      return typeof c.id === "string" && PLAN_ID.test(c.id)
+        ? { args: ["agent", "discard", c.id], write: false, json: true }
+        : null;
+    case "agent-plans":
+      return { args: ["agent", "plans"], write: false, json: true };
     default:
       return null;
   }

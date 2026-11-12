@@ -1,3 +1,4 @@
+import { iconOf } from "./fileIcons.js";
 import type { ViewId } from "./views.js";
 
 /** The activity bar's icons, as drawn on the canvas "Studio IDE" (A3). */
@@ -14,6 +15,26 @@ const PATHS: Record<ViewId, string[]> = {
   help: ["M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5M12 17h.01"],
   settings: ["M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"],
 };
+
+/** The agent panel's button (draft-live-polish REQ-204, A15): a chat bubble with a spark, as the activity bar draws its icons. */
+export function AgentIcon() {
+  return (
+    <svg
+      width="21"
+      height="21"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.8"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M20 13.5a7 7 0 0 1-10.2 6.2L5 21l1.2-4.4A7 7 0 1 1 20 13.5z" />
+      <path d="M17.5 2.5v4M15.5 4.5h4" />
+    </svg>
+  );
+}
 
 export function ViewIcon({ view }: { view: ViewId }) {
   return (
@@ -72,5 +93,34 @@ export function Logo() {
       <path d="M4 7h16M4 12h10M4 17h6" />
       <path d="M16 15l2 2 4-4" />
     </svg>
+  );
+}
+
+/** A folder's or file's icon of the studio's own theme (draft-workbench-v2 REQ-187). */
+export function FileIconView(props: { name: string; dir: boolean; open?: boolean }) {
+  const icon = iconOf(props.name, props.dir, props.open ?? false);
+  return (
+    <span
+      class="ficon"
+      data-kind={icon.kind}
+      data-open={props.dir && props.open ? "1" : undefined}
+      style={{ color: `var(${icon.token})` }}
+    >
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        {icon.paths.map((d) => (
+          <path key={d} d={d} />
+        ))}
+      </svg>
+    </span>
   );
 }

@@ -1,5 +1,7 @@
 import {
   Changes,
+  type RunResult,
+  type SpecgateCommand,
   type CommandsOptions,
   type GitPort,
   type SectionSource,
@@ -24,11 +26,13 @@ export function attachChanges(
   sections: SectionSource,
   git: GitPort | undefined,
   fail: (message: string) => Error,
+  /** The host's Commands, once made: the redraft is told in the terminal (REQ-083). */
+  commands: () => { run(command: SpecgateCommand): Promise<RunResult> },
 ): {
   handlers: Record<string, (params: unknown) => Promise<unknown>>;
   commands: Pick<CommandsOptions, "json" | "written">;
 } {
-  const changes = new Changes(wiring.specgate, sections);
+  const changes = new Changes(wiring.specgate, sections, { run: (c) => commands().run(c) });
   return {
     handlers: {
       "changes.get": () => changes.view(),
@@ -38,6 +42,13 @@ export function attachChanges(
           throw fail("a ticket key, like KAN-13");
         const branch = git ? await git.branch(projectDir).catch(() => null) : null;
         return changes.ticket(key, branch);
+      },
+      // "Draft again with N requested changes": the project's agent, the open notes (REQ-083).
+      "changes.redraft": async (params) => {
+        const change = (params as { change?: unknown } | null)?.change;
+        if (typeof change !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(change))
+          throw fail("a change id, like draft-pedidos");
+        return changes.redraft(change);
       },
     },
     commands: {

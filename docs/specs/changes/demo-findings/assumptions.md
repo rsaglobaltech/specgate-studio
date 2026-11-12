@@ -1,0 +1,8 @@
+# Assumptions — demo-findings
+
+| # | Assumption | Used in | Why | Status |
+|---|---|---|---|---|
+| A1 | The billing cannot be detected: Claude Code's `system/init` carries `apiKeySource`, but specgate 0.34.0's adapter keeps only `model`, `version`, `permission` and `tools` in the `agent` event, and the final `usage` has `cost` (`total_cost_usd`) with no billing (checked on the demo's `.harness/events/REQ-141.jsonl`). So the dollar figure is always "≈ precio de API" / "≈ API price" unless the Developer sets per-use billing in the palette, remembered with the language and theme on this machine | REQ-211, SCN-635, SCN-636 | The demo's event file | proposed |
+| A2 | The copy, es / en: "Uso" / "Usage"; "N turnos" / "N turns"; "≈ 1,10 $ precio de API" / "≈ $1.10 API price"; "Coste 1,10 $" / "Cost $1.10" when paying per use; Home's card "Uso del agente" / "Agent's usage" with the tokens of `costByProfile` and the measured, else estimated, total; "—" when specgate gives no dollar figure. The status bar shows Live's totals of the last run | REQ-103, REQ-211 | — | proposed |
+| A3 | specgate 0.34.0 writes no event for the worktree. "Rama creada" is ✓ at the requirement's first event, its time "—", unless a `branch` or `worktree` event with `ms` gives one | REQ-103, SCN-305, SCN-634 | `types/api.d.ts` | proposed |
+| A4 | "Listos para cerrar" / "Ready to close" lists what `status --json` gives as `NEEDS_STATUS_UPDATE`, below the waiting group; "Aplicar REQ-142" / "Apply REQ-142" runs `specgate apply REQ-142` with the `apply` action's "?" and notice, and Build is read again after it | REQ-101, SCN-631, SCN-632 | `specgate status` | proposed |

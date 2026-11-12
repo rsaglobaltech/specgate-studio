@@ -35,6 +35,37 @@ export const ACTIONS = [
   "build-stop-now",
   "brief-check",
   "draft-modules",
+  "doctor",
+  "explorer",
+  "file-new",
+  "folder-new",
+  "file-rename",
+  "file-delete",
+  "file-delete-permanent",
+  "copy-path",
+  "open-terminal",
+  "folder-open",
+  "folder-clone",
+  "editor-split",
+  "editor-move",
+  "group-close",
+  "panel-position",
+  "panel-maximize",
+  "agent-ask",
+  "agent-apply",
+  "agent-discard",
+  "redraft",
+  "brief-form",
+  "brief-propose",
+  "billing",
+  "traceability",
+  "trace-fix",
+  "trace-ask-agent",
+  "settings-user",
+  "settings-save",
+  "agent-guard",
+  "report-download",
+  "report-print",
 ] as const;
 export type ActionId = (typeof ACTIONS)[number];
 
@@ -55,6 +86,10 @@ interface NoticeText {
   next: string;
   /** Said after what was written, when it passed. */
   after?: string;
+  /** What did not happen, when it was refused or failed: the notice's headline (REQ-178, A19). */
+  failed?: string;
+  /** What was dropped when the person cancelled: nothing was written (draft-traceability REQ-123). */
+  cancelled?: string;
 }
 
 export type Catalog = Record<ActionId, Partial<Record<Lang, Explanation & { notice: NoticeText }>>>;
@@ -166,6 +201,7 @@ export const HELP: Catalog = {
         "It does not commit or push, and it is refused while a requirement of the change is not applied.",
       next: "Then commit the archive and open its pull request.",
       notice: {
+        failed: "{change} was not archived",
         ranOk: "`{command}` merged {change} into the specification.",
         next: "specgate status",
       },
@@ -179,6 +215,7 @@ export const HELP: Catalog = {
         "No hace commit ni push, y se rechaza mientras algún requisito del cambio no esté aplicado.",
       next: "Después, haz commit del archivo y abre su pull request.",
       notice: {
+        failed: "{change} no se archivó",
         ranOk: "`{command}` fusionó {change} con la especificación.",
         next: "specgate status",
       },
@@ -193,6 +230,7 @@ export const HELP: Catalog = {
         "It does not archive: the change is archived only when you confirm the preview, and never while a requirement of it is not applied.",
       next: "Confirm the preview to run `specgate archive {change}`.",
       notice: {
+        failed: "{change} was not archived",
         ranOk: "`{command}` previewed the archive of {change}.",
         next: "specgate archive {change}",
       },
@@ -205,6 +243,7 @@ export const HELP: Catalog = {
         "No archiva: el cambio se archiva solo cuando confirmas la vista previa, y nunca mientras alguno de sus requisitos no esté aplicado.",
       next: "Confirma la vista previa para ejecutar `specgate archive {change}`.",
       notice: {
+        failed: "{change} no se archivó",
         ranOk: "`{command}` mostró la vista previa del archivo de {change}.",
         next: "specgate archive {change}",
       },
@@ -535,24 +574,26 @@ export const HELP: Catalog = {
   },
   "build-ignore": {
     en: {
-      does: "Would build {req} anyway, from the last commit: the agent's branch would leave the uncommitted files out, and they would stay as they are.",
-      command: "specgate harness run --req {req}",
-      files: "None of the files shown; the build's own, on its branch.",
+      does: "Builds {req} anyway, from the last commit, once you confirm: the agent's branch leaves the uncommitted files out, and they stay in your working copy as they are.",
+      command: "specgate harness run --req {req} --allow-dirty",
+      files:
+        "None of the files shown: they stay uncommitted. The build's own, on its branch; uncommitted specification is committed first.",
       doesNot:
-        "specgate 0.33.2's harness refuses to start while any file is uncommitted, so the studio cannot ignore them yet: commit or stash them.",
-      next: "Commit or stash the files shown, then build {req}.",
+        "It does not commit, stash or delete the files shown, and the agent never sees them: code that needs them fails its gate.",
+      next: "Then the gate on the branch it opens; commit the files shown when they are ready.",
       notice: {
         ranOk: "`{command}` built {req} without the uncommitted files.",
         next: "specgate check",
       },
     },
     es: {
-      does: "Construiría {req} igualmente, desde el último commit: la rama del agente dejaría fuera los archivos sin commit, que quedarían como están.",
-      command: "specgate harness run --req {req}",
-      files: "Ninguno de los archivos mostrados; los de la construcción, en su rama.",
+      does: "Construye {req} igualmente, desde el último commit, cuando lo confirmas: la rama del agente deja fuera los archivos sin commit, que quedan en tu copia de trabajo como están.",
+      command: "specgate harness run --req {req} --allow-dirty",
+      files:
+        "Ninguno de los archivos mostrados: siguen sin commit. Los de la construcción, en su rama; la especificación sin commit se commitea antes.",
       doesNot:
-        "El harness de specgate 0.33.2 se niega a empezar mientras haya archivos sin commit, así que el studio aún no puede ignorarlos: haz commit de ellos o apártalos en el stash.",
-      next: "Haz commit o stash de los archivos mostrados y después construye {req}.",
+        "No hace commit, ni stash, ni borra los archivos mostrados, y el agente no los ve: el código que los necesite no pasará su gate.",
+      next: "Después, el gate en la rama que abre; haz commit de los archivos mostrados cuando estén listos.",
       notice: {
         ranOk: "`{command}` construyó {req} sin los archivos sin commit.",
         next: "specgate check",
@@ -561,10 +602,10 @@ export const HELP: Catalog = {
   },
   "build-stop-after": {
     en: {
-      does: "Lets {req} finish — its agent, its gate and its branch — and then starts nothing else: the requirements queued after it are left unbuilt.",
-      command:
-        "None of specgate's: the studio does not start `specgate harness run` for what is queued.",
-      files: "None besides what {req}'s build writes on its branch.",
+      does: "Lets {req} finish — its agent, its gate and its branch — and then starts nothing else: specgate's harness is asked to start no other requirement, and the studio starts nothing it queued.",
+      command: "specgate harness stop --after-current",
+      files:
+        "None besides what {req}'s build writes on its branch; the stop request the harness reads, in git's own folder.",
       doesNot:
         "It does not interrupt {req}, and it asks no confirmation: nothing running is ended.",
       next: "Build the queued requirements again from Build when you want them.",
@@ -574,10 +615,10 @@ export const HELP: Catalog = {
       },
     },
     es: {
-      does: "Deja que {req} termine — su agente, su gate y su rama — y después no empieza nada más: los requisitos en cola tras él quedan sin construir.",
-      command:
-        "Ninguno de specgate: el studio no inicia `specgate harness run` para lo que está en cola.",
-      files: "Ninguno aparte de lo que la construcción de {req} escribe en su rama.",
+      does: "Deja que {req} termine — su agente, su gate y su rama — y después no empieza nada más: se pide al harness de specgate que no empiece otro requisito, y el studio no inicia nada de su cola.",
+      command: "specgate harness stop --after-current",
+      files:
+        "Ninguno aparte de lo que la construcción de {req} escribe en su rama; la petición de parada que lee el harness, en la carpeta propia de git.",
       doesNot: "No interrumpe {req} y no pide confirmación: no termina nada en marcha.",
       next: "Vuelve a construir los requisitos en cola desde Construir cuando los quieras.",
       notice: {
@@ -615,6 +656,175 @@ export const HELP: Catalog = {
         ranOk:
           "El studio terminó la construcción de {req} y todos los procesos que inició; lo que estaba en cola ({queued}) no empezó.",
         next: "git branch --list harness/{req}",
+      },
+    },
+  },
+  // The agent panel (draft-workbench-v2 REQ-181 … REQ-183).
+  "agent-ask": {
+    en: {
+      does: "Hands your request to the project's agent, which works on a scratch copy of the project and answers a plan: each file it would change (M changed, + new) and why, the specgate check it runs after, what it read and the tokens it used. @REQ-031 or @path names a requirement or a file for it to read first.",
+      command: 'specgate agent ask "<request>" --plan',
+      files:
+        "None of the project: the plan is kept in git's own folder, under `specgate/plans/`, which `git status` does not show.",
+      doesNot:
+        "It writes nothing in the project, builds no code, commits nothing: a plan changes only spec.md, docs/specs/ and features/, and only once you apply it.",
+      next: "Press “See the diff and apply” to read the diff and confirm it, or “Discard” to drop it.",
+      notice: {
+        ranOk: "`{command}` answered a plan of {count} files; nothing was written yet.",
+        next: "specgate agent apply {id}",
+      },
+    },
+    es: {
+      does: "Pasa tu petición al agente del proyecto, que trabaja sobre una copia del proyecto y responde con un plan: cada archivo que cambiaría (M cambiado, + nuevo) y por qué, la comprobación de specgate que corre después, lo que leyó y los tokens que usó. @REQ-031 o @ruta nombra un requisito o un archivo para que lo lea primero.",
+      command: 'specgate agent ask "<petición>" --plan',
+      files:
+        "Ninguno del proyecto: el plan se guarda en la carpeta propia de git, en `specgate/plans/`, que `git status` no muestra.",
+      doesNot:
+        "No escribe nada en el proyecto, no construye código ni hace commit: un plan solo cambia spec.md, docs/specs/ y features/, y solo cuando lo aplicas.",
+      next: "Pulsa «Ver el diff y aplicar» para leer el diff y confirmarlo, o «Descartar» para tirarlo.",
+      notice: {
+        ranOk: "`{command}` respondió con un plan de {count} archivos; aún no se ha escrito nada.",
+        next: "specgate agent apply {id}",
+      },
+    },
+  },
+  "agent-apply": {
+    en: {
+      does: "Writes the agent's plan after you have read its diff and confirmed it: each file exactly as the diff shows, only if none changed since the agent started, then runs the plan's specgate check.",
+      command: "specgate agent apply {id}",
+      files:
+        "The plan's files only — spec.md, docs/specs/ or features/ — as its diff shows them. The diff stays in Changes under its change.",
+      doesNot:
+        "It writes nothing before you confirm, and refuses with plan_stale if a file changed since; it never stages, commits or pushes.",
+      next: "Review with `git diff`, then commit; `{then}` checks it again.",
+      notice: {
+        ranOk: "`{command}` wrote the plan and ran `{then}`.",
+        next: "{then}",
+      },
+    },
+    es: {
+      does: "Escribe el plan del agente después de que hayas leído su diff y lo confirmes: cada archivo tal como lo muestra el diff, solo si ninguno cambió desde que el agente empezó, y después corre la comprobación de specgate del plan.",
+      command: "specgate agent apply {id}",
+      files:
+        "Solo los archivos del plan — spec.md, docs/specs/ o features/ — como los muestra su diff. El diff queda en Cambios bajo su cambio.",
+      doesNot:
+        "No escribe nada antes de que confirmes, y se niega con plan_stale si un archivo cambió desde entonces; nunca hace stage, commit ni push.",
+      next: "Revisa con `git diff` y haz commit; `{then}` lo vuelve a comprobar.",
+      notice: {
+        ranOk: "`{command}` escribió el plan y corrió `{then}`.",
+        next: "{then}",
+      },
+    },
+  },
+  "agent-discard": {
+    en: {
+      does: "Drops the agent's plan: its files are never written.",
+      command: "specgate agent discard {id}",
+      files: "None of the project: only the plan kept in git's folder is removed.",
+      doesNot: "It writes nothing in the project and does not stop you asking again.",
+      next: "Ask again, with more detail or a @REQ to read.",
+      notice: {
+        ranOk: "`{command}` dropped the plan; nothing of the project was written.",
+        next: 'specgate agent ask "<request>" --plan',
+      },
+    },
+    es: {
+      does: "Tira el plan del agente: sus archivos no se escriben nunca.",
+      command: "specgate agent discard {id}",
+      files: "Ninguno del proyecto: solo se borra el plan guardado en la carpeta de git.",
+      doesNot: "No escribe nada en el proyecto ni te impide volver a pedirlo.",
+      next: "Vuelve a pedirlo, con más detalle o con un @REQ que leer.",
+      notice: {
+        ranOk: "`{command}` tiró el plan; no se escribió nada del proyecto.",
+        next: 'specgate agent ask "<petición>" --plan',
+      },
+    },
+  },
+  // draft-changes REQ-083: the open notes handed to the agent.
+  redraft: {
+    en: {
+      does: "Has the project's agent draft {module} again, handing it every open request for change of review.md — none that is addressed. specgate marks addressed each note whose requirement the agent changed, and writes its before and after below the table.",
+      command: "specgate propose --from-brief {module} --agent {agent}",
+      files:
+        "`docs/specs/changes/draft-{module}/`: the delta the agent redrafts, and review.md, whose notes it addressed.",
+      doesNot:
+        "It does not approve, build or archive the draft, and does not commit or push; a note the agent did not address stays open.",
+      next: "Read each addressed note's before and after in Changes, then approve the draft or ask for another change.",
+      notice: {
+        ranOk: "`{command}` had the agent draft {module} again with its {count} open requests.",
+        next: "specgate change show draft-{module}",
+      },
+    },
+    es: {
+      does: "Hace que el agente del proyecto vuelva a redactar {module} y le pasa cada cambio pedido abierto de review.md — ninguno de los atendidos. specgate marca atendida cada nota cuyo requisito cambió el agente y escribe su antes y su después bajo la tabla.",
+      command: "specgate propose --from-brief {module} --agent {agent}",
+      files:
+        "`docs/specs/changes/draft-{module}/`: el delta que el agente vuelve a redactar y review.md, cuyas notas atendió.",
+      doesNot:
+        "No aprueba, construye ni archiva el borrador, ni hace commit ni push; una nota que el agente no atendió sigue abierta.",
+      next: "Lee en Cambios el antes y el después de cada nota atendida; después aprueba el borrador o pide otro cambio.",
+      notice: {
+        ranOk:
+          "`{command}` hizo que el agente volviera a redactar {module} con sus {count} cambios pedidos abiertos.",
+        next: "specgate change show draft-{module}",
+      },
+    },
+  },
+  // draft-brief REQ-071: the brief edited as a form.
+  "brief-form": {
+    en: {
+      does: "Saves the form into docs/brief.md: specgate rewrites only the fields and lists you changed — the product, the actors, the modules and each module's rules, examples and open questions — and checks the brief.",
+      command: "specgate propose --from-brief --form <form.json>",
+      files:
+        "docs/brief.md only; every line the form does not hold — notes, other sections, line endings — stays byte for byte. The form's file is a temporary one outside the project.",
+      doesNot:
+        "It does not draft a module, commit or push; markdown edits to the same file are kept.",
+      next: "Fix what Problems lists, then “Draft the modules”.",
+      notice: {
+        ranOk: "`{command}` wrote the form into docs/brief.md and checked it.",
+        next: "specgate propose --from-brief <module>",
+      },
+    },
+    es: {
+      does: "Guarda el formulario en docs/brief.md: specgate reescribe solo los campos y listas que cambiaste — el producto, los actores, los módulos y las reglas, ejemplos y preguntas abiertas de cada uno — y comprueba el brief.",
+      command: "specgate propose --from-brief --form <form.json>",
+      files:
+        "Solo docs/brief.md; cada línea que el formulario no tiene — notas, otras secciones, finales de línea — queda byte a byte. El archivo del formulario es temporal y está fuera del proyecto.",
+      doesNot:
+        "No redacta ningún módulo ni hace commit ni push; lo que edites como markdown en el mismo archivo se conserva.",
+      next: "Arregla lo que lista Problemas y después «Redactar los módulos».",
+      notice: {
+        ranOk: "`{command}` escribió el formulario en docs/brief.md y lo comprobó.",
+        next: "specgate propose --from-brief <módulo>",
+      },
+    },
+  },
+  // draft-brief REQ-074: the client's text proposes the form.
+  "brief-propose": {
+    en: {
+      does: "Hands the client's text to the project's agent, which proposes the form from it — the product, who uses it and where, the modules. You review the proposal; Accept writes it, Discard drops it.",
+      command: "specgate propose --from-brief --brief <client-text> --agent {agent}",
+      files:
+        "None of the project: the client's text goes to a temporary file outside it, and docs/brief.md is written only when you press Accept.",
+      doesNot:
+        "It writes nothing in the project, drafts no module, and commits nothing; with no agent set it runs nothing.",
+      next: "Review the proposed form, then Accept or Discard.",
+      notice: {
+        ranOk: "`{command}` proposed a form; nothing was written.",
+        next: "specgate propose --from-brief --form",
+      },
+    },
+    es: {
+      does: "Pasa el texto del cliente al agente del proyecto, que propone el formulario a partir de él — el producto, quién lo usa y dónde, los módulos. Tú revisas la propuesta; Aceptar la escribe, Descartar la tira.",
+      command: "specgate propose --from-brief --brief <texto-del-cliente> --agent {agent}",
+      files:
+        "Ninguno del proyecto: el texto del cliente va a un archivo temporal fuera de él, y docs/brief.md solo se escribe cuando pulsas Aceptar.",
+      doesNot:
+        "No escribe nada en el proyecto, no redacta módulos ni hace commit; sin agente configurado no ejecuta nada.",
+      next: "Revisa el formulario propuesto y después Aceptar o Descartar.",
+      notice: {
+        ranOk: "`{command}` propuso un formulario; no se escribió nada.",
+        next: "specgate propose --from-brief --form",
       },
     },
   },
@@ -674,6 +884,549 @@ export const HELP: Catalog = {
       },
     },
   },
+  // Home's "Doctor" (draft-design-conformance REQ-173, A9).
+  doctor: {
+    en: {
+      does: "Runs every diagnostic of the project — its environment, its structure, traceability both ways, placeholders left, the specops lockfile — and prints a fix for each finding.",
+      command: "specgate doctor",
+      files: "None: no file is changed.",
+      doesNot:
+        "It fixes nothing, commits nothing and runs no test: it only says what is wrong and how to fix it.",
+      next: "Fix what it lists, then check the gate: `specgate check`.",
+      notice: {
+        ranOk: "`{command}` ran every diagnostic: what it found is in the terminal.",
+        next: "specgate check",
+      },
+    },
+    es: {
+      does: "Ejecuta todos los diagnósticos del proyecto — su entorno, su estructura, la trazabilidad en los dos sentidos, los marcadores pendientes, el lockfile de specops — y da una solución para cada hallazgo.",
+      command: "specgate doctor",
+      files: "Ninguno: no cambia ningún archivo.",
+      doesNot:
+        "No arregla nada, no hace commit y no ejecuta tests: solo dice qué falla y cómo arreglarlo.",
+      next: "Arregla lo que liste y comprueba el gate: `specgate check`.",
+      notice: {
+        ranOk: "`{command}` ejecutó todos los diagnósticos: lo que encontró está en el terminal.",
+        next: "specgate check",
+      },
+    },
+  },
+  // draft-explorer-tree: the tree and its menu (REQ-168, A19). No specgate command:
+  // the host writes through its file port, inside the project only.
+  explorer: {
+    en: {
+      does: "Shows the specification — spec.md, the brief, the open changes, capabilities and features — the modules with their requirements, and the project's files as a tree, one folder read when it is opened. M is a modified file, U an untracked one, A one added to the index; a dot on a folder says it holds one. The orange mark is the specification: spec.md, docs/specs and features.",
+      command: "None: the tree reads the project's folders through the studio's host.",
+      files:
+        "None: the tree writes only through its menu — new file, new folder, rename and delete.",
+      doesNot:
+        "It shows nothing .gitignore or the studio's ignore rules name, never writes outside the project, and runs no specgate command.",
+      next: "Open a file with Enter or a click; the menu of a row creates, renames or deletes.",
+      notice: { ranOk: "The tree shows {path}.", next: "Open a file" },
+    },
+    es: {
+      does: "Muestra la especificación — spec.md, el brief, los cambios abiertos, capacidades y features —, los módulos con sus requisitos, y los archivos del proyecto como árbol, leyendo una carpeta al abrirla. M es un archivo modificado, U uno sin seguimiento, A uno añadido al índice; un punto en una carpeta dice que contiene uno. La marca naranja es la especificación: spec.md, docs/specs y features.",
+      command: "Ninguno: el árbol lee las carpetas del proyecto a través del host del studio.",
+      files:
+        "Ninguno: el árbol solo escribe desde su menú — nuevo archivo, nueva carpeta, renombrar y eliminar.",
+      doesNot:
+        "No muestra nada de lo que nombran .gitignore o las reglas del studio, nunca escribe fuera del proyecto y no ejecuta ningún comando de specgate.",
+      next: "Abre un archivo con Enter o un clic; el menú de una fila crea, renombra o elimina.",
+      notice: { ranOk: "El árbol muestra {path}.", next: "Abre un archivo" },
+    },
+  },
+  "file-new": {
+    en: {
+      does: "Creates the empty file {path} and opens it in the editor.",
+      command: "None: the studio's host creates {path} through its file port.",
+      files: "{path}, new and empty.",
+      doesNot:
+        "It never overwrites a file, never writes outside the project — a link to a folder outside it included — and commits nothing.",
+      next: "Write in it and save with Ctrl/Cmd+S.",
+      notice: { ranOk: "Created {path}", next: "Save it with Ctrl/Cmd+S" },
+    },
+    es: {
+      does: "Crea el archivo vacío {path} y lo abre en el editor.",
+      command: "Ninguno: el host del studio crea {path} con su puerto de archivos.",
+      files: "{path}, nuevo y vacío.",
+      doesNot:
+        "Nunca sobrescribe un archivo ni escribe fuera del proyecto — tampoco a través de un enlace a una carpeta de fuera — y no hace commit.",
+      next: "Escribe en él y guarda con Ctrl/Cmd+S.",
+      notice: { ranOk: "Creado {path}", next: "Guárdalo con Ctrl/Cmd+S" },
+    },
+  },
+  "folder-new": {
+    en: {
+      does: "Creates the empty folder {path} and opens it in the tree.",
+      command: "None: the studio's host creates {path} through its file port.",
+      files: "{path}, a new empty folder.",
+      doesNot:
+        "It never replaces a file or folder, never writes outside the project, and commits nothing.",
+      next: "Create a file in it from its menu.",
+      notice: { ranOk: "Created the folder {path}", next: "New file in {path}" },
+    },
+    es: {
+      does: "Crea la carpeta vacía {path} y la abre en el árbol.",
+      command: "Ninguno: el host del studio crea {path} con su puerto de archivos.",
+      files: "{path}, una carpeta nueva y vacía.",
+      doesNot:
+        "Nunca sustituye un archivo o carpeta, nunca escribe fuera del proyecto y no hace commit.",
+      next: "Crea un archivo en ella desde su menú.",
+      notice: { ranOk: "Creada la carpeta {path}", next: "Nuevo archivo en {path}" },
+    },
+  },
+  "file-rename": {
+    en: {
+      does: "Renames {path} to {to}; a tab open on it follows the new name.",
+      command: "None: the studio's host renames {path} through its file port.",
+      files: "{path}, which becomes {to}.",
+      doesNot:
+        "It never overwrites an existing {to}, never moves a file outside the project, and commits nothing: git sees a deleted and a new file until you commit.",
+      next: "Commit the rename when you are ready.",
+      notice: { ranOk: "Renamed {path} to {to}", next: "git add {to}" },
+    },
+    es: {
+      does: "Renombra {path} a {to}; una pestaña abierta en él sigue el nombre nuevo.",
+      command: "Ninguno: el host del studio renombra {path} con su puerto de archivos.",
+      files: "{path}, que pasa a ser {to}.",
+      doesNot:
+        "Nunca sobrescribe un {to} que ya exista, nunca saca un archivo del proyecto y no hace commit: git ve un archivo borrado y uno nuevo hasta que lo confirmes.",
+      next: "Haz commit del cambio de nombre cuando quieras.",
+      notice: { ranOk: "Renombrado {path} a {to}", next: "git add {to}" },
+    },
+  },
+  "file-delete": {
+    en: {
+      does: "Moves {path} to the system's trash after a confirmation; a tab open on it closes.",
+      command:
+        "None: the studio's host moves {path} to the trash — Finder on macOS, the Recycle Bin on Windows, the freedesktop.org trash on Linux.",
+      files: "{path}, moved to the trash, from where it can be restored.",
+      doesNot:
+        "It removes nothing for good — Shift+Delete does that, after its own confirmation — writes nothing else, and commits nothing. With no trash reachable it deletes nothing.",
+      next: "Restore it from the trash if it was a mistake.",
+      notice: { ranOk: "Moved {path} to the trash", next: "Restore it from the trash" },
+    },
+    es: {
+      does: "Mueve {path} a la papelera del sistema tras una confirmación; una pestaña abierta en él se cierra.",
+      command:
+        "Ninguno: el host del studio mueve {path} a la papelera — el Finder en macOS, la Papelera de reciclaje en Windows, la papelera de freedesktop.org en Linux.",
+      files: "{path}, movido a la papelera, desde donde se puede recuperar.",
+      doesNot:
+        "No borra nada para siempre — eso lo hace Mayús+Supr, tras su propia confirmación —, no escribe nada más y no hace commit. Sin papelera disponible no borra nada.",
+      next: "Recupéralo de la papelera si fue un error.",
+      notice: { ranOk: "Movido {path} a la papelera", next: "Recupéralo de la papelera" },
+    },
+  },
+  "file-delete-permanent": {
+    en: {
+      does: "Removes {path} for good after a confirmation that says it cannot be undone; a tab open on it closes.",
+      command: "None: the studio's host removes {path} through its file port.",
+      files: "{path}, removed: not in the trash.",
+      doesNot:
+        "It cannot be undone by the studio, never removes anything outside the project, and commits nothing.",
+      next: "If the file was committed, git can still bring it back: `git restore {path}`.",
+      notice: { ranOk: "Deleted {path} for good", next: "git restore {path}" },
+    },
+    es: {
+      does: "Borra {path} para siempre tras una confirmación que dice que no se puede deshacer; una pestaña abierta en él se cierra.",
+      command: "Ninguno: el host del studio borra {path} con su puerto de archivos.",
+      files: "{path}, borrado: no va a la papelera.",
+      doesNot:
+        "El studio no puede deshacerlo, nunca borra nada fuera del proyecto y no hace commit.",
+      next: "Si el archivo tenía commit, git aún puede recuperarlo: `git restore {path}`.",
+      notice: { ranOk: "Borrado {path} para siempre", next: "git restore {path}" },
+    },
+  },
+  "copy-path": {
+    en: {
+      does: "Copies {path}, the path from the project's folder with `/`, to the clipboard — the form specgate and the agent use.",
+      command: "None: the studio copies the text.",
+      files: "None: no file is changed.",
+      doesNot: "It writes no file and runs nothing.",
+      next: "Paste it in the terminal, a note or the agent's prompt.",
+      notice: { ranOk: "Copied {path}", next: "Paste it" },
+    },
+    es: {
+      does: "Copia {path}, la ruta desde la carpeta del proyecto con `/`, al portapapeles — la forma que usan specgate y el agente.",
+      command: "Ninguno: el studio copia el texto.",
+      files: "Ninguno: no cambia ningún archivo.",
+      doesNot: "No escribe ningún archivo ni ejecuta nada.",
+      next: "Pégala en el terminal, en una nota o en el prompt del agente.",
+      notice: { ranOk: "Copiado {path}", next: "Pégala" },
+    },
+  },
+  "open-terminal": {
+    en: {
+      does: "Opens a new terminal of yours, with your shell, in the folder {path}.",
+      command: "None: your shell starts in {path}.",
+      files: "None: opening it changes no file; what you type is yours.",
+      doesNot: "It runs no command for you and never opens outside the project.",
+      next: "Type in it; Ctrl+` shows the terminals.",
+      notice: { ranOk: "Opened a terminal in {path}", next: "Type a command" },
+    },
+    es: {
+      does: "Abre un terminal tuyo nuevo, con tu shell, en la carpeta {path}.",
+      command: "Ninguno: tu shell arranca en {path}.",
+      files: "Ninguno: abrirlo no cambia ningún archivo; lo que escribas es tuyo.",
+      doesNot: "No ejecuta ningún comando por ti y nunca se abre fuera del proyecto.",
+      next: "Escribe en él; Ctrl+` muestra los terminales.",
+      notice: { ranOk: "Abierto un terminal en {path}", next: "Escribe un comando" },
+    },
+  },
+  "folder-open": {
+    en: {
+      does: "Opens a folder you choose as the project: its Explorer, Home and terminals, in a host of its own.",
+      command: "None: the studio's host opens {path}.",
+      files: "None: opening a folder changes no file; it joins your recent projects.",
+      doesNot: "It writes nothing in the folder, runs no specgate command and commits nothing.",
+      next: "If it is no specgate project yet, Home offers to create or adopt one.",
+      notice: { ranOk: "Opened {path}", next: "Look at Home" },
+    },
+    es: {
+      does: "Abre como proyecto la carpeta que elijas: su Explorador, su Inicio y sus terminales, en un host propio.",
+      command: "Ninguno: el host del studio abre {path}.",
+      files: "Ninguno: abrir una carpeta no cambia ningún archivo; pasa a tus proyectos recientes.",
+      doesNot:
+        "No escribe nada en la carpeta, no ejecuta ningún comando de specgate y no hace commit.",
+      next: "Si aún no es un proyecto de specgate, Inicio ofrece crearlo o adoptarlo.",
+      notice: { ranOk: "Abierta {path}", next: "Mira Inicio" },
+    },
+  },
+  "folder-clone": {
+    en: {
+      does: "Clones a repository into a folder you choose — `gh repo clone` when the GitHub CLI is signed in, `git clone` otherwise — shown in the terminal, then opens it.",
+      command: "gh repo clone {repo} {path}, or git clone <its URL> {path}",
+      files: "{path}: a new folder with the repository; nothing else.",
+      doesNot:
+        "It never clones into a folder that already exists, changes no other folder, and pushes or commits nothing.",
+      next: "Once open, Home says whether it is a specgate project.",
+      notice: { ranOk: "Cloned {repo} into {path}", next: "Look at Home" },
+    },
+    es: {
+      does: "Clona un repositorio en la carpeta que elijas — `gh repo clone` si la CLI de GitHub tiene sesión, `git clone` si no —, a la vista en la terminal, y luego lo abre.",
+      command: "gh repo clone {repo} {path}, o git clone <su URL> {path}",
+      files: "{path}: una carpeta nueva con el repositorio; nada más.",
+      doesNot:
+        "Nunca clona en una carpeta que ya exista, no cambia ninguna otra carpeta y no hace push ni commit.",
+      next: "Una vez abierto, Inicio dice si es un proyecto de specgate.",
+      notice: { ranOk: "Clonado {repo} en {path}", next: "Mira Inicio" },
+    },
+  },
+  "editor-split": {
+    en: {
+      does: "Opens the file in a new editor group {side} the active one, with its own tabs; the same file in both stays one document.",
+      command: "None: the studio lays out its editors.",
+      files: "None: it writes no file; the layout is kept for this project.",
+      doesNot: "It writes no file and runs no command.",
+      next: "Ctrl/Cmd+1, 2 or 3 focuses a group; drag a splitter to resize, double-click it to even them.",
+      notice: {
+        ranOk: "Split the editor: a new group {side} the active one",
+        next: "Ctrl/Cmd+W closes the tab",
+      },
+    },
+    es: {
+      does: "Abre el archivo en un grupo de editores nuevo {side} del activo, con sus propias pestañas; el mismo archivo en los dos sigue siendo un solo documento.",
+      command: "Ninguno: el studio coloca sus editores.",
+      files: "Ninguno: no escribe ningún archivo; la disposición se guarda para este proyecto.",
+      doesNot: "No escribe ningún archivo y no ejecuta ningún comando.",
+      next: "Ctrl/Cmd+1, 2 o 3 enfoca un grupo; arrastra un separador para cambiar el tamaño, doble clic para igualarlos.",
+      notice: {
+        ranOk: "Dividido el editor: un grupo nuevo {side} del activo",
+        next: "Ctrl/Cmd+W cierra la pestaña",
+      },
+    },
+  },
+  "editor-move": {
+    en: {
+      does: "Moves the tab to another editor group: dropped on its tab strip, or on an edge of a group to make a new one there.",
+      command: "None: the studio lays out its editors.",
+      files: "None: it writes no file.",
+      doesNot: "It writes no file, runs no command, and loses no unsaved change.",
+      next: "A group whose last tab leaves closes.",
+      notice: { ranOk: "Moved the tab", next: "Ctrl/Cmd+1, 2 or 3 focuses a group" },
+    },
+    es: {
+      does: "Mueve la pestaña a otro grupo de editores: soltada en su barra de pestañas, o en un borde de un grupo para crear uno nuevo allí.",
+      command: "Ninguno: el studio coloca sus editores.",
+      files: "Ninguno: no escribe ningún archivo.",
+      doesNot:
+        "No escribe ningún archivo, no ejecuta ningún comando y no pierde cambios sin guardar.",
+      next: "Un grupo cuya última pestaña sale se cierra.",
+      notice: { ranOk: "Movida la pestaña", next: "Ctrl/Cmd+1, 2 o 3 enfoca un grupo" },
+    },
+  },
+  "group-close": {
+    en: {
+      does: "Closes the editor group and its tabs; the groups beside it take its room. A tab with unsaved changes asks first.",
+      command: "None: the studio lays out its editors.",
+      files: "None: it writes no file unless you choose Save.",
+      doesNot: "It discards no unsaved change without asking and runs no command.",
+      next: "Ctrl/Cmd+\\ splits again.",
+      notice: { ranOk: "Closed the editor group", next: "Ctrl/Cmd+\\ splits again" },
+    },
+    es: {
+      does: "Cierra el grupo de editores y sus pestañas; los grupos de al lado ocupan su sitio. Una pestaña con cambios sin guardar pregunta antes.",
+      command: "Ninguno: el studio coloca sus editores.",
+      files: "Ninguno: no escribe ningún archivo salvo que elijas Guardar.",
+      doesNot: "No descarta cambios sin guardar sin preguntar y no ejecuta ningún comando.",
+      next: "Ctrl/Cmd+\\ vuelve a dividir.",
+      notice: { ranOk: "Cerrado el grupo de editores", next: "Ctrl/Cmd+\\ vuelve a dividir" },
+    },
+  },
+  "panel-position": {
+    en: {
+      does: "Moves the bottom panel — its terminals, the gate, problems — below the editor groups, or to their right or left; it is never hidden.",
+      command: "None: the studio lays out its panels.",
+      files: "None: it writes no file; the position is kept for this project.",
+      doesNot: "It closes no terminal, stops nothing running, and runs no command.",
+      next: "Choose Panel Position again to move it back.",
+      notice: { ranOk: "Moved the panel", next: "Panel Position: Bottom puts it back" },
+    },
+    es: {
+      does: "Mueve el panel inferior — sus terminales, el gate, los problemas — debajo de los grupos de editores, o a su derecha o su izquierda; nunca se oculta.",
+      command: "Ninguno: el studio coloca sus paneles.",
+      files: "Ninguno: no escribe ningún archivo; la posición se guarda para este proyecto.",
+      doesNot: "No cierra ninguna terminal, no detiene nada en marcha y no ejecuta ningún comando.",
+      next: "Elige de nuevo Posición del panel para devolverlo.",
+      notice: { ranOk: "Movido el panel", next: "Posición del panel: abajo lo devuelve" },
+    },
+  },
+  billing: {
+    en: {
+      does: "Switches how the agent's dollars are labelled: “Cost” when you pay per use of the API, else “≈ API price” — on a Claude subscription Claude Code reports what the work would cost at API prices, not a charge. Tokens and turns show either way.",
+      command: "None: the studio only changes the label.",
+      files: "None: the choice is kept on this machine, with the language and theme.",
+      doesNot: "It runs no command, changes no billing and writes nothing in the project.",
+      next: "Choose it again to switch back.",
+      notice: {
+        ranOk: "The agent's dollars now read as you set them",
+        next: "Choose it again to switch back",
+      },
+    },
+    es: {
+      does: "Cambia cómo se etiquetan los dólares del agente: «Coste» cuando pagas por uso de la API, si no «≈ precio de API» — con una suscripción de Claude, Claude Code informa de lo que costaría el trabajo a precios de API, no de un cargo. Los tokens y los turnos se muestran siempre.",
+      command: "Ninguno: el studio solo cambia la etiqueta.",
+      files: "Ninguno: la elección se guarda en esta máquina, con el idioma y el tema.",
+      doesNot:
+        "No ejecuta ningún comando, no cambia ninguna facturación y no escribe nada en el proyecto.",
+      next: "Elígelo otra vez para volver.",
+      notice: {
+        ranOk: "Los dólares del agente se leen ahora como has elegido",
+        next: "Elígelo otra vez para volver",
+      },
+    },
+  },
+  "panel-maximize": {
+    en: {
+      does: "Maximizes the panel over the editor area, or restores it to its size.",
+      command: "None: the studio lays out its panels.",
+      files: "None: it writes no file.",
+      doesNot: "It closes no editor, loses no unsaved change and runs no command.",
+      next: "The same button restores it.",
+      notice: { ranOk: "Maximized the panel", next: "The same button restores it" },
+    },
+    es: {
+      does: "Maximiza el panel sobre el área de editores, o lo devuelve a su tamaño.",
+      command: "Ninguno: el studio coloca sus paneles.",
+      files: "Ninguno: no escribe ningún archivo.",
+      doesNot:
+        "No cierra ningún editor, no pierde cambios sin guardar y no ejecuta ningún comando.",
+      next: "El mismo botón lo restaura.",
+      notice: { ranOk: "Maximizado el panel", next: "El mismo botón lo restaura" },
+    },
+  },
+
+  traceability: {
+    en: {
+      does: "Shows one row per scenario of the project: its requirement, its feature file, the tests that name it, the code that implements it and its requirement's status. A row that lacks a feature, a test or code is a gap.",
+      command: "specgate matrix --json --dry-run",
+      files: "None: reading it changes no file; the matrix on disk is not regenerated.",
+      doesNot:
+        "It never reads the prose of docs/specs/traceability.md, never shows one row per requirement, and runs no test.",
+      next: "Filter the gaps, the rows without a test or the ones waiting for an answer; Fix proposes a missing test.",
+      notice: { ranOk: "`{command}` listed the scenarios", next: "Choose a filter" },
+    },
+    es: {
+      does: "Muestra una fila por escenario del proyecto: su requisito, su feature, las pruebas que lo nombran, el código que lo implementa y el estado de su requisito. Una fila a la que le falta la feature, una prueba o código es un hueco.",
+      command: "specgate matrix --json --dry-run",
+      files: "Ninguno: leerla no cambia ningún archivo; la matriz en disco no se regenera.",
+      doesNot:
+        "Nunca lee la prosa de docs/specs/traceability.md, nunca muestra una fila por requisito y no ejecuta ninguna prueba.",
+      next: "Filtra los huecos, las filas sin prueba o las que esperan respuesta; Arreglar propone una prueba que falta.",
+      notice: { ranOk: "`{command}` listó los escenarios", next: "Elige un filtro" },
+    },
+  },
+  "trace-fix": {
+    en: {
+      does: "Opens {scenario} in its feature file and proposes the missing test: a skeleton the studio writes from the scenario's GIVEN, WHEN and THEN, naming {req} and {scenario}, with a failing placeholder where the assertions go.",
+      command:
+        "None: the studio writes the skeleton from the scenario; no agent runs and nothing is spent.",
+      files: "{path}, and only once you confirm; until then no file changes.",
+      doesNot:
+        "It runs no agent and costs nothing; it never overwrites a file, never commits, never runs the tests and never marks the requirement.",
+      next: "Write the assertions, then `specgate apply {req}`.",
+      notice: {
+        ranOk: "Wrote {path}: the test for {scenario}, from its scenario",
+        next: "specgate apply {req}",
+        after: "Write its assertions; it fails until you do.",
+        cancelled: "Cancelled the proposed test for {scenario}",
+      },
+    },
+    es: {
+      does: "Abre {scenario} en su feature y propone la prueba que falta: un esqueleto que el studio escribe a partir del GIVEN, WHEN y THEN del escenario, que nombra {req} y {scenario}, con un marcador que falla donde van las aserciones.",
+      command:
+        "Ninguno: el studio escribe el esqueleto a partir del escenario; no se ejecuta ningún agente y no cuesta nada.",
+      files: "{path}, y solo cuando confirmas; hasta entonces no cambia ningún archivo.",
+      doesNot:
+        "No ejecuta ningún agente y no cuesta nada; nunca sobrescribe un archivo, no hace commit, no ejecuta las pruebas y no marca el requisito.",
+      next: "Escribe las aserciones y luego `specgate apply {req}`.",
+      notice: {
+        ranOk: "Escrita {path}: la prueba de {scenario}, a partir de su escenario",
+        next: "specgate apply {req}",
+        after: "Escribe sus aserciones; falla hasta que lo hagas.",
+        cancelled: "Cancelada la prueba propuesta para {scenario}",
+      },
+    },
+  },
+  "trace-ask-agent": {
+    en: {
+      does: "Has the project's agent complete the skeleton of {scenario}: specgate runs it on a scratch copy and answers its test, shown as a diff against the skeleton with the tokens and the cost of that run.",
+      command:
+        'specgate agent ask "<complete the test of {scenario}>" --plan --json, then specgate agent apply <plan-id> once you confirm',
+      files:
+        "None while you look: the plan writes nothing. Once confirmed, specgate writes {path} and runs the plan's checks.",
+      doesNot:
+        "It writes nothing until you confirm, never commits or pushes, and never marks the requirement. The run costs what the agent spends.",
+      next: "Read the diff; confirm it, or go back to the skeleton. Then `specgate apply {req}`.",
+      notice: {
+        ranOk: "`specgate agent apply` wrote {path}: the agent's test for {scenario}",
+        next: "specgate apply {req}",
+        cancelled: "Discarded the agent's test for {scenario}",
+      },
+    },
+    es: {
+      does: "Hace que el agente del proyecto complete el esqueleto de {scenario}: specgate lo ejecuta en una copia aparte y responde con su prueba, que se ve como un diff contra el esqueleto con los tokens y el coste de esa ejecución.",
+      command:
+        'specgate agent ask "<completa la prueba de {scenario}>" --plan --json, y specgate agent apply <plan-id> cuando confirmas',
+      files:
+        "Ninguno mientras miras: el plan no escribe nada. Al confirmar, specgate escribe {path} y ejecuta las comprobaciones del plan.",
+      doesNot:
+        "No escribe nada hasta que confirmas, no hace commit ni push y no marca el requisito. La ejecución cuesta lo que gaste el agente.",
+      next: "Lee el diff; confírmalo o vuelve al esqueleto. Luego `specgate apply {req}`.",
+      notice: {
+        ranOk: "`specgate agent apply` escribió {path}: la prueba del agente para {scenario}",
+        next: "specgate apply {req}",
+        cancelled: "Descartada la prueba del agente para {scenario}",
+      },
+    },
+  },
+  // draft-settings REQ-141: a user setting, kept in the Developer's own file (A2).
+  "settings-user": {
+    en: {
+      does: "Saves {key} as {to} in your own settings file, {path}: it applies to every project you open, in the desktop app and in the browser.",
+      command: "None: the studio's host writes {path}.",
+      files: "{path}, your own settings file; no file of the project.",
+      doesNot: "It writes no file of the project, runs no specgate command and commits nothing.",
+      next: "Every project you open uses it; choose another value to change it.",
+      notice: { ranOk: "Set {key} to {to} in {path}", next: "It applies to every project" },
+    },
+    es: {
+      does: "Guarda {key} como {to} en tu propio archivo de configuración, {path}: vale para cada proyecto que abras, en la app de escritorio y en el navegador.",
+      command: "Ninguno: el host del studio escribe {path}.",
+      files: "{path}, tu propio archivo de configuración; ningún archivo del proyecto.",
+      doesNot:
+        "No escribe ningún archivo del proyecto, no ejecuta ningún comando de specgate y no hace commit.",
+      next: "Cada proyecto que abras lo usa; elige otro valor para cambiarlo.",
+      notice: { ranOk: "Fijado {key} a {to} en {path}", next: "Vale para cada proyecto" },
+    },
+  },
+
+  // draft-settings REQ-142, REQ-143: a project setting, saved only by specgate (A5, A9).
+  "settings-save": {
+    en: {
+      does: "Saves the project setting {key} as {to} by running specgate's own `config set`: specgate checks the value and writes it in the file it keeps that setting in, shared with the team through git.",
+      command: "specgate config set {key} {to}",
+      files:
+        "The one file specgate names for {key}: `harness.config.yaml`, `.specgate/config.json`, `.harness/profiles.yaml` or `alm.config.yaml`.",
+      doesNot:
+        "The studio never edits that file itself; a value specgate refuses writes nothing. It does not run the command it configures, commit or push.",
+      next: "Then `specgate check`, to see the gate with it.",
+      notice: { ranOk: "`{command}` saved {key}.", next: "specgate check" },
+    },
+    es: {
+      does: "Guarda el ajuste del proyecto {key} como {to} ejecutando el propio `config set` de specgate: specgate comprueba el valor y lo escribe en el archivo donde guarda ese ajuste, compartido con el equipo por git.",
+      command: "specgate config set {key} {to}",
+      files:
+        "El único archivo que specgate nombra para {key}: `harness.config.yaml`, `.specgate/config.json`, `.harness/profiles.yaml` o `alm.config.yaml`.",
+      doesNot:
+        "El studio nunca edita ese archivo él mismo; un valor que specgate rechaza no escribe nada. No ejecuta el comando que configura, ni hace commit ni push.",
+      next: "Después, `specgate check`, para ver el gate con él.",
+      notice: { ranOk: "`{command}` guardó {key}.", next: "specgate check" },
+    },
+  },
+  "agent-guard": {
+    en: {
+      does: "Turns specgate's agent guards on or off. On, the agent plugins refuse an edit to source code until a test names the requirement, and refuse an edit of `spec.md`, `features/` or `docs/specs/` meant to make a test pass.",
+      command: "specgate config set agent_guard {to}",
+      files: "`.specgate/config.json`.",
+      doesNot:
+        "It does not install the guards globally (`specgate agents install --global` does), and it changes no code or test.",
+      next: "The next agent run follows it; `specgate check` as always.",
+      notice: { ranOk: "`{command}` set the agent guards.", next: "specgate check" },
+    },
+    es: {
+      does: "Enciende o apaga las protecciones del agente de specgate. Encendidas, los plugins del agente rechazan editar código hasta que una prueba nombre el requisito, y rechazan editar `spec.md`, `features/` o `docs/specs/` para que una prueba pase.",
+      command: "specgate config set agent_guard {to}",
+      files: "`.specgate/config.json`.",
+      doesNot:
+        "No instala las protecciones para todo el equipo (`specgate agents install --global` lo hace) y no cambia código ni pruebas.",
+      next: "La próxima ejecución del agente las sigue; `specgate check`, como siempre.",
+      notice: { ranOk: "`{command}` fijó las protecciones del agente.", next: "specgate check" },
+    },
+  },
+  // draft-report REQ-133: the report as one page, downloaded or printed (A9 … A11).
+  "report-download": {
+    en: {
+      does: "Saves the report you see — {module} — as one self-contained HTML page, {path}: its styles inside it, no script, no request to any address, so it opens offline anywhere.",
+      command: "None: the studio renders the page from the data the report shows.",
+      files: "{path}, where you choose to save it; no file of the project.",
+      doesNot:
+        "It runs no specgate command, writes nothing in the project and sends the page to no one.",
+      next: "Send the file, or open it and print it to PDF.",
+      notice: { ranOk: "Saved {path}", next: "Send it, or print it to PDF" },
+    },
+    es: {
+      does: "Guarda el informe que ves — {module} — como una sola página HTML, {path}: con sus estilos dentro, sin scripts y sin pedir nada a ninguna dirección, así que se abre sin conexión en cualquier sitio.",
+      command: "Ninguno: el studio genera la página con los datos que muestra el informe.",
+      files: "{path}, donde elijas guardarlo; ningún archivo del proyecto.",
+      doesNot:
+        "No ejecuta ningún comando de specgate, no escribe nada en el proyecto y no envía la página a nadie.",
+      next: "Envía el archivo, o ábrelo e imprímelo a PDF.",
+      notice: { ranOk: "Guardado {path}", next: "Envíalo, o imprímelo a PDF" },
+    },
+  },
+  "report-print": {
+    en: {
+      does: 'Opens the system\'s print dialog on the report alone — without the activity bar, the panels or the status bar — laid out for paper; its "Save as PDF" makes the PDF.',
+      command: "None: the print dialog is the system's.",
+      files: "None: the studio writes nothing; the PDF is the print dialog's, where you save it.",
+      doesNot: "It runs no specgate command and writes no file of the project.",
+      next: "Choose Save as PDF, or a printer.",
+      notice: { ranOk: "The print dialog opened", next: "Choose Save as PDF, or a printer" },
+    },
+    es: {
+      does: "Abre el diálogo de impresión del sistema solo con el informe — sin la barra de actividad, los paneles ni la barra de estado — maquetado para papel; su «Guardar como PDF» hace el PDF.",
+      command: "Ninguno: el diálogo de impresión es del sistema.",
+      files:
+        "Ninguno: el studio no escribe nada; el PDF es del diálogo de impresión, donde lo guardes.",
+      doesNot: "No ejecuta ningún comando de specgate y no escribe ningún archivo del proyecto.",
+      next: "Elige Guardar como PDF, o una impresora.",
+      notice: {
+        ranOk: "Se abrió el diálogo de impresión",
+        next: "Elige Guardar como PDF, o una impresora",
+      },
+    },
+  },
 };
 
 /** What a placeholder reads as when the action has no value for it yet. */
@@ -687,10 +1440,34 @@ const UNSET: Record<string, string> = {
   queued: "<the queued requirements>",
   agent: "<agent>",
   command: "<command>",
+  path: "<path>",
+  to: "<new name>",
+  repo: "<owner/name>",
+  side: "<beside>",
+  id: "<plan-id>",
+  then: "<its checks>",
+  scenario: "<SCN>",
 };
 
 export type HelpVars = Partial<
-  Record<"req" | "change" | "module" | "key" | "q" | "count" | "queued" | "agent", string>
+  Record<
+    | "req"
+    | "change"
+    | "module"
+    | "key"
+    | "q"
+    | "count"
+    | "queued"
+    | "agent"
+    | "path"
+    | "to"
+    | "repo"
+    | "side"
+    | "id"
+    | "then"
+    | "scenario",
+    string
+  >
 >;
 
 function fill(text: string, vars: Record<string, string | undefined>): string {
@@ -744,6 +1521,8 @@ export interface Outcome {
 
 export interface Notice {
   tone: "ok" | "refused" | "failed";
+  /** For a refusal or a failure, what did not happen: "draft-pedidos was not archived" (A19). */
+  title?: string;
   /** The command, and what it did or why it stopped. */
   ran: string;
   /** What it wrote, or that it wrote nothing. */
@@ -787,8 +1566,10 @@ export function notice(action: ActionId, lang: Lang, vars: HelpVars, outcome: Ou
   const all = { ...vars, command };
   const say = SAY[lang];
   const refusal = outcome.findings.find((f) => f.severity === "error");
+  const title = e.notice.failed ? { title: fill(e.notice.failed, all) } : {};
   if (refusal) {
     return {
+      ...title,
       tone: "refused",
       ran: fill(say.refused, { ...all, code: refusal.code, message: refusal.message }),
       wrote: say.nothing,
@@ -801,6 +1582,7 @@ export function notice(action: ActionId, lang: Lang, vars: HelpVars, outcome: Ou
     : say.none;
   if (outcome.ended) {
     return {
+      ...title,
       tone: "failed",
       ran: fill(say.ended, { ...all, code: outcome.ended.code, message: outcome.ended.message }),
       wrote,
@@ -810,6 +1592,7 @@ export function notice(action: ActionId, lang: Lang, vars: HelpVars, outcome: Ou
   }
   if (outcome.exitCode !== 0) {
     return {
+      ...title,
       tone: "failed",
       ran: fill(say.failed, { ...all, code: String(outcome.exitCode) }),
       wrote,
@@ -821,5 +1604,120 @@ export function notice(action: ActionId, lang: Lang, vars: HelpVars, outcome: Ou
     ran: fill(e.notice.ranOk, all),
     wrote: e.notice.after ? `${wrote} ${fill(e.notice.after, all)}` : wrote,
     next: fill(e.notice.next, all),
+  };
+}
+
+/** How a write of the tree ended (REQ-166): done, refused for its path, or failed. */
+export type FileOutcome =
+  | { ok: true }
+  | { ok: false; refused: "outside" | "name" | "exists" | "missing" }
+  | { ok: false; failed: string };
+
+const FILE_SAY: Record<
+  Lang,
+  Record<"outside" | "name" | "exists" | "missing" | "failed" | "nothing", string>
+> = {
+  en: {
+    outside: "Not inside the project: {path} was not {done}",
+    name: "Not a name a file can take: {path} was not {done}",
+    exists: "{path} already exists: nothing was {done}",
+    missing: "{path} is not there any more: nothing was {done}",
+    failed: "{path} was not {done}: {message}",
+    nothing: "Nothing was written.",
+  },
+  es: {
+    outside: "Fuera del proyecto: {path} no se ha {done}",
+    name: "No es un nombre que pueda tener un archivo: {path} no se ha {done}",
+    exists: "{path} ya existe: no se ha {done} nada",
+    missing: "{path} ya no está: no se ha {done} nada",
+    failed: "{path} no se ha {done}: {message}",
+    nothing: "No se escribió nada.",
+  },
+};
+
+const DONE: Record<Lang, Partial<Record<ActionId, string>>> = {
+  en: {
+    "file-new": "created",
+    "folder-new": "created",
+    "file-rename": "renamed",
+    "file-delete": "deleted",
+    "file-delete-permanent": "deleted",
+    "folder-clone": "cloned",
+    "folder-open": "opened",
+  },
+  es: {
+    "file-new": "creado",
+    "folder-new": "creado",
+    "file-rename": "renombrado",
+    "file-delete": "borrado",
+    "file-delete-permanent": "borrado",
+    "folder-clone": "clonado",
+    "folder-open": "abierto",
+  },
+};
+
+/**
+ * The notice of a write of the tree (REQ-166, REQ-168, A16): it names the
+ * file and what was done, or why nothing was — in both languages.
+ */
+export function fileNotice(
+  action: ActionId,
+  lang: Lang,
+  vars: HelpVars,
+  outcome: FileOutcome,
+): Notice {
+  const e = HELP[action][lang] ?? HELP[action].en!;
+  const all = { ...vars, done: DONE[lang][action] ?? "" };
+  if (outcome.ok) {
+    return {
+      tone: "ok",
+      ran: fill(e.notice.ranOk, all),
+      wrote: fill(e.files, all),
+      next: fill(e.notice.next, all),
+    };
+  }
+  const say = FILE_SAY[lang];
+  const ran =
+    "refused" in outcome
+      ? fill(say[outcome.refused], all)
+      : fill(say.failed, { ...all, message: outcome.failed });
+  return {
+    tone: "refused" in outcome ? "refused" : "failed",
+    ran,
+    wrote: say.nothing,
+    next: fill(e.next, all),
+  };
+}
+
+/**
+ * The notice of a proposal confirmed or cancelled (draft-traceability
+ * REQ-123): the file written and the next step, or that nothing was written —
+ * in both languages, never only "done". A refusal says why nothing was.
+ */
+export function proposalNotice(
+  action: "trace-fix" | "trace-ask-agent",
+  lang: Lang,
+  vars: HelpVars,
+  outcome: { written: string } | { cancelled: true } | { refused: string },
+): Notice {
+  const e = HELP[action][lang] ?? HELP[action].en!;
+  const say = SAY[lang];
+  const all = { ...vars, ...("written" in outcome ? { path: outcome.written } : {}) };
+  if ("written" in outcome) {
+    const wrote = fill(say.wrote, { files: `\`${outcome.written}\`` });
+    return {
+      tone: "ok",
+      ran: fill(e.notice.ranOk, all),
+      wrote: e.notice.after ? `${wrote} ${fill(e.notice.after, all)}` : wrote,
+      next: fill(e.notice.next, all),
+    };
+  }
+  if ("refused" in outcome)
+    return { tone: "refused", ran: outcome.refused, wrote: say.nothing, next: fill(e.next, all) };
+  return {
+    tone: "ok",
+    ran: fill(e.notice.cancelled ?? e.notice.ranOk, all),
+    wrote: say.nothing,
+    next: fill(e.next, all),
   };
 }

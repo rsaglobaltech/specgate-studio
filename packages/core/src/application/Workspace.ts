@@ -11,7 +11,7 @@ import {
 } from "../domain/workspace.js";
 import type { FileSystemPort } from "../ports/FileSystemPort.js";
 import type { GitPort } from "../ports/GitPort.js";
-import { ANY_FILE, type Watch, type WatcherPort } from "../ports/WatcherPort.js";
+import { ANY_FILE, GIT_STATE, type Watch, type WatcherPort } from "../ports/WatcherPort.js";
 
 export type WorkspaceListener = (state: WorkspaceState) => void;
 
@@ -81,8 +81,10 @@ export class Workspace {
       this.root,
       (p) => this.rules.ignores(p),
       (path) => {
-        if (path !== ANY_FILE && this.rules.ignores(path)) return;
-        onFile(path);
+        // A commit or a stage: no file changed, git's state did (REQ-163).
+        const gitOnly = path === GIT_STATE;
+        if (!gitOnly && path !== ANY_FILE && this.rules.ignores(path)) return;
+        if (!gitOnly) onFile(path);
         if (timer) clearTimeout(timer);
         timer = setTimeout(() => {
           reading = this.state().then(onState, () => undefined);

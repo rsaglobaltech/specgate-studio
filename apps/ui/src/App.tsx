@@ -1,3 +1,21 @@
+import { CloneDialog, FolderChooser, NoFolderPanel } from "./NoFolder.js";
+import { EditorGrid } from "./EditorGrid.js";
+import { AgentPanel } from "./AgentPanel.js";
+import {
+  closeGroup,
+  closeTabIn,
+  collapsed,
+  focusNth,
+  groupOrder,
+  initialEditors,
+  mapAllTabs,
+  openIn,
+  restore,
+  saved,
+  split,
+  type Editors,
+  type Side,
+} from "./layout.js";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { ComponentType, JSX } from "preact";
 import type { EditorPaneProps, LensAction } from "./EditorPane.js";
@@ -7,11 +25,14 @@ import type {
   CommandEvent,
   Finding,
   Lang as NoticeLang,
+  LiveView,
   Notice,
   Question,
   QuestionsSection,
   Requests,
+  RedraftResult,
   RunResult,
+  Unreadable,
   SectionData,
   SpecgateCommand,
   WorkspaceState,
@@ -19,21 +40,45 @@ import type {
 import { Rpc } from "./rpc.js";
 import { t, type Lang } from "./i18n.js";
 import { shortcut, type Action } from "./keys.js";
-import { FEATURES, filterFeatures, type Feature } from "./palette.js";
-import { closeTab, nextTab, openTab, previousTab, type Tabs } from "./tabs.js";
+import {
+  AREAS,
+  FEATURES,
+  MENUS,
+  filterFeatures,
+  requirementFeatures,
+  type Feature,
+} from "./palette.js";
+import {
+  closeTab,
+  closeTabs,
+  nextTab,
+  openTab,
+  previousTab,
+  renameTab,
+  type Tabs,
+} from "./tabs.js";
 import { BOTTOM_VIEWS, PANEL_TABS, TOP_VIEWS, type PanelTab, type ViewId } from "./views.js";
-import { Logo, ViewIcon } from "./icons.js";
-import { VirtualList } from "./VirtualList.js";
+import { AgentIcon, Logo, ViewIcon } from "./icons.js";
+import { Traceability, TraceProposal, type ProposalState } from "./views/Traceability.js";
 import { HelpButton, HelpDialog, NoticeToast, type HelpRequest } from "./Help.js";
 import { Changes } from "./views/Changes.js";
 import { Build } from "./views/Build.js";
 import { Live } from "./views/Live.js";
 import { loadSettings, saveSettings, type Theme } from "./settings.js";
+import { Echoes } from "./echo.js";
+import { statusUsage } from "./usage.js";
 import Questions from "./views/Questions.js";
-import { AdoptedAreas, SetupNext, SetupPane, type SetupStep } from "./Setup.js";
+import { AdoptedAreas, NewProject, SetupNext, SetupPane, type SetupStep } from "./Setup.js";
 import { Problems } from "./views/Problems.js";
 import { Brief } from "./views/Brief.js";
 import { bt } from "./views/briefText.js";
+import { Explorer } from "./Explorer.js";
+import { Home } from "./views/Home.js";
+import { HelpView } from "./views/HelpView.js";
+import { SettingsEditor } from "./views/Settings.js";
+import { applyPrefs } from "./prefs.js";
+import { Report } from "./views/Report.js";
+import { fileType, modulesOf } from "./tree.js";
 
 type Sections = Partial<
   Record<"home" | "changes" | "questions" | "matrix" | "report", SectionData>
@@ -60,14 +105,112 @@ export function App({ rpc }: { rpc: Rpc }) {
   const initial = useMemo(() => loadSettings(), []);
   const [lang, setLang] = useState<Lang>(initial.lang);
   const [theme, setTheme] = useState<Theme>(initial.theme);
+  /** The Developer pays per use of the API: the agent's dollars read as cost (demo-findings REQ-211). */
+  const [perUse, setPerUse] = useState<boolean>(initial.perUse);
+  /** What the last run spent, for the status bar (REQ-211): Live's totals. */
+  const [spent, setSpent] = useState<{ tokens: number; dollars: number | null } | null>(null);
   const [view, setView] = useState<ViewId>("home");
+  /** What the main area shows while the Explorer's panel is the open view (draft-explorer-tree A7). */
+  const [behind, setBehind] = useState<ViewId>("home");
+  /** A line to bring into view in the editor: a requirement opened from the Explorer (REQ-169). */
+  const [reveal, setReveal] = useState<{ path: string; line: number; n: number } | null>(null);
+  /** The requirement the studio is building, for the modules' dots (REQ-169). */
+  const [building, setBuilding] = useState<string | null>(null);
+  /** The drafts no person approved yet (REQ-169). */
+  const [unapproved, setUnapproved] = useState<ReadonlySet<string>>(new Set());
+  const [focusEditor, setFocusEditor] = useState(0);
+  /** The tabs opened on a requirement: their id and title (REQ-177, A16). */
+  const [tabReq, setTabReq] = useState<Record<string, { id: string; title: string }>>({});
+  /** Where the cursor is, for the breadcrumb (REQ-177). */
+  const [cursor, setCursor] = useState<{ path: string; line: number } | null>(null);
+  const [openShellIn, setOpenShellIn] = useState<{ n: number; cwd: string } | null>(null);
   const [ticketPanel, setTicketPanel] = useState(false);
-  const [tabs, setTabs] = useState<Tabs>({ open: [], active: null });
+  // The editor groups in their grid (draft-workbench-v2 REQ-188, REQ-189); a view over them
+  // while one is shown, the groups kept as they are.
+  const [editors, setEditors] = useState<Editors>(initialEditors);
+  const [viewOver, setViewOver] = useState(true);
+  const tabs = editors.groups[editors.active]!;
+  const setTabs = useCallback(
+    (fn: (t: Tabs) => Tabs) =>
+      setEditors((e) => ({ ...e, groups: { ...e.groups, [e.active]: fn(e.groups[e.active]!) } })),
+    [],
+  );
+  /** The group of the tab whose close asks first (REQ-189). */
+  const closingGroup = useRef<string | null>(null);
+  /** A tab's menu: split, close, each split with its "?" (REQ-188, REQ-192). */
+  const [tabMenu, setTabMenu] = useState<{
+    group: string;
+    path: string;
+    x: number;
+    y: number;
+  } | null>(null);
+  /** Ctrl/Cmd+K pressed: the next arrow key splits that way (A18). */
+  const chord = useRef(0);
+  /**
+   * The frame (draft-workbench-v2 REQ-190): the panel's place, size and
+   * whether it is maximized; the side bar's width; the agent panel shown and
+   * its width. Saved per project with the groups (REQ-191).
+   */
+  const [frame, setFrame] = useState<Frame>(FRAME);
+  /** A window too small for the layout collapses it, without changing what is saved (A24). */
+  const [small, setSmall] = useState(isSmall);
+  useEffect(() => {
+    const onResize = () => setSmall(isSmall());
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  /** Splits the active group's file (REQ-188); the editor shows. */
+  const splitTo = useCallback((side: Side) => {
+    setEditors((e) => split(e, side));
+    setViewOver(false);
+  }, []);
   const [texts, setTexts] = useState<Record<string, string>>({});
+  // Always there (draft-workbench-v2 REQ-184): Ctrl/Cmd+J folds it to its tabs and back,
+  // never removes it; `open` is whether its body shows.
   const [panel, setPanel] = useState<{ open: boolean; tab: PanelTab }>({
     open: true,
     tab: "terminal",
   });
+  /** Whether a folder is open; false shows Open Folder and Clone Repository (REQ-185). */
+  const [folderOpen, setFolderOpen] = useState<boolean>(true);
+  const [choosing, setChoosing] = useState<null | "open" | "clone">(null);
+  useEffect(() => {
+    void rpc.ask("folder.get", {}).then(
+      (r) => {
+        setFolderOpen(r.open);
+        if (!r.open) setView("explorer");
+      },
+      () => undefined,
+    );
+  }, [rpc]);
+  /** Goes to the opened folder's own page (REQ-185); tests may stay to read the terminal. */
+  const goTo = (url: string) => {
+    const studio = (window as unknown as { __studio: Record<string, unknown> }).__studio;
+    studio.opening = url;
+    if (!studio.stayOnOpen) location.href = url.replace(/^ws/, "http");
+  };
+  const openFolder = (path: string) => {
+    setChoosing(null);
+    void rpc.ask("folder.open", { path }).then(
+      ({ url }) => goTo(url),
+      (e: Error) => setNotice(e.message),
+    );
+  };
+  const cloneInto = (repo: string, parent: string) => {
+    setChoosing(null);
+    echoes.current.announce(tr("nofolder.clone"));
+    setPanel({ open: true, tab: "terminal" });
+    setShowStudio((n) => n + 1);
+    void rpc.ask("folder.clone", { repo, parent }).then(
+      (r) => (r.url ? goTo(r.url) : setEnded(r.notice)),
+      (e: Error) => setNotice(e.message),
+    );
+  };
+  /** The shell new terminals run and their folder, beside "+" (REQ-184). */
+  const [shell, setShell] = useState<{ name: string; folder: string } | null>(null);
+  useEffect(() => {
+    void rpc.ask("terminal.shell", {}).then(setShell, () => undefined);
+  }, [rpc]);
   const [sidebar, setSidebar] = useState(false);
   const [palette, setPalette] = useState<null | "features" | "files">(null);
   const [project, setProject] = useState<string>("");
@@ -78,6 +221,7 @@ export function App({ rpc }: { rpc: Rpc }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [ended, setEnded] = useState<Record<NoticeLang, Notice> | null>(null);
   const [help, setHelp] = useState<{ title: string; requests: HelpRequest[] } | null>(null);
+  const closeHelp = useCallback(() => setHelp(null), []);
   // The editor (draft-editor): Monaco loads with the first file, not before (REQ-041).
   const [EditorPane, setEditorPane] = useState<ComponentType<EditorPaneProps> | null>(null);
   const editorApi = useRef<{
@@ -90,10 +234,25 @@ export function App({ rpc }: { rpc: Rpc }) {
   const [closing, setClosing] = useState<string | null>(null);
   const [buildReq, setBuildReq] = useState<string | null>(null);
   const [traceFilter, setTraceFilter] = useState("");
+  /** "Fix"'s proposed test, in the panel's Traceability tab (draft-traceability REQ-123). */
+  const [proposal, setProposal] = useState<ProposalState | null>(null);
+  /** The project's agent, for "Ask the agent" (REQ-123, A11); null when none is set. */
+  const [agentName, setAgentName] = useState<string | null>(null);
+  useEffect(() => {
+    void rpc.ask("agent.get", {}).then(
+      (v) => setAgentName(v.agent),
+      () => undefined,
+    );
+    return rpc.on("agent.changed", (v) => setAgentName(v.agent));
+  }, [rpc]);
   const annotateTimer = useRef<number | undefined>(undefined);
   const activeRef = useRef<string | null>(null);
   const annotateRef = useRef<(path: string) => Promise<unknown>>(async () => undefined);
   const [lost, setLost] = useState(false);
+  /** The host gone for over a second: a banner and a grey status bar (REQ-178, A17). */
+  const [offline, setOffline] = useState(false);
+  /** The sections that could not be read, and why (REQ-178, A18). */
+  const [unreadable, setUnreadable] = useState<Partial<Record<string, Unreadable>>>({});
   const [workspace, setWorkspace] = useState<WorkspaceState | null>(null);
   // Setting up a folder that is no project yet (draft-project-setup).
   const [setup, setSetup] = useState<SetupStep | null>(null);
@@ -105,8 +264,8 @@ export function App({ rpc }: { rpc: Rpc }) {
   const [echo, setEcho] = useState("");
   const [showStudio, setShowStudio] = useState(0);
   const [openShell, setOpenShell] = useState(0);
-  /** The button whose command runs next: the echo names it (REQ-053). */
-  const pendingLabel = useRef<string | null>(null);
+  /** The buttons whose commands run next, a build's kept by its requirement: the echo names them (REQ-053, REQ-103). */
+  const echoes = useRef(new Echoes());
   /** The button whose agent runs, one module after another: the echo names it for each (draft-brief). */
   const draftLabel = useRef<string | null>(null);
   const [briefRead, setBriefRead] = useState(0);
@@ -125,6 +284,17 @@ export function App({ rpc }: { rpc: Rpc }) {
       answer: t(lang, "question.answer"),
       other: t(lang, "question.other"),
       options: t(lang, "question.options"),
+      traceCount: (scenarios: number, tests: number) =>
+        t(lang, "lens.traceCount", {
+          scenarios: t(lang, scenarios === 1 ? "lens.scenario" : "lens.scenarios", {
+            n: scenarios,
+          }),
+          tests: t(lang, tests === 1 ? "lens.test" : "lens.tests", { n: tests }),
+        }),
+      qOpen: (q: string, req: string) => t(lang, "question.open", { q, req }),
+      qSource: (change: string) => t(lang, "question.source", { change }),
+      qFoot: (q: string) => t(lang, "question.foot", { q }),
+      qHelp: t(lang, "question.help"),
     }),
     [lang],
   );
@@ -133,8 +303,38 @@ export function App({ rpc }: { rpc: Rpc }) {
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme;
     document.documentElement.lang = lang;
-    saveSettings({ lang, theme });
-  }, [lang, theme]);
+    saveSettings({ lang, theme, perUse });
+  }, [lang, theme, perUse]);
+
+  // The user settings apply to every project: the Developer's own file wins over this page's memory (REQ-141).
+  useEffect(() => {
+    void rpc.ask("settings.user.get", {}).then(
+      (u) => {
+        if (u.lang === "en" || u.lang === "es") setLang(u.lang);
+        if (u.theme === "dark" || u.theme === "light") setTheme(u.theme);
+        applyPrefs(u);
+      },
+      () => undefined,
+    );
+  }, [rpc]);
+  /** A user setting: applied now, and saved by the host in the Developer's own file (REQ-141, REQ-143). */
+  const saveUser = useCallback(
+    (key: string, value: string, quiet = false) => {
+      if (key === "lang" && (value === "en" || value === "es")) setLang(value);
+      else if (key === "theme" && (value === "dark" || value === "light")) setTheme(value);
+      else if (/^(editor|terminal)\./.test(key)) applyPrefs({ [key]: value });
+      else return;
+      void rpc.ask("settings.user.set", { key, value }).then(
+        (r) => {
+          if (quiet) return;
+          if (r.ok) setEnded(r.notice);
+          else setNotice(r.message);
+        },
+        () => undefined,
+      );
+    },
+    [rpc],
+  );
 
   const openProject = useCallback(
     () =>
@@ -142,12 +342,18 @@ export function App({ rpc }: { rpc: Rpc }) {
         (opened) => {
           setProject(opened.project);
           setSections(opened.sections as Sections);
+          setUnreadable(opened.unreadable ?? {});
         },
         // A folder that is no project yet has nothing to read: Home offers its setup.
         () =>
           rpc.ask("workspace.get", {}).then(
             (w) => w.kind === "specgate" && setLost(true),
-            () => setLost(true),
+            // No folder open has nothing to read either (draft-workbench-v2 REQ-185).
+            () =>
+              rpc.ask("folder.get", {}).then(
+                (f) => f.open && setLost(true),
+                () => setLost(true),
+              ),
           ),
       ),
     [rpc],
@@ -157,6 +363,11 @@ export function App({ rpc }: { rpc: Rpc }) {
   useEffect(() => {
     void openProject();
     rpc.ask("files.list", {}).then(setFiles, () => undefined);
+    // A terminal of the Developer's still open (a reload, a second tab): the panel holds it.
+    rpc.ask("terminal.list", {}).then(
+      (open) => open.length > 0 && setPanel((p) => ({ ...p, open: true })),
+      () => undefined,
+    );
     // The open folder: its branch, team and ticket (draft-workspace), kept current.
     rpc.ask("workspace.get", {}).then(setWorkspace, () => undefined);
     const offWorkspace = rpc.on("workspace.changed", ({ state }) => setWorkspace(state));
@@ -178,10 +389,10 @@ export function App({ rpc }: { rpc: Rpc }) {
     const offCommand = rpc.on("command.event", (e: CommandEvent) => {
       if (e.type === "started") {
         setOutput((o) => `${o}$ ${e.command}\n`);
-        const label =
-          pendingLabel.current ??
-          (draftLabel.current && / --agent /.test(e.command) ? draftLabel.current : e.command);
-        pendingLabel.current = null;
+        const label = echoes.current.started(
+          e.command,
+          draftLabel.current && / --agent /.test(e.command) ? draftLabel.current : null,
+        );
         setEcho((t) => `${t}\u25b6 "${label}" \u00b7 ${e.command}\n`);
         if (e.command === "specgate check") setGate("running");
       } else if (e.type === "output") {
@@ -202,9 +413,52 @@ export function App({ rpc }: { rpc: Rpc }) {
     };
   }, [rpc]);
 
+  // The requirement being built and the drafts to review: the Explorer's dots (REQ-169).
+  useEffect(() => {
+    // What the run spent, for the status bar (demo-findings REQ-211).
+    const seen = (l: LiveView) => {
+      setBuilding(l.building);
+      const t = l.totals;
+      setSpent({ tokens: t.input + t.output + t.cacheRead + t.cacheWrite, dollars: t.cost });
+    };
+    rpc.ask("live.get", {}).then(seen, () => undefined);
+    return rpc.on("live.changed", seen);
+  }, [rpc]);
+  // The drafts to review come with what Home and the Explorer read (REQ-169, REQ-173).
+  const onReview = useCallback(
+    (ids: readonly string[]) =>
+      setUnapproved((old) =>
+        old.size === ids.length && ids.every((i) => old.has(i)) ? old : new Set(ids),
+      ),
+    [],
+  );
+  const refreshFiles = useCallback(
+    () => void rpc.ask("files.list", {}).then(setFiles, () => undefined),
+    [rpc],
+  );
+
+  // The host lost and back (REQ-178, A17): said after 1 s; once back, what is open is read again.
+  useEffect(() => {
+    let timer: number | undefined;
+    return rpc.onStatus((c) => {
+      window.clearTimeout(timer);
+      if (c === "lost") timer = window.setTimeout(() => setOffline(true), 1000);
+      else {
+        setOffline(false);
+        void openProject();
+        rpc.ask("files.list", {}).then(setFiles, () => undefined);
+        rpc.ask("workspace.get", {}).then(setWorkspace, () => undefined);
+      }
+    });
+  }, [rpc, openProject]);
+
   // A folder created or adopted here is read once it is a project (draft-project-setup).
   const kind = workspace?.kind;
   const wasProject = useRef<boolean | null>(null);
+  // A folder that was a project when opened shows its shape while it is read (REQ-178);
+  // one being created or adopted keeps its setup on screen instead.
+  const firstKind = useRef<string | null>(null);
+  if (kind && firstKind.current === null) firstKind.current = kind;
   useEffect(() => {
     if (!kind) return;
     if (wasProject.current === false && kind === "specgate") {
@@ -220,9 +474,17 @@ export function App({ rpc }: { rpc: Rpc }) {
 
   const show = useCallback((v: ViewId) => {
     performance.mark(`view:${v}`);
+    // The Explorer is a side panel: what was in the main area stays (A7).
+    if (v === "explorer") {
+      setView((old) => {
+        if (old !== "explorer") setBehind(old);
+        return "explorer";
+      });
+      return;
+    }
     setView(v);
     setTicketPanel(false);
-    setTabs((tb) => ({ ...tb, active: null }));
+    setViewOver(true);
   }, []);
 
   const annotate = useCallback(
@@ -238,8 +500,12 @@ export function App({ rpc }: { rpc: Rpc }) {
   activeRef.current = tabs.active;
 
   const openFile = useCallback(
-    (path: string) => {
-      setTabs((tb) => openTab(tb, path));
+    (path: string, line?: number, req?: { id: string; title: string }) => {
+      if (line) setReveal((r) => ({ path, line, n: (r?.n ?? 0) + 1 }));
+      // A tab opened on a requirement shows its id and title (REQ-177, A16).
+      if (req) setTabReq((t) => ({ ...t, [path]: req }));
+      setEditors((e) => openIn(e, path));
+      setViewOver(false);
       if (!EditorPane) {
         void import("./EditorPane.js").then((m) => setEditorPane(() => m.default));
       }
@@ -267,22 +533,69 @@ export function App({ rpc }: { rpc: Rpc }) {
   );
 
   const close = useCallback(
-    (path: string) => (unsaved[path] ? setClosing(path) : setTabs((tb) => closeTab(tb, path))),
-    [unsaved],
+    (path: string, group?: string) => {
+      const g = group ?? null;
+      if (unsaved[path] && !openElsewhere(editors, g, path)) {
+        closingGroup.current = g;
+        setClosing(path);
+      } else setEditors((e) => closeTabIn(e, g ?? e.active, path));
+    },
+    [unsaved, editors],
   );
 
   /** Names the button whose command runs next, in the terminal's echo (REQ-053). */
   const announce = useCallback((label: string) => {
-    pendingLabel.current = label;
+    echoes.current.announce(label);
     setPanel({ open: true, tab: "terminal" });
     setShowStudio((n) => n + 1);
   }, []);
 
+  /**
+   * Names the button that builds `req`: kept by the requirement, so a queued
+   * build is echoed with its own once its turn comes (demo-findings REQ-103);
+   * `null` forgets it, for a build refused.
+   */
+  const announceBuild = useCallback((req: string, label: string | null) => {
+    if (label === null) return echoes.current.forget(req);
+    echoes.current.build(req, label);
+    setPanel({ open: true, tab: "terminal" });
+    setShowStudio((n) => n + 1);
+  }, []);
+
+  /** The last command a button ran: a failed one can be run again (REQ-178, A19). */
+  const lastRun = useRef<{ label: string; command: SpecgateCommand } | null>(null);
   /** Runs a studio command for a button, which the terminal's echo names (REQ-053). */
   const runCommand = useCallback(
     (label: string, command: SpecgateCommand): Promise<RunResult> => {
+      lastRun.current = { label, command };
       announce(label);
       return rpc.ask("command.run", command);
+    },
+    [rpc, announce],
+  );
+
+  /**
+   * "Draft again with N requested changes" (draft-changes REQ-083): the host
+   * runs the module's draft with the project's agent, which specgate hands the
+   * open notes; the echo names the button, a refusal says why.
+   */
+  const redraft = useCallback(
+    async (label: string, change: string): Promise<RedraftResult> => {
+      announce(label);
+      try {
+        const r = await rpc.ask("changes.redraft", { change });
+        if (!r.ok) {
+          echoes.current.forget();
+          if (r.notice) setEnded(r.notice);
+          else setNotice(r.message);
+        }
+        return r;
+      } catch (e) {
+        echoes.current.forget();
+        const message = e instanceof Error ? e.message : String(e);
+        setNotice(message);
+        return { ok: false, code: "command_unknown", message };
+      }
     },
     [rpc, announce],
   );
@@ -299,11 +612,11 @@ export function App({ rpc }: { rpc: Rpc }) {
       try {
         const r = await rpc.ask("brief.draft", {});
         // Refused or nothing to draft: no run consumed the button's name.
-        if (!r.ok || r.drafted.length === 0) pendingLabel.current = null;
+        if (!r.ok || r.drafted.length === 0) echoes.current.forget();
         if (r.notice) setEnded(r.notice);
         else if (!r.ok) setNotice(r.message);
       } catch (e) {
-        pendingLabel.current = null;
+        echoes.current.forget();
         setNotice(e instanceof Error ? e.message : String(e));
       } finally {
         if (mine) {
@@ -324,12 +637,45 @@ export function App({ rpc }: { rpc: Rpc }) {
         if (r.panel === "fromTicket") setTicketPanel(true);
       } else if (r.kind === "check") {
         void runCommand(label ?? f.title[lang], { name: "check" });
-      } else if (r.kind === "language") setLang((l) => (l === "en" ? "es" : "en"));
-      else if (r.kind === "theme") setTheme((th) => (th === "dark" ? "light" : "dark"));
-      else if (r.kind === "togglePanel") setPanel((p) => ({ ...p, open: !p.open }));
+      } else if (r.kind === "language") saveUser("lang", lang === "en" ? "es" : "en", true);
+      else if (r.kind === "theme") saveUser("theme", theme === "dark" ? "light" : "dark", true);
+      else if (r.kind === "billing") {
+        // How the agent's dollars read; nothing runs, nothing is written in the project (REQ-211).
+        const now = !perUse;
+        setPerUse(now);
+        const say = (l: Lang) => ({
+          tone: "ok" as const,
+          ran: t(l, now ? "billing.perUse" : "billing.subscription"),
+          wrote: t(l, "billing.wrote"),
+          next: t(l, "billing.next"),
+        });
+        setEnded({ en: say("en"), es: say("es") });
+      } else if (r.kind === "togglePanel") setPanel((p) => ({ ...p, open: !p.open }));
+      else if (r.kind === "openFile") setPalette("files");
+      else if (r.kind === "palette") setPalette("features");
+      else if (r.kind === "newTerminal") {
+        setPanel({ open: true, tab: "terminal" });
+        setOpenShell((n) => n + 1);
+      } else if (r.kind === "split") splitTo(r.side);
+      else if (r.kind === "panelPosition")
+        setFrame((f) => ({
+          ...f,
+          panelPos: r.position,
+          panelMax: false,
+          // A height at the bottom, a width on a side.
+          panelSize:
+            (f.panelPos === "bottom") === (r.position === "bottom")
+              ? f.panelSize
+              : r.position === "bottom"
+                ? 220
+                : 420,
+        }));
+      else if (r.kind === "maximizePanel") setFrame((f) => ({ ...f, panelMax: !f.panelMax }));
+      else if (r.kind === "toggleAgent") setFrame((f) => ({ ...f, agent: !f.agent }));
+      else if (r.kind === "buildReq") (setBuildReq(r.req), show("build"));
       else setSidebar((s) => !s);
     },
-    [rpc, show, runCommand, lang],
+    [rpc, show, runCommand, lang, theme, saveUser, perUse],
   );
 
   const act = useCallback(
@@ -361,9 +707,21 @@ export function App({ rpc }: { rpc: Rpc }) {
           return setTimeout(() => filterRef.current?.focus(), 0);
         case "settings":
           return show("settings");
+        case "splitRight":
+          return splitTo("right");
+        case "chord":
+          chord.current = Date.now();
+          return;
+        case "focusGroup1":
+        case "focusGroup2":
+        case "focusGroup3":
+          setViewOver(false);
+          return setEditors((e) => focusNth(e, Number(a.slice(-1))));
+        case "toggleAgent":
+          return setFrame((f) => ({ ...f, agent: !f.agent }));
       }
     },
-    [show, tr, tabs.active, save, close],
+    [show, tr, tabs.active, save, close, splitTo],
   );
 
   // Before the first paint: a key pressed the moment the workbench shows is not lost.
@@ -371,6 +729,15 @@ export function App({ rpc }: { rpc: Rpc }) {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && palette) {
         setPalette(null);
+        return;
+      }
+      // Ctrl/Cmd+K, then an arrow: split that way (A18), within two seconds.
+      const arrow = ARROWS[e.key];
+      if (arrow && chord.current && Date.now() - chord.current < 2000) {
+        chord.current = 0;
+        e.preventDefault();
+        e.stopPropagation();
+        splitTo(arrow);
         return;
       }
       const a = shortcut(e, isMac);
@@ -386,7 +753,7 @@ export function App({ rpc }: { rpc: Rpc }) {
     window.addEventListener("keydown", onKey, true);
     document.body.dataset.ready = "1";
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [act, palette]);
+  }, [act, palette, splitTo]);
 
   useEffect(() => {
     performance.mark("workbench:interactive");
@@ -418,30 +785,268 @@ export function App({ rpc }: { rpc: Rpc }) {
     (sections.changes as { changes?: Array<{ id: string }> } | undefined)?.changes ?? [];
   const questionsSection = sections.questions as QuestionsSection | undefined;
   const questions = questionsSection?.questions?.open ?? [];
+  // How many tests name each requirement, as `report --json` says: Trace's count (REQ-171).
+  const testsOf = useMemo(() => {
+    const tested = new Map<string, number>();
+    const rows = (sections.report as { requirements?: unknown[] } | undefined)?.requirements ?? [];
+    for (const r of rows as Array<{ requirement?: unknown; testExists?: unknown }>)
+      if (typeof r.requirement === "string")
+        tested.set(r.requirement, r.testExists === true ? 1 : 0);
+    return (req: string) => tested.get(req) ?? 0;
+  }, [sections.report]);
+  const titles = useMemo(
+    () => new Map(requirements.map((r) => [r.id, r.title ?? ""])),
+    [requirements],
+  );
+  const questionsByChange = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const q of questions) m.set(q.change, (m.get(q.change) ?? 0) + 1);
+    return m;
+  }, [questions]);
   const badge: Partial<Record<ViewId, number>> = {
     changes: changes.length,
     questions: questions.length,
   };
-  const activeFile = tabs.active;
+  const activeFile = viewOver ? null : tabs.active;
+  // The requirement under the cursor ends the breadcrumb (REQ-177, A16).
+  const crumbReq = (() => {
+    if (!activeFile) return null;
+    const heads = annotations[activeFile]?.headings ?? [];
+    const line =
+      cursor?.path === activeFile ? cursor.line : reveal?.path === activeFile ? reveal.line : 1;
+    let at: string | null = null;
+    for (const h of heads) if (h.line <= line) at = h.req;
+    return at;
+  })();
+  /** What the main area shows: the Explorer is a side panel beside it (A7). */
+  const mainView: ViewId = view === "explorer" ? behind : view;
+  const mainSection = SECTION_OF[mainView] ?? null;
+  const readAgain = (section: string) =>
+    rpc.ask("section.get", { section: section as never }).then(
+      (data) => {
+        setSections((old) => ({ ...old, [section]: data }));
+        setUnreadable(({ [section]: _, ...rest }) => rest);
+      },
+      (e: Error) => setUnreadable((u) => ({ ...u, [section]: { message: e.message } })),
+    );
+  // What the open view counts, in the status bar (REQ-172, A7).
+  const answered = questionsSection?.questions?.answered ?? [];
+  const viewStatus =
+    !activeFile && mainView === "questions"
+      ? tr("status.questions", { open: questions.length, confirm: answered.length })
+      : null;
+
+  // The layout saved for this project comes back once the files are known (REQ-191).
+  const restored = useRef(false);
+  const lastSaved = useRef<string | null>(null);
+  useEffect(() => {
+    if (restored.current || !folderOpen || files.length === 0) return;
+    restored.current = true;
+    void rpc.ask("layout.get", {}).then(
+      ({ layout }) => {
+        const l = (layout ?? {}) as { editors?: unknown; frame?: unknown };
+        const f = frameOf(l.frame);
+        setFrame(f);
+        const known = new Set(files);
+        const e = restore(l.editors, (p) => known.has(p));
+        const back = e && groupOrder(e).some((g) => e.groups[g]!.open.length > 0) ? e : null;
+        // What came back is what is saved: nothing is written until it changes.
+        lastSaved.current = JSON.stringify({ editors: saved(back ?? editors), frame: f });
+        if (back && e) {
+          setEditors(e);
+          setViewOver(false);
+          if (!EditorPane)
+            void import("./EditorPane.js").then((m) => setEditorPane(() => m.default));
+        }
+      },
+      () => undefined,
+    );
+  }, [rpc, folderOpen, files]);
+  // Saved a moment after it changes: groups, sizes, tabs, panel and side bars (REQ-191).
+  useEffect(() => {
+    if (!restored.current) return;
+    const layout = { editors: saved(editors), frame };
+    const json = JSON.stringify(layout);
+    if (json === lastSaved.current) return;
+    const t = window.setTimeout(() => {
+      lastSaved.current = json;
+      void rpc.ask("layout.set", { layout }).catch(() => undefined);
+    }, 250);
+    return () => window.clearTimeout(t);
+  }, [rpc, editors, frame]);
+  // Every open tab's text read, the restored ones too (REQ-191).
+  const reading = useRef(new Set<string>());
+  useEffect(() => {
+    for (const id of groupOrder(editors))
+      for (const path of editors.groups[id]!.open)
+        if (texts[path] === undefined && !reading.current.has(path)) {
+          reading.current.add(path);
+          void annotate(path);
+          rpc.ask("file.read", { path }).then(
+            ({ text }) => setTexts((old) => ({ ...old, [path]: text })),
+            () => reading.current.delete(path),
+          );
+        }
+  }, [editors]);
+  /** The side bar: the Explorer, unless a small window collapses it to the activity bar (A24). */
+  const sideShown = (view === "explorer" || sidebar) && !small;
+  /** What the grid shows: the saved groups, or one group in a small window (REQ-191). */
+  const shownEditors = small ? collapsed(editors) : editors;
+  const changeEditors = (change: Editors | ((latest: Editors) => Editors)) => {
+    if (typeof change === "function") return setEditors(change);
+    const next = change;
+    if (!small) return setEditors(next);
+    // Collapsed: a tab chosen is chosen in the group that holds it.
+    const p = next.groups[next.active]?.active;
+    if (!p) return;
+    setEditors((e) => {
+      const g = groupHolding(e, p);
+      return { ...e, active: g, groups: { ...e.groups, [g]: { ...e.groups[g]!, active: p } } };
+    });
+  };
+
+  /** A group's body (REQ-189): its breadcrumb and its editor on `path`, one model per file (A20). */
+  const editorBody = (group: string, path: string) => {
+    const activeFile = path;
+    const heads = annotations[path]?.headings ?? [];
+    const line = cursor?.path === path ? cursor.line : reveal?.path === path ? reveal.line : 1;
+    let crumbReq: string | null = null;
+    for (const h of heads) if (h.line <= line) crumbReq = h.req;
+    return (
+      <>
+        {
+          <nav class="crumbs" aria-label={tr("crumbs.label")} data-testid="breadcrumb">
+            {[
+              ...activeFile.split("/").slice(0, -1),
+              ...(crumbReq ? [crumbReq] : [activeFile.split("/").pop()!]),
+            ].map((part, i, all) => (
+              <span key={i} class={i === all.length - 1 ? "here" : ""}>
+                {part}
+              </span>
+            ))}
+          </nav>
+        }
+        {EditorPane && texts[activeFile] !== undefined ? (
+          <EditorPane
+            path={activeFile}
+            text={texts[activeFile]!}
+            theme={theme}
+            annotations={annotations[activeFile] ?? null}
+            labels={lensLabels}
+            commands={LENS_COMMANDS}
+            register={(api) => (editorApi.current = api)}
+            reveal={reveal}
+            focus={group === editors.active && !palette ? focusEditor : 0}
+            testsOf={testsOf}
+            onQuestionHelp={(q) =>
+              setHelp({
+                title: tr("help.title", { feature: lensLabels.answer }),
+                requests: [
+                  {
+                    action: "answer",
+                    feature: lensLabels.answer,
+                    vars: { q: q.id, change: q.change },
+                  },
+                ],
+              })
+            }
+            onCursor={(path, line) => setCursor({ path, line })}
+            onEdit={(path, value) => {
+              setUnsaved((u) => {
+                if (value !== texts[path]) return { ...u, [path]: true };
+                const { [path]: _, ...rest } = u;
+                return rest;
+              });
+              window.clearTimeout(annotateTimer.current);
+              annotateTimer.current = window.setTimeout(() => void annotate(path, value), 300);
+            }}
+            onLens={(action: LensAction, req: string) => {
+              const change = annotations[activeFile]?.change ?? null;
+              if (action === "check")
+                runFeature(
+                  FEATURES.find((f) => f.id === "gate.check")!,
+                  lensLabels.check,
+                );
+              else if (action === "build") (setBuildReq(req), show("build"));
+              else if (action === "trace") (setTraceFilter(req), show("traceability"));
+              else if (action === "ask") {
+                if (change) setAsk({ req, change });
+                else setNotice(tr("ask.noChange"));
+              } else
+                setHelp({
+                  title: tr("help.title", { feature: req }),
+                  requests: [
+                    { action: "build", feature: lensLabels.build, vars: { req } },
+                    { action: "check", feature: lensLabels.check, vars: { req } },
+                    ...(change
+                      ? [
+                          {
+                            action: "ask-change" as const,
+                            feature: lensLabels.ask,
+                            vars: { req, change, module: change.replace(/^draft-/, "") },
+                          },
+                        ]
+                      : []),
+                  ],
+                });
+            }}
+            onAnswer={(q, answer) =>
+              void runCommand(lensLabels.answer, {
+                name: "answer",
+                q: q.id,
+                answer,
+                change: q.change,
+              })
+            }
+          />
+        ) : (
+          <pre class="file">{texts[activeFile] ?? ""}</pre>
+        )}
+      </>
+    );
+  };
 
   return (
-    <div class="wb">
+    <div class={`wb ${offline ? "offline" : ""}`}>
+      {offline && (
+        <div class="banner" role="status" data-testid="reconnecting">
+          <span class="spin" />
+          <b>{tr("offline.title")}</b> {tr("offline.body")}
+        </div>
+      )}
       <header class="top">
         <span class="brand">
           <Logo />
           specgate<b>studio</b>
         </span>
+        {/* The menu bar: in the page in the browser; the desktop app's is the system's (REQ-172). */}
+        {!DESKTOP && <MenuBar lang={lang} onFeature={(f) => runFeature(f)} />}
         <button type="button" class="search" onClick={() => setPalette("features")}>
-          <span>{tr("palette.search", { project: project || "…" })}</span>
+          <span>
+            {tr("palette.search", { project: project || (folderOpen ? "…" : "specgate studio") })}
+          </span>
           <span class="mono">{isMac ? "⌘ ⇧ P" : "Ctrl ⇧ P"}</span>
         </button>
-        <span class={`pill ${gate}`} data-testid="gate-pill">
-          <span class="dot" />
-          {tr(`status.gate.${gate}`)}
+        <span class="top-end">
+          <span class={`pill ${gate}`} data-testid="gate-pill">
+            <span class="dot" />
+            {tr(`pill.${gate}`)}
+          </span>
+          <button
+            type="button"
+            class="btn pri build"
+            data-testid="header-build"
+            onClick={() => show("build")}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M7 4l13 8-13 8z" />
+            </svg>
+            {tr("view.build")}
+          </button>
         </span>
       </header>
 
-      <div class="middle">
+      <div class="middle" style={`--side-w: ${frame.sideW}px`}>
         <nav class="activity" aria-label={lang === "es" ? "Vistas" : "Views"}>
           {TOP_VIEWS.map((v) => (
             <ActivityButton
@@ -454,6 +1059,20 @@ export function App({ rpc }: { rpc: Rpc }) {
             />
           ))}
           <div class="grow" />
+          {/* The agent panel, reopened from a button always there (draft-live-polish REQ-204). */}
+          {folderOpen && (
+            <button
+              type="button"
+              class="sgp"
+              data-panel="agent"
+              aria-label={tr("agent.toggle")}
+              title={tr("agent.toggleTitle", { keys: isMac ? "⌘⌥B" : "Ctrl+Alt+B" })}
+              aria-pressed={frame.agent}
+              onClick={() => setFrame((f) => ({ ...f, agent: !f.agent }))}
+            >
+              <AgentIcon />
+            </button>
+          )}
           {BOTTOM_VIEWS.map((v) => (
             <ActivityButton
               key={v}
@@ -465,275 +1084,582 @@ export function App({ rpc }: { rpc: Rpc }) {
           ))}
         </nav>
 
-        {sidebar && (
-          <aside class="side" aria-label={tr("explorer.files")}>
-            <h2>{tr("view.explorer")}</h2>
-            <FileList files={files} onOpen={openFile} empty={tr("explorer.empty")} />
+        {!folderOpen && sideShown && (
+          <aside class="side" aria-label={tr("nofolder.title")}>
+            <div class="shead">
+              <span>{tr("nofolder.title")}</span>
+            </div>
+            <NoFolderPanel
+              tr={tr}
+              onOpen={() => setChoosing("open")}
+              onClone={() => setChoosing("clone")}
+              onHelp={(r) =>
+                setHelp({ title: tr("help.title", { feature: r.feature }), requests: [r] })
+              }
+            />
           </aside>
         )}
+        {folderOpen && sideShown && (
+          <Explorer
+            rpc={rpc}
+            lang={lang}
+            tr={tr}
+            files={files}
+            requirements={requirements}
+            changes={changes}
+            questions={questionsSection}
+            report={sections.report}
+            unapproved={unapproved}
+            onReview={onReview}
+            building={building}
+            activeFile={activeFile}
+            activeReq={crumbReq}
+            project={project}
+            workspaceStamp={workspace}
+            filterRef={filterRef}
+            openFile={openFile}
+            onHelp={(title, requests) => setHelp({ title, requests })}
+            onNotice={setEnded}
+            onOpenTerminal={(cwd) => {
+              setPanel({ open: true, tab: "terminal" });
+              setOpenShellIn((o) => ({ n: (o?.n ?? 0) + 1, cwd }));
+              setEnded({
+                en: {
+                  tone: "ok",
+                  ran: t("en", "tree.terminalOpened", { path: cwd || "." }),
+                  wrote: t("en", "tree.copiedWrote"),
+                  next: t("en", "tree.terminalNext"),
+                },
+                es: {
+                  tone: "ok",
+                  ran: t("es", "tree.terminalOpened", { path: cwd || "." }),
+                  wrote: t("es", "tree.copiedWrote"),
+                  next: t("es", "tree.terminalNext"),
+                },
+              });
+            }}
+            onRenamed={(from, to) => {
+              setEditors((e) =>
+                mapAllTabs(e, (p) =>
+                  p === from || p.startsWith(`${from}/`) ? to + p.slice(from.length) : p,
+                ),
+              );
+              setTexts((old) => {
+                const next: Record<string, string> = {};
+                for (const [k, v] of Object.entries(old))
+                  next[k === from || k.startsWith(`${from}/`) ? to + k.slice(from.length) : k] = v;
+                return next;
+              });
+            }}
+            onDeleted={(path) =>
+              setEditors((e) =>
+                mapAllTabs(e, (p) => (p === path || p.startsWith(`${path}/`) ? null : p)),
+              )
+            }
+            onFilesChanged={refreshFiles}
+          />
+        )}
 
-        <section class="main">
-          <div class="tabs" role="tablist" aria-label={tr("explorer.files")}>
-            {tabs.open.map((p) => (
-              <button
-                type="button"
-                role="tab"
-                class="tab"
-                key={p}
-                aria-selected={p === activeFile}
-                title={p}
-                onClick={() => setTabs((tb) => ({ ...tb, active: p }))}
+        {sideShown && (
+          <div
+            class="side-sash"
+            data-testid="side-sash"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label={tr("layout.sideSash")}
+            onPointerDown={(e) =>
+              follow(e, (ev) => {
+                const left = document
+                  .querySelector(".middle > .side")
+                  ?.getBoundingClientRect().left;
+                if (left !== undefined)
+                  setFrame((f) => ({
+                    ...f,
+                    sideW: clamp(Math.round(ev.clientX - left), 180, 900),
+                  }));
+              })
+            }
+          />
+        )}
+        <div class="ecol" data-pos={frame.panelPos}>
+          <section class="main" hidden={frame.panelMax}>
+            {activeFile ? (
+              <EditorGrid
+                editors={shownEditors}
+                onChange={changeEditors}
+                face={(p) => ({
+                  label: tabReq[p] ? `${tabReq[p]!.id} · ${tabReq[p]!.title}` : p.split("/").pop()!,
+                  type: tabReq[p] ? "REQ" : (fileType(p.split("/").pop()!) ?? "·"),
+                  dirty: !!unsaved[p],
+                })}
+                body={editorBody}
+                onClose={(g, p) => close(p, small ? groupHolding(editors, p) : g)}
+                onMenu={(group, path, x, y) => setTabMenu({ group, path, x, y })}
+                onSplit={splitTo}
+                labels={{
+                  files: tr("explorer.files"),
+                  unsaved: tr("editor.unsaved"),
+                  split: tr("split.right"),
+                  splitter: tr("layout.splitter"),
+                }}
+              />
+            ) : (
+              <>
+                {tabs.open.length > 0 && (
+                  <div class="tabs" role="tablist" aria-label={tr("explorer.files")}>
+                    {tabs.open.map((p) => (
+                      <button
+                        type="button"
+                        role="tab"
+                        class="tab"
+                        key={p}
+                        aria-selected={p === activeFile}
+                        title={p}
+                        data-type={tabReq[p] ? "REQ" : (fileType(p.split("/").pop()!) ?? "·")}
+                        onClick={() => (
+                          setTabs((tb) => ({ ...tb, active: p })),
+                          setViewOver(false)
+                        )}
+                      >
+                        {tabReq[p] ? `${tabReq[p]!.id} · ${tabReq[p]!.title}` : p.split("/").pop()}
+                        {unsaved[p] && (
+                          <span class="dirty" aria-label={tr("editor.unsaved")}>
+                            ●
+                          </span>
+                        )}
+                        <span
+                          class="x"
+                          aria-label="×"
+                          onClick={(e) => (e.stopPropagation(), close(p))}
+                        >
+                          ×
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div
+                  class={`content ${activeFile || SPLIT_VIEWS.has(mainView) ? "flush" : ""}`}
+                  data-view={activeFile ? "file" : mainView}
+                >
+                  {!folderOpen ? (
+                    <div class="nofolder-main">
+                      <h1>{tr("nofolder.title")}</h1>
+                      <NoFolderPanel
+                        tr={tr}
+                        onOpen={() => setChoosing("open")}
+                        onClone={() => setChoosing("clone")}
+                        onHelp={(r) =>
+                          setHelp({
+                            title: tr("help.title", { feature: r.feature }),
+                            requests: [r],
+                          })
+                        }
+                      />
+                    </div>
+                  ) : mainSection && unreadable[mainSection] ? (
+                    <CouldNotRead
+                      tr={tr}
+                      view={tr(`view.${mainView}`)}
+                      why={unreadable[mainSection]!}
+                      onAgain={() => void readAgain(mainSection)}
+                      onOpen={(file, line) => openFile(file, line)}
+                    />
+                  ) : !project && firstKind.current === "specgate" ? (
+                    <Skeleton tr={tr} />
+                  ) : (
+                    <View
+                      view={mainView}
+                      tr={tr}
+                      lang={lang}
+                      theme={theme}
+                      saveUser={saveUser}
+                      project={project}
+                      total={total}
+                      done={done}
+                      next={home?.nextCommand ?? null}
+                      rpc={rpc}
+                      folder={workspace?.name ?? ""}
+                      root={workspace?.root ?? ""}
+                      kind={kind ?? null}
+                      setup={setup}
+                      openSetup={setSetup}
+                      closeSetup={() => setSetup(null)}
+                      areas={areas}
+                      run={runCommand}
+                      announce={announce}
+                      onNotice={setEnded}
+                      requirements={requirements}
+                      changes={changes}
+                      questionsSection={questionsSection}
+                      onAnswer={(q, answer) =>
+                        void runCommand(tr("question.answer"), {
+                          name: "answer",
+                          q: q.id,
+                          answer,
+                          change: q.change,
+                        })
+                      }
+                      onReviewed={(q) =>
+                        void runCommand(tr("questions.specSaysIt"), {
+                          name: "answer-reviewed",
+                          q: q.id,
+                          change: q.change,
+                        })
+                      }
+                      files={files}
+                      openFile={openFile}
+                      filterRef={filterRef}
+                      ticketPanel={ticketPanel}
+                      changesView={
+                        <Changes
+                          rpc={rpc}
+                          lang={lang}
+                          ticketPanel={ticketPanel}
+                          stamp={[sections.changes, sections.home]}
+                          run={(label, command) => runCommand(label, command)}
+                          onHelp={(feature, requests) =>
+                            setHelp({ title: tr("help.title", { feature }), requests })
+                          }
+                          onRedraft={redraft}
+                        />
+                      }
+                      briefView={
+                        <Brief
+                          rpc={rpc}
+                          lang={lang}
+                          stamp={[sections.home, sections.changes, briefRead]}
+                          openFile={openFile}
+                          onDraft={(label) => void draftModules(label)}
+                          onHelp={(feature, requests) =>
+                            setHelp({ title: tr("help.title", { feature }), requests })
+                          }
+                          announce={announce}
+                          onNotice={setEnded}
+                        />
+                      }
+                      reportTotal={(sections.report as { total?: number } | undefined)?.total}
+                      checking={gate === "running"}
+                      onCheck={() =>
+                        runFeature(
+                          FEATURES.find((f) => f.id === "gate.check")!,
+                          tr("home.check"),
+                        )
+                      }
+                      onHelp={(r: HelpRequest) =>
+                        setHelp({ title: tr("help.title", { feature: r.feature }), requests: [r] })
+                      }
+                      homeView={
+                        <Home
+                          rpc={rpc}
+                          tr={tr}
+                          project={project}
+                          branch={workspace?.git?.branch ?? null}
+                          requirements={requirements}
+                          total={total}
+                          done={done}
+                          report={sections.report}
+                          stamp={[sections.home, sections.changes, sections.questions]}
+                          unapproved={unapproved}
+                          onReview={onReview}
+                          questionsByChange={questionsByChange}
+                          next={home?.nextCommand ?? null}
+                          show={show}
+                          onCheck={() =>
+                            runFeature(
+                              FEATURES.find((f) => f.id === "gate.check")!,
+                              tr("home.check"),
+                            )
+                          }
+                          onDoctor={() => void runCommand(tr("home.doctor"), { name: "doctor" })}
+                          checking={gate === "running"}
+                          onFromTicket={() => (show("changes"), setTicketPanel(true))}
+                          onOpenTerminal={() => {
+                            setPanel({ open: true, tab: "terminal" });
+                            setOpenShell((n) => n + 1);
+                          }}
+                          onHelp={(r) =>
+                            setHelp({
+                              title: tr("help.title", { feature: r.feature }),
+                              requests: [r],
+                            })
+                          }
+                          lang={lang}
+                          perUse={perUse}
+                        />
+                      }
+                      buildView={
+                        <Build
+                          rpc={rpc}
+                          lang={lang}
+                          stamp={[sections.home, sections.changes, sections.questions]}
+                          focus={buildReq}
+                          onHelp={(feature, requests) =>
+                            setHelp({ title: tr("help.title", { feature }), requests })
+                          }
+                          announce={announce}
+                          announceBuild={announceBuild}
+                          onLive={() => show("live")}
+                          run={runCommand}
+                        />
+                      }
+                      liveView={
+                        <Live
+                          rpc={rpc}
+                          lang={lang}
+                          run={runCommand}
+                          onHelp={(feature, requests) =>
+                            setHelp({ title: tr("help.title", { feature }), requests })
+                          }
+                          announce={announce}
+                          modules={modulesOf(requirements, sections.report, {
+                            building,
+                            unapproved,
+                          })}
+                          titles={titles}
+                          perUse={perUse}
+                        />
+                      }
+                      traceFilter={traceFilter}
+                      traceView={
+                        <Traceability
+                          rpc={rpc}
+                          lang={lang}
+                          stamp={[sections.matrix, sections.home]}
+                          initial={traceFilter}
+                          onFix={(row) =>
+                            void rpc
+                              .ask("trace.fix", {
+                                requirement: row.requirement,
+                                scenario: row.scenario ?? "",
+                              })
+                              .then(
+                                (r) => {
+                                  if (!r.ok) return setNotice(r.message);
+                                  // The scenario in the editor, the proposal beside it in the panel.
+                                  openFile(r.proposal.feature, r.proposal.line);
+                                  setPanel({ open: true, tab: "traceability" });
+                                  // Room for the skeleton under the scenario (REQ-123).
+                                  setFrame((f) =>
+                                    f.panelPos === "bottom" && f.panelSize < 340
+                                      ? { ...f, panelSize: 340 }
+                                      : f,
+                                  );
+                                  setProposal({ step: "skeleton", proposal: r.proposal });
+                                },
+                                (e: Error) => setNotice(e.message),
+                              )
+                          }
+                          onHelp={(feature, requests) =>
+                            setHelp({ title: tr("help.title", { feature }), requests })
+                          }
+                        />
+                      }
+                    />
+                  )}
+                </div>
+              </>
+            )}
+          </section>
+          <section
+            class="panel"
+            data-position={frame.panelPos}
+            data-maximized={frame.panelMax ? "1" : undefined}
+            data-collapsed={panel.open || frame.panelMax ? undefined : "1"}
+            style={
+              frame.panelMax
+                ? undefined
+                : frame.panelPos === "bottom"
+                  ? { height: panel.open ? `${frame.panelSize}px` : undefined }
+                  : { width: `${frame.panelSize}px` }
+            }
+            aria-label={lang === "es" ? "Panel inferior" : "Bottom panel"}
+          >
+            {!frame.panelMax && (
+              <div
+                class="psash"
+                data-testid="panel-sash"
+                role="separator"
+                aria-orientation={frame.panelPos === "bottom" ? "horizontal" : "vertical"}
+                aria-label={tr("layout.panelSash")}
+                onPointerDown={(e) =>
+                  drag(
+                    e,
+                    frame.panelPos === "bottom" ? "y" : "x",
+                    frame.panelSize,
+                    (v) => setFrame((f) => ({ ...f, panelSize: clamp(v, 80, 1600) })),
+                    frame.panelPos !== "left",
+                  )
+                }
+              />
+            )}
+            <div class="ptabs-bar">
+              <div
+                class="ptabs"
+                role="tablist"
+                aria-label={lang === "es" ? "Panel inferior" : "Bottom panel"}
               >
-                {p.split("/").pop()}
-                {unsaved[p] && (
-                  <span class="dirty" aria-label={tr("editor.unsaved")}>
-                    ●
+                {PANEL_TABS.map((p) => (
+                  <button
+                    type="button"
+                    role="tab"
+                    class="ptab"
+                    data-tab={p}
+                    key={p}
+                    aria-selected={panel.tab === p}
+                    onClick={() => setPanel({ open: true, tab: p })}
+                  >
+                    {tr(`panel.${p}`)}
+                    {p === "problems" && problems.length > 0 && ` (${problems.length})`}
+                  </button>
+                ))}
+              </div>
+              <span class="pend">
+                <button
+                  type="button"
+                  class="pnew pmax"
+                  data-testid="panel-maximize"
+                  aria-pressed={frame.panelMax}
+                  aria-label={tr(frame.panelMax ? "panel.restore" : "panel.maximize")}
+                  title={tr(frame.panelMax ? "panel.restore" : "panel.maximize")}
+                  onClick={() => setFrame((f) => ({ ...f, panelMax: !f.panelMax }))}
+                >
+                  {frame.panelMax ? "⌄" : "⌃"}
+                </button>
+                <HelpButton
+                  label={tr("help.title", { feature: tr("panel.maximize") })}
+                  onOpen={() =>
+                    setHelp({
+                      title: tr("help.title", { feature: tr("panel.maximize") }),
+                      requests: [{ action: "panel-maximize", feature: tr("panel.maximize") }],
+                    })
+                  }
+                />
+                {shell && (
+                  <span class="pshell mono" data-testid="panel-shell" title={shell.folder}>
+                    {shell.name} · {shell.folder}
                   </span>
                 )}
-                <span class="x" aria-label="×" onClick={(e) => (e.stopPropagation(), close(p))}>
-                  ×
-                </span>
-              </button>
-            ))}
-          </div>
-          <div
-            class={`content ${activeFile || view === "explorer" || view === "traceability" ? "flush" : ""}`}
-            data-view={activeFile ? "file" : view}
-          >
-            {activeFile ? (
-              EditorPane && texts[activeFile] !== undefined ? (
-                <EditorPane
-                  path={activeFile}
-                  text={texts[activeFile]!}
-                  theme={theme}
-                  annotations={annotations[activeFile] ?? null}
-                  labels={lensLabels}
-                  commands={LENS_COMMANDS}
-                  register={(api) => (editorApi.current = api)}
-                  onEdit={(path, value) => {
-                    setUnsaved((u) => {
-                      if (value !== texts[path]) return { ...u, [path]: true };
-                      const { [path]: _, ...rest } = u;
-                      return rest;
-                    });
-                    window.clearTimeout(annotateTimer.current);
-                    annotateTimer.current = window.setTimeout(
-                      () => void annotate(path, value),
-                      300,
-                    );
+                <button
+                  type="button"
+                  class="pnew"
+                  data-testid="panel-new"
+                  aria-label={tr("term.new")}
+                  title={tr("term.new")}
+                  onClick={() => {
+                    setPanel({ open: true, tab: "terminal" });
+                    setOpenShell((n) => n + 1);
                   }}
-                  onLens={(action: LensAction, req: string) => {
-                    const change = annotations[activeFile]?.change ?? null;
-                    if (action === "check")
-                      runFeature(
-                        FEATURES.find((f) => f.id === "gate.check")!,
-                        lensLabels.check,
-                      );
-                    else if (action === "build") (setBuildReq(req), show("build"));
-                    else if (action === "trace") (setTraceFilter(req), show("traceability"));
-                    else if (action === "ask") {
-                      if (change) setAsk({ req, change });
-                      else setNotice(tr("ask.noChange"));
-                    } else
-                      setHelp({
-                        title: tr("help.title", { feature: req }),
-                        requests: [
-                          { action: "build", feature: lensLabels.build, vars: { req } },
-                          { action: "check", feature: lensLabels.check, vars: { req } },
-                          ...(change
-                            ? [
-                                {
-                                  action: "ask-change" as const,
-                                  feature: lensLabels.ask,
-                                  vars: { req, change, module: change.replace(/^draft-/, "") },
-                                },
-                              ]
-                            : []),
-                        ],
-                      });
-                  }}
-                  onAnswer={(q, answer) =>
-                    void runCommand(lensLabels.answer, {
-                      name: "answer",
-                      q: q.id,
-                      answer,
-                      change: q.change,
+                >
+                  +
+                </button>
+              </span>
+            </div>
+            <div
+              class={`pbody mono ${panel.tab === "terminal" ? "flush" : ""}`}
+              data-panel={panel.tab}
+            >
+              {TerminalPane && (
+                <div
+                  class="term-wrap"
+                  style={{ display: panel.tab === "terminal" ? "flex" : "none" }}
+                >
+                  <TerminalPane
+                    rpc={rpc}
+                    theme={theme}
+                    visible={panel.open && panel.tab === "terminal"}
+                    echo={echo}
+                    showStudio={showStudio}
+                    openShell={openShell}
+                    openShellIn={openShellIn}
+                    labels={{
+                      newTerminal: tr("term.new"),
+                      close: tr("term.close"),
+                      readonly: tr("term.readonly"),
+                      openTerminal: tr("term.open"),
+                      empty: tr("term.empty", {
+                        project: project || workspace?.name || shell?.folder || "~",
+                      }),
+                    }}
+                  />
+                </div>
+              )}
+              {panel.tab === "terminal" ? (
+                !TerminalPane && tr("panel.empty")
+              ) : panel.tab === "gate" ? (
+                <pre style="margin:0;white-space:pre-wrap">{output || tr("panel.empty")}</pre>
+              ) : panel.tab === "traceability" ? (
+                <TraceProposal
+                  rpc={rpc}
+                  lang={lang}
+                  state={proposal}
+                  agent={agentName}
+                  onState={setProposal}
+                  onNotice={setEnded}
+                  onHelp={(feature, requests) =>
+                    setHelp({ title: tr("help.title", { feature }), requests })
+                  }
+                />
+              ) : panel.tab === "problems" ? (
+                <Problems
+                  lang={lang}
+                  findings={problems}
+                  onOpen={openFile}
+                  onHelp={() =>
+                    setHelp({
+                      title: tr("help.title", { feature: bt(lang, "problems.feature") }),
+                      requests: [{ action: "brief-check", feature: bt(lang, "problems.feature") }],
                     })
                   }
                 />
               ) : (
-                <pre class="file">{texts[activeFile] ?? ""}</pre>
-              )
-            ) : (
-              <View
-                view={view}
-                tr={tr}
-                lang={lang}
-                theme={theme}
-                setLang={setLang}
-                setTheme={setTheme}
-                project={project}
-                total={total}
-                done={done}
-                next={home?.nextCommand ?? null}
-                rpc={rpc}
-                folder={workspace?.name ?? ""}
-                kind={kind ?? null}
-                setup={setup}
-                openSetup={setSetup}
-                closeSetup={() => setSetup(null)}
-                areas={areas}
-                run={runCommand}
-                announce={announce}
-                requirements={requirements}
-                changes={changes}
-                questionsSection={questionsSection}
-                onAnswer={(q, answer) =>
-                  void runCommand(tr("question.answer"), {
-                    name: "answer",
-                    q: q.id,
-                    answer,
-                    change: q.change,
-                  })
-                }
-                onReviewed={(q) =>
-                  void runCommand(tr("questions.specSaysIt"), {
-                    name: "answer-reviewed",
-                    q: q.id,
-                    change: q.change,
-                  })
-                }
-                files={files}
-                openFile={openFile}
-                filterRef={filterRef}
-                ticketPanel={ticketPanel}
-                changesView={
-                  <Changes
-                    rpc={rpc}
-                    lang={lang}
-                    ticketPanel={ticketPanel}
-                    stamp={[sections.changes, sections.home]}
-                    run={(label, command) => runCommand(label, command)}
-                    onHelp={(feature, requests) =>
-                      setHelp({ title: tr("help.title", { feature }), requests })
-                    }
-                  />
-                }
-                briefView={
-                  <Brief
-                    rpc={rpc}
-                    lang={lang}
-                    stamp={[sections.home, sections.changes, briefRead]}
-                    openFile={openFile}
-                    onDraft={(label) => void draftModules(label)}
-                    onHelp={(feature, requests) =>
-                      setHelp({ title: tr("help.title", { feature }), requests })
-                    }
-                  />
-                }
-                reportTotal={(sections.report as { total?: number } | undefined)?.total}
-                onCheck={() =>
-                  runFeature(
-                    FEATURES.find((f) => f.id === "gate.check")!,
-                    tr("home.check"),
-                  )
-                }
-                onHelp={(r: HelpRequest) =>
-                  setHelp({ title: tr("help.title", { feature: r.feature }), requests: [r] })
-                }
-                buildView={
-                  <Build
-                    rpc={rpc}
-                    lang={lang}
-                    stamp={[sections.home, sections.changes, sections.questions]}
-                    focus={buildReq}
-                    onHelp={(feature, requests) =>
-                      setHelp({ title: tr("help.title", { feature }), requests })
-                    }
-                    announce={announce}
-                    onLive={() => show("live")}
-                  />
-                }
-                liveView={
-                  <Live
-                    rpc={rpc}
-                    lang={lang}
-                    run={runCommand}
-                    onHelp={(feature, requests) =>
-                      setHelp({ title: tr("help.title", { feature }), requests })
-                    }
-                    announce={announce}
-                  />
-                }
-                traceFilter={traceFilter}
-              />
-            )}
-          </div>
-        </section>
-      </div>
-
-      <section class="panel" hidden={!panel.open} aria-label="Panel">
-        <div
-          class="ptabs"
-          role="tablist"
-          aria-label={lang === "es" ? "Panel inferior" : "Bottom panel"}
-        >
-          {PANEL_TABS.map((p) => (
-            <button
-              type="button"
-              role="tab"
-              class="ptab"
-              key={p}
-              aria-selected={panel.tab === p}
-              onClick={() => setPanel({ open: true, tab: p })}
-            >
-              {tr(`panel.${p}`)}
-              {p === "problems" && problems.length > 0 && ` (${problems.length})`}
-            </button>
-          ))}
-        </div>
-        <div class={`pbody mono ${panel.tab === "terminal" ? "flush" : ""}`} data-panel={panel.tab}>
-          {TerminalPane && (
-            <div class="term-wrap" style={{ display: panel.tab === "terminal" ? "flex" : "none" }}>
-              <TerminalPane
-                rpc={rpc}
-                theme={theme}
-                visible={panel.open && panel.tab === "terminal"}
-                echo={echo}
-                showStudio={showStudio}
-                openShell={openShell}
-                labels={{
-                  newTerminal: tr("term.new"),
-                  close: tr("term.close"),
-                  readonly: tr("term.readonly"),
-                  openTerminal: tr("term.open"),
-                }}
-              />
+                tr("panel.empty")
+              )}
             </div>
-          )}
-          {panel.tab === "terminal" ? (
-            !TerminalPane && tr("panel.empty")
-          ) : panel.tab === "gate" ? (
-            <pre style="margin:0;white-space:pre-wrap">{output || tr("panel.empty")}</pre>
-          ) : panel.tab === "problems" ? (
-            <Problems
-              lang={lang}
-              findings={problems}
-              onOpen={openFile}
-              onHelp={() =>
-                setHelp({
-                  title: tr("help.title", { feature: bt(lang, "problems.feature") }),
-                  requests: [{ action: "brief-check", feature: bt(lang, "problems.feature") }],
-                })
+          </section>
+        </div>
+        {/* No folder open, no project to ask about: the agent panel waits for one (REQ-185). */}
+        {frame.agent && !small && folderOpen && (
+          <>
+            <div
+              class="side-sash"
+              data-testid="agent-sash"
+              role="separator"
+              aria-orientation="vertical"
+              aria-label={tr("agent.sash")}
+              onPointerDown={(e) =>
+                drag(
+                  e,
+                  "x",
+                  frame.agentW,
+                  (w) => setFrame((f) => ({ ...f, agentW: clamp(w, 220, 900) })),
+                  true,
+                )
               }
             />
-          ) : (
-            tr("panel.empty")
-          )}
-        </div>
-      </section>
+            <AgentPanel
+              tr={tr}
+              lang={lang}
+              rpc={rpc}
+              width={frame.agentW}
+              onHide={() => setFrame((f) => ({ ...f, agent: false }))}
+              onHelp={(title, requests) => setHelp({ title, requests })}
+              announce={announce}
+            />
+          </>
+        )}
+        {frame.agent && small && folderOpen && (
+          <div
+            class="agent-bar"
+            data-testid="agent-bar"
+            title={tr("agent.title")}
+            aria-label={tr("agent.title")}
+          />
+        )}
+      </div>
 
-      <footer class="status" data-testid="status-bar">
+      <footer class="status" data-testid="status-bar" data-offline={offline ? "1" : undefined}>
+        {offline && <span data-testid="status-offline">{tr("offline.status")}</span>}
         <span data-testid="status-branch">⎇ {workspace?.git?.branch ?? tr("status.noBranch")}</span>
         <span data-testid="status-ticket">
           {workspace?.git?.ticket
@@ -742,8 +1668,21 @@ export function App({ rpc }: { rpc: Rpc }) {
         </span>
         <span data-testid="status-gate">{tr(`status.gate.${gate}`)}</span>
         <span data-testid="status-progress">{tr("status.progress", { done, total })}</span>
-        <span class="end" data-testid="status-cost">
-          {tr("status.cost")} $0.00
+        {viewStatus && <span data-testid="status-view">{viewStatus}</span>}
+        {folderOpen && (
+          <button
+            type="button"
+            class="sbtn end"
+            data-testid="status-agent"
+            aria-pressed={frame.agent}
+            title={tr("agent.toggleTitle", { keys: isMac ? "⌘⌥B" : "Ctrl+Alt+B" })}
+            onClick={() => setFrame((f) => ({ ...f, agent: !f.agent }))}
+          >
+            {tr("agent.toggle")}
+          </button>
+        )}
+        <span class={folderOpen ? undefined : "end"} data-testid="status-cost">
+          {statusUsage(lang, spent, perUse)}
         </span>
         <span>{lang.toUpperCase()}</span>
       </footer>
@@ -753,10 +1692,11 @@ export function App({ rpc }: { rpc: Rpc }) {
           mode={palette}
           lang={lang}
           tr={tr}
+          rpc={rpc}
           files={files}
           onClose={() => setPalette(null)}
           onFeature={runFeature}
-          onFile={(p) => (setPalette(null), openFile(p))}
+          onFile={(p) => (setPalette(null), openFile(p), setFocusEditor((n) => n + 1))}
           onHelp={(f) => {
             setPalette(null);
             setHelp({
@@ -766,6 +1706,40 @@ export function App({ rpc }: { rpc: Rpc }) {
           }}
         />
       )}
+      {tabMenu && (
+        <TabMenu
+          tr={tr}
+          menu={tabMenu}
+          onClose={() => setTabMenu(null)}
+          onPick={(act) => {
+            const m = tabMenu;
+            setTabMenu(null);
+            if (act === "close")
+              return close(m.path, small ? groupHolding(editors, m.path) : m.group);
+            if (act === "close-group") return setEditors((e) => closeGroup(e, m.group));
+            const side = act.slice("split-".length) as Side;
+            setEditors((e) =>
+              split({ ...e, active: small ? groupHolding(e, m.path) : m.group }, side, m.path),
+            );
+            setViewOver(false);
+          }}
+          onHelp={(act) => {
+            setTabMenu(null);
+            const side = act.slice("split-".length);
+            const feature = tr(`split.${side}`);
+            setHelp({
+              title: tr("help.title", { feature }),
+              requests: [{ action: "editor-split", feature, vars: { side: tr(`side.${side}`) } }],
+            });
+          }}
+        />
+      )}
+      {choosing === "open" && (
+        <FolderChooser rpc={rpc} tr={tr} onCancel={() => setChoosing(null)} onChoose={openFolder} />
+      )}
+      {choosing === "clone" && (
+        <CloneDialog rpc={rpc} tr={tr} onCancel={() => setChoosing(null)} onClone={cloneInto} />
+      )}
       {help && (
         <HelpDialog
           rpc={rpc}
@@ -773,7 +1747,8 @@ export function App({ rpc }: { rpc: Rpc }) {
           requests={help.requests}
           title={help.title}
           closeLabel={tr("help.close")}
-          onClose={() => setHelp(null)}
+          eyebrow={tr("help.eyebrow")}
+          onClose={closeHelp}
         />
       )}
       {ended && (
@@ -781,6 +1756,17 @@ export function App({ rpc }: { rpc: Rpc }) {
           notice={ended[lang]}
           nextLabel={tr("notice.next")}
           fixLabel={tr("notice.fix")}
+          retryLabel={tr("notice.retry")}
+          closeLabel={tr("help.close")}
+          onRetry={
+            lastRun.current
+              ? () => {
+                  const r = lastRun.current!;
+                  setEnded(null);
+                  void runCommand(r.label, r.command);
+                }
+              : undefined
+          }
           onClose={() => setEnded(null)}
         />
       )}
@@ -816,7 +1802,8 @@ export function App({ rpc }: { rpc: Rpc }) {
                 onClick={() => {
                   const path = closing;
                   setClosing(null);
-                  void save(path).then(() => setTabs((tb) => closeTab(tb, path)));
+                  const g = closingGroup.current;
+                  void save(path).then(() => setEditors((e) => closeTabIn(e, g ?? e.active, path)));
                 }}
               >
                 {tr("close.save")}
@@ -829,7 +1816,8 @@ export function App({ rpc }: { rpc: Rpc }) {
                   setClosing(null);
                   editorApi.current?.discard(path);
                   setUnsaved(({ [path]: _, ...rest }) => rest);
-                  setTabs((tb) => closeTab(tb, path));
+                  const g = closingGroup.current;
+                  setEditors((e) => closeTabIn(e, g ?? e.active, path));
                 }}
               >
                 {tr("close.discard")}
@@ -873,37 +1861,12 @@ function ActivityButton(props: {
   );
 }
 
-function FileList(props: {
-  files: string[];
-  onOpen: (p: string) => void;
-  empty: string;
-  filter?: string;
-}) {
-  const shown = props.filter
-    ? props.files.filter((f) => f.toLowerCase().includes(props.filter!.toLowerCase()))
-    : props.files;
-  if (shown.length === 0)
-    return (
-      <p class="muted" style="padding:0 12px">
-        {props.empty}
-      </p>
-    );
-  return (
-    <VirtualList
-      count={shown.length}
-      row={(i) => (
-        <button type="button" class="row" onClick={() => props.onOpen(shown[i]!)} title={shown[i]}>
-          {shown[i]}
-        </button>
-      )}
-    />
-  );
-}
-
 interface ViewProps {
   view: ViewId;
   rpc: Rpc;
   folder: string;
+  /** The open folder's path: not one of its own recent projects (REQ-174). */
+  root: string;
   kind: WorkspaceState["kind"] | null;
   setup: SetupStep | null;
   openSetup: (step: SetupStep) => void;
@@ -911,11 +1874,13 @@ interface ViewProps {
   areas: Requests["setup.areas"]["result"] | null;
   run: (label: string, command: SpecgateCommand) => Promise<RunResult>;
   announce: (label: string) => void;
+  /** A notice in both languages, as a command's end has it (draft-report REQ-133). */
+  onNotice: (n: Record<NoticeLang, Notice>) => void;
   tr: (k: string, v?: Record<string, string | number>) => string;
   lang: Lang;
   theme: Theme;
-  setLang: (l: Lang) => void;
-  setTheme: (t: Theme) => void;
+  /** A user setting chosen in Settings: applied, and saved in the Developer's file (REQ-141). */
+  saveUser: (key: string, value: string) => void;
   project: string;
   total: number;
   done: number;
@@ -935,15 +1900,20 @@ interface ViewProps {
   briefView: JSX.Element;
   reportTotal: number | undefined;
   onCheck: () => void;
+  /** A gate running (draft-report REQ-132). */
+  checking: boolean;
   onHelp: (r: HelpRequest) => void;
+  /** Home as the boards draw it (draft-design-conformance REQ-173). */
+  homeView: JSX.Element;
   /** Build and Live (draft-build-live). */
   buildView: JSX.Element;
   liveView: JSX.Element;
   traceFilter: string;
+  /** Traceability (draft-traceability). */
+  traceView: JSX.Element;
 }
 
 function View(p: ViewProps) {
-  const [filter, setFilter] = useState("");
   const title = <h1>{p.tr(`view.${p.view}`)}</h1>;
   switch (p.view) {
     case "home": {
@@ -961,7 +1931,22 @@ function View(p: ViewProps) {
         );
       }
       // A folder that is no project yet: its setup is the next step (REQ-116).
-      const step = p.kind === "empty" ? "create" : p.kind === "code" ? "adopt" : null;
+      // An empty folder's Home: the five questions at once (draft-design-conformance REQ-174).
+      if (p.kind === "empty")
+        return (
+          <NewProject
+            root={p.root}
+            rpc={p.rpc}
+            tr={p.tr}
+            step="create"
+            run={p.run}
+            announce={p.announce}
+            onHelp={p.onHelp}
+            onDone={p.closeSetup}
+            onCreated={() => p.openSetup("created")}
+          />
+        );
+      const step = p.kind === "code" ? "adopt" : null;
       if (step) {
         return (
           <>
@@ -970,89 +1955,24 @@ function View(p: ViewProps) {
           </>
         );
       }
-      return (
-        <>
-          <h1>{p.project || p.tr("view.home")}</h1>
-          <div class="cards">
-            <div class="card">
-              <div class="k">{p.tr("home.requirements")}</div>
-              <div class="v">{p.total}</div>
-            </div>
-            <div class="card">
-              <div class="k">{p.tr("home.done")}</div>
-              <div class="v">{p.done}</div>
-            </div>
-            <div class="card">
-              <div class="k">{p.tr("home.pending")}</div>
-              <div class="v">{p.total - p.done}</div>
-            </div>
-          </div>
-          {p.areas?.adopted ? (
-            <AdoptedAreas tr={p.tr} byKind={p.areas.byKind} areas={p.areas.areas} />
-          ) : (
-            p.next && (
-              <div class="next">
-                <div class="k">[ {p.tr("home.next").toUpperCase()} ]</div>
-                <div class="mono" style="margin-top:6px">
-                  {p.next}
-                </div>
+      // Just adopted: the areas it found and what is next (REQ-115).
+      if (p.areas?.adopted)
+        return (
+          <>
+            <h1>{p.project || p.tr("view.home")}</h1>
+            <div class="cards">
+              <div class="card">
+                <div class="k">{p.tr("home.requirements")}</div>
+                <div class="v">{p.total}</div>
               </div>
-            )
-          )}
-          <div class="actions">
-            <button type="button" class="btn pri" onClick={p.onCheck}>
-              {p.tr("home.check")}
-            </button>
-            <HelpButton
-              label={p.tr("help.button", { feature: p.tr("home.check") })}
-              onOpen={() =>
-                p.onHelp({
-                  action: "check",
-                  feature: p.tr("home.check"),
-                  vars: (() => {
-                    const req = /\bREQ-\d+\b/.exec(p.next ?? "")?.[0];
-                    return req ? { req } : {};
-                  })(),
-                })
-              }
-            />
-          </div>
-        </>
-      );
+            </div>
+            <AdoptedAreas tr={p.tr} byKind={p.areas.byKind} areas={p.areas.areas} />
+          </>
+        );
+      return p.homeView;
     }
-    case "explorer":
-      return (
-        <div style="display:flex;flex-direction:column;height:100%">
-          <h2
-            style="margin:0;padding:12px 12px 8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase"
-            class="muted"
-          >
-            {p.tr("view.explorer")}
-          </h2>
-          <input
-            ref={p.filterRef}
-            class="filter"
-            value={filter}
-            onInput={(e) => setFilter((e.target as HTMLInputElement).value)}
-            aria-label={p.tr("explorer.files")}
-          />
-          <div style="flex:1;min-height:0">
-            <FileList
-              files={p.files}
-              onOpen={p.openFile}
-              empty={p.tr("explorer.empty")}
-              filter={filter}
-            />
-          </div>
-        </div>
-      );
     case "changes":
-      return (
-        <>
-          {title}
-          {p.changesView}
-        </>
-      );
+      return p.changesView;
     case "brief":
       return p.briefView;
     case "questions":
@@ -1071,86 +1991,43 @@ function View(p: ViewProps) {
         />
       );
     case "build":
-      return (
-        <>
-          {title}
-          {p.buildView}
-        </>
-      );
+      return p.buildView;
     case "live":
-      return (
-        <>
-          {title}
-          {p.liveView}
-        </>
-      );
-    case "traceability": {
-      // Trace from the editor: the requirement's own row first (REQ-042).
-      const rows = p.traceFilter
-        ? p.requirements.filter((r) => r.id === p.traceFilter)
-        : p.requirements;
-      return (
-        <div style="display:flex;flex-direction:column;height:100%">
-          <h2 style="margin:0;padding:12px" class="muted" data-filter={p.traceFilter}>
-            {p.tr("traceability.rows", { n: rows.length })}
-          </h2>
-          <div style="flex:1;min-height:0" data-testid="traceability-list">
-            <VirtualList
-              count={rows.length}
-              row={(i) => {
-                const r = rows[i]!;
-                return (
-                  <div class="row">
-                    <span class="mono">{r.id}</span>
-                    <span>{r.title}</span>
-                    <span class="muted" style="margin-left:auto">
-                      {r.needs}
-                    </span>
-                  </div>
-                );
-              }}
-            />
-          </div>
-        </div>
-      );
-    }
+      return p.liveView;
+    case "traceability":
+      // Trace from the editor: the requirement's own rows first (REQ-042).
+      return p.traceView;
     case "report":
+      // What was built, how it was proven, what it cost, the gate by stage (draft-report REQ-131, REQ-132).
       return (
-        <>
-          {title}
-          <div class="card">
-            <div class="k">{p.tr("home.requirements")}</div>
-            <div class="v">{p.reportTotal ?? "—"}</div>
-          </div>
-        </>
+        <Report
+          rpc={p.rpc}
+          lang={p.lang}
+          tr={p.tr}
+          project={p.project}
+          total={p.total}
+          reportTotal={p.reportTotal}
+          onCheck={p.onCheck}
+          checking={p.checking}
+          onHelp={p.onHelp}
+          onNotice={p.onNotice}
+        />
       );
+    case "help":
+      return <HelpView rpc={p.rpc} lang={p.lang} tr={p.tr} />;
     case "settings":
+      // A search, two scopes and nine sections; saved through specgate (draft-settings REQ-141 … REQ-143).
       return (
-        <div class="settings">
-          {title}
-          <label>
-            {p.tr("settings.language")}
-            <select
-              value={p.lang}
-              onChange={(e) => p.setLang((e.target as HTMLSelectElement).value as Lang)}
-              aria-label={p.tr("settings.language")}
-            >
-              <option value="en">English</option>
-              <option value="es">Español</option>
-            </select>
-          </label>
-          <label>
-            {p.tr("settings.theme")}
-            <select
-              value={p.theme}
-              onChange={(e) => p.setTheme((e.target as HTMLSelectElement).value as Theme)}
-              aria-label={p.tr("settings.theme")}
-            >
-              <option value="dark">{p.tr("settings.dark")}</option>
-              <option value="light">{p.tr("settings.light")}</option>
-            </select>
-          </label>
-        </div>
+        <SettingsEditor
+          rpc={p.rpc}
+          lang={p.lang}
+          theme={p.theme}
+          project={p.project}
+          tr={p.tr}
+          onUser={p.saveUser}
+          run={p.run}
+          onHelp={p.onHelp}
+        />
       );
     default:
       return (
@@ -1166,6 +2043,7 @@ function Palette(props: {
   mode: "features" | "files";
   lang: Lang;
   tr: (k: string) => string;
+  rpc: Rpc;
   files: string[];
   onClose: () => void;
   onFeature: (f: Feature) => void;
@@ -1174,72 +2052,201 @@ function Palette(props: {
 }) {
   const [query, setQuery] = useState("");
   const [at, setAt] = useState(0);
-  const items =
+  /** Enter pressed on a file before the project's file list came: opened once it does. */
+  const [waiting, setWaiting] = useState<string | null>(null);
+  const fileMatches = (q: string) =>
+    props.files.filter((f) => f.toLowerCase().includes(q.toLowerCase())).slice(0, 50);
+  useEffect(() => {
+    if (waiting === null) return;
+    const first = fileMatches(waiting)[0];
+    if (first !== undefined) (setWaiting(null), props.onFile(first));
+  }, [props.files, waiting]);
+  type Item = {
+    key: string;
+    title: string;
+    command: string | null;
+    area: string | null;
+    feature: Feature | null;
+    pick: () => void;
+    help: null | (() => void);
+  };
+  const found =
     props.mode === "features"
-      ? filterFeatures(FEATURES, query, props.lang).map((f) => ({
-          key: f.id,
-          title: f.title[props.lang],
-          command: f.command,
-          pick: () => props.onFeature(f),
-          help: f.action ? () => props.onHelp(f) : null,
-        }))
-      : props.files
-          .filter((f) => f.toLowerCase().includes(query.toLowerCase()))
-          .slice(0, 50)
-          .map((f) => ({
-            key: f,
-            title: f,
-            command: null as string | null,
-            pick: () => props.onFile(f),
-            help: null as null | (() => void),
-          }));
+      ? [...requirementFeatures(query), ...filterFeatures(FEATURES, query, props.lang)]
+      : ([] as Feature[]);
+  // By area, as the boards group them (draft-design-conformance REQ-176, A15).
+  const items: Item[] =
+    props.mode === "features"
+      ? AREAS.flatMap((area) =>
+          found
+            .filter((f) => f.area === area)
+            .map((f) => ({
+              key: f.id,
+              title: f.title[props.lang],
+              command: f.command,
+              area,
+              feature: f,
+              pick: () => props.onFeature(f),
+              help: f.action ? () => props.onHelp(f) : null,
+            })),
+        )
+      : fileMatches(query).map((f) => ({
+          key: f,
+          title: f,
+          command: null,
+          area: null,
+          feature: null,
+          pick: () => props.onFile(f),
+          help: null,
+        }));
+  const chosen = items[at] ?? null;
   const onKey = (e: KeyboardEvent) => {
     if (e.key === "ArrowDown")
       (e.preventDefault(), setAt((i) => Math.min(i + 1, items.length - 1)));
     else if (e.key === "ArrowUp") (e.preventDefault(), setAt((i) => Math.max(i - 1, 0)));
-    else if (e.key === "Enter") (e.preventDefault(), items[at]?.pick());
-    else if (e.key === "Escape") props.onClose();
+    else if (e.key === "Enter") {
+      e.preventDefault();
+      if (props.mode === "features") return void items[at]?.pick();
+      // What is typed now, not what was last drawn; a list not read yet is waited for.
+      const typed = (e.currentTarget as HTMLInputElement).value;
+      const file = typed === query ? items[at]?.key : fileMatches(typed)[0];
+      if (file !== undefined) props.onFile(file);
+      else setWaiting(typed);
+    } else if (e.key === "Escape") props.onClose();
+    else if (e.key === "?" && chosen?.help && query.trim() === "")
+      (e.preventDefault(), chosen.help());
   };
+  const row = (it: Item, i: number) => (
+    <li
+      key={it.key}
+      role="option"
+      aria-selected={i === at}
+      onMouseEnter={() => setAt(i)}
+      onClick={it.pick}
+    >
+      <span>{it.title}</span>
+      {it.command && <span class="mono">{it.command}</span>}
+      {it.help && (
+        <HelpButton
+          label={props.tr("help.button").replace("{feature}", it.title)}
+          onOpen={it.help}
+        />
+      )}
+    </li>
+  );
+  let index = 0;
   return (
     <div class="scrim" onClick={props.onClose}>
       <div
-        class="palette"
+        class={`palette ${props.mode === "features" ? "with-pane" : ""}`}
         role="dialog"
         aria-label="Command palette"
         onClick={(e) => e.stopPropagation()}
       >
-        <input
-          autoFocus
-          ref={(el) => el?.focus()}
-          value={query}
-          placeholder={props.tr("palette.placeholder")}
-          onInput={(e) => (setQuery((e.target as HTMLInputElement).value), setAt(0))}
-          onKeyDown={onKey}
-          aria-label={props.tr("palette.placeholder")}
-        />
-        <ul role="listbox">
-          {items.map((it, i) => (
-            <li
-              key={it.key}
-              role="option"
-              aria-selected={i === at}
-              onMouseEnter={() => setAt(i)}
-              onClick={it.pick}
-            >
-              <span>{it.title}</span>
-              {it.command && <span class="mono">{it.command}</span>}
-              {it.help && (
-                <HelpButton
-                  label={props.tr("help.button").replace("{feature}", it.title)}
-                  onOpen={it.help}
-                />
-              )}
-            </li>
-          ))}
-        </ul>
-        {items.length === 0 && <div class="none">{props.tr("palette.none")}</div>}
+        <div class="pinput">
+          <span class="prompt">›</span>
+          <input
+            autoFocus
+            ref={(el) => el?.focus()}
+            value={query}
+            placeholder={props.tr("palette.placeholder")}
+            onInput={(e) => (
+              setQuery((e.target as HTMLInputElement).value),
+              setAt(0),
+              setWaiting(null)
+            )}
+            onKeyDown={onKey}
+            aria-label={props.tr("palette.placeholder")}
+          />
+          <span class="kbd">Esc</span>
+        </div>
+        <div class="pbody-wrap">
+          <div class="plist">
+            {props.mode === "features" ? (
+              AREAS.map((area) => {
+                const these = items.filter((it) => it.area === area);
+                if (these.length === 0) return null;
+                return (
+                  <div class="parea" key={area} data-area={area}>
+                    <div class="pgroup">{props.tr(`palette.area.${area}`)}</div>
+                    <ul role="listbox">{these.map((it) => row(it, index++))}</ul>
+                  </div>
+                );
+              })
+            ) : (
+              <ul role="listbox">{items.map((it, i) => row(it, i))}</ul>
+            )}
+            {items.length === 0 && <div class="none">{props.tr("palette.none")}</div>}
+          </div>
+          {props.mode === "features" && (
+            <PalettePane
+              rpc={props.rpc}
+              lang={props.lang}
+              tr={props.tr}
+              feature={chosen?.feature ?? null}
+            />
+          )}
+        </div>
       </div>
     </div>
+  );
+}
+
+/** The chosen feature's "?" beside the list, under "[ UNDER THE HOOD ]" (REQ-176, A15). */
+function PalettePane(props: {
+  rpc: Rpc;
+  lang: Lang;
+  tr: (k: string) => string;
+  feature: Feature | null;
+}) {
+  const f = props.feature;
+  const [answer, setAnswer] = useState<Requests["help.explain"]["result"] | null>(null);
+  // Asked once the choice settles: typing through the list asks nothing.
+  useEffect(() => {
+    let live = true;
+    setAnswer(null);
+    const action = f?.action;
+    const timer = window.setTimeout(() => {
+      if (action)
+        props.rpc.ask("help.explain", { action, lang: props.lang, vars: {} }).then(
+          (a) => live && setAnswer(a),
+          () => undefined,
+        );
+    }, 150);
+    return () => {
+      live = false;
+      window.clearTimeout(timer);
+    };
+  }, [f?.id, props.lang]);
+  return (
+    <aside class="ppane" data-testid="palette-pane" data-feature={f?.id ?? ""}>
+      <div class="eyebrow mono">[ {props.tr("help.eyebrow")} ]</div>
+      {f && <h2 class="syne">{f.title[props.lang]}</h2>}
+      {f && !f.action && (
+        <p class="muted">{f.command ? f.command : props.tr("palette.noCommand")}</p>
+      )}
+      {answer && (
+        <dl>
+          {(["does", "command", "files", "doesNot", "next"] as const).map((part) => (
+            <div key={part} data-part={part}>
+              <dt>{answer.labels[part]}</dt>
+              <dd class={part === "command" ? "mono" : ""}>{answer.explanation[part]}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      <div class="pfoot">
+        <span>
+          <span class="kbd">↑↓</span> {props.tr("palette.choose")}
+        </span>
+        <span>
+          <span class="kbd">Enter</span> {props.tr("palette.run")}
+        </span>
+        <span>
+          <span class="kbd">?</span> {props.tr("palette.explain")}
+        </span>
+      </div>
+    </aside>
   );
 }
 
@@ -1290,6 +2297,296 @@ function AskDialog(props: {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** The views drawn as a side panel beside their detail, edge to edge (REQ-175). */
+const SPLIT_VIEWS = new Set<ViewId>([
+  "traceability",
+  "changes",
+  "questions",
+  "build",
+  "live",
+  "settings",
+]);
+
+/** The desktop app: the operating system draws the menu (REQ-172, A5). */
+const DESKTOP =
+  typeof window !== "undefined" && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window);
+if (typeof window !== "undefined")
+  (window as unknown as { __studio?: Record<string, unknown> }).__studio = {
+    ...((window as unknown as { __studio?: Record<string, unknown> }).__studio ?? {}),
+    menus: MENUS,
+  };
+
+/** The menu bar in the page (REQ-172, A5): each menu's entries are the palette's features. */
+function MenuBar(props: { lang: Lang; onFeature: (f: Feature) => void }) {
+  const [open, setOpen] = useState<string | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: Event) => {
+      if (!(e.target as Element | null)?.closest?.(".menubar")) setOpen(null);
+    };
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(null);
+    window.addEventListener("mousedown", away, true);
+    window.addEventListener("keydown", esc, true);
+    return () => {
+      window.removeEventListener("mousedown", away, true);
+      window.removeEventListener("keydown", esc, true);
+    };
+  }, [open]);
+  return (
+    <nav class="menubar" aria-label={props.lang === "es" ? "Menú" : "Menu"}>
+      {MENUS.map((m) => (
+        <div class="menu" key={m.id}>
+          <button
+            type="button"
+            data-menu={m.id}
+            aria-expanded={open === m.id}
+            onClick={() => setOpen((o) => (o === m.id ? null : m.id))}
+            onMouseEnter={() => open && setOpen(m.id)}
+          >
+            {m.title[props.lang]}
+          </button>
+          {open === m.id && (
+            <div class="menu-list" role="menu">
+              {m.items.map((id) => {
+                const f = FEATURES.find((x) => x.id === id);
+                if (!f) return null;
+                return (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    key={id}
+                    data-feature={id}
+                    onClick={() => {
+                      setOpen(null);
+                      props.onFeature(f);
+                    }}
+                  >
+                    <span>{f.title[props.lang]}</span>
+                    {f.command && <span class="mono">{f.command}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ))}
+    </nav>
+  );
+}
+
+/** The section each view is made of (REQ-178). */
+const SECTION_OF: Partial<Record<ViewId, string>> = {
+  home: "home",
+  changes: "changes",
+  questions: "questions",
+  traceability: "matrix",
+  report: "report",
+};
+
+/** A section being read: its shape, never a blank page — after 150 ms (REQ-178, A18). */
+function Skeleton(props: { tr: (k: string) => string }) {
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const t = window.setTimeout(() => setShown(true), 150);
+    return () => window.clearTimeout(t);
+  }, []);
+  if (!shown) return null;
+  return (
+    <section class="card skeleton" data-testid="loading" aria-busy="true">
+      <div class="eyebrow mono">[ {props.tr("state.loading")} ]</div>
+      <p class="muted">{props.tr("state.loadingBody")}</p>
+      <div class="bar-s" style={{ width: "40%" }} />
+      <div class="bar-s" style={{ width: "92%" }} />
+      <div class="bar-s" style={{ width: "76%" }} />
+      <div class="bar-s" style={{ width: "84%" }} />
+    </section>
+  );
+}
+
+/** A section that cannot be read: its file and line, and to read it again (REQ-178, A18). */
+function CouldNotRead(props: {
+  tr: (k: string, v?: Record<string, string | number>) => string;
+  view: string;
+  why: Unreadable;
+  onAgain: () => void;
+  onOpen: (file: string, line?: number) => void;
+}) {
+  const { why } = props;
+  return (
+    <section class="card unreadable" data-testid="unreadable" role="alert">
+      <div class="eyebrow mono">[ {props.tr("state.unreadable")} ]</div>
+      <p>
+        <b>{props.tr("state.unreadableTitle", { view: props.view })}</b>{" "}
+        {why.file && <span class="mono">{why.file.split("/").pop()}</span>}
+        {why.line ? ` · ${props.tr("state.line", { n: why.line })}` : ""}
+      </p>
+      <p class="muted">{why.message}</p>
+      <p class="muted">{props.tr("state.restWorks")}</p>
+      <div class="actions">
+        <button type="button" class="btn" data-act="read-again" onClick={props.onAgain}>
+          {props.tr("state.readAgain")}
+        </button>
+        {why.file && (
+          <button
+            type="button"
+            class="btn"
+            data-act="open-line"
+            onClick={() => props.onOpen(why.file!, why.line)}
+          >
+            {why.line ? props.tr("state.openLine", { n: why.line }) : props.tr("state.openFile")}
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/** The frame's parts (draft-workbench-v2 REQ-190, A22). */
+interface Frame {
+  panelPos: "bottom" | "right" | "left";
+  /** Height at the bottom, width on a side, in px. */
+  panelSize: number;
+  panelMax: boolean;
+  sideW: number;
+  agent: boolean;
+  agentW: number;
+}
+const FRAME: Frame = {
+  panelPos: "bottom",
+  panelSize: 220,
+  panelMax: false,
+  sideW: 270,
+  // Shown, as the board draws it: specgate 0.34.0 answers its plans (REQ-181 … REQ-183).
+  agent: true,
+  // The board's width at 1440 px (REQ-181).
+  agentW: 360,
+};
+
+/** A narrow window is under 1000 px wide, a low one under 600 px (A24). */
+const isSmall = () =>
+  typeof window !== "undefined" && (window.innerWidth < 1000 || window.innerHeight < 600);
+
+const ARROWS: Record<string, Side> = {
+  ArrowRight: "right",
+  ArrowLeft: "left",
+  ArrowDown: "down",
+  ArrowUp: "up",
+};
+
+/** Whether `path` is open in a group other than `group` (A20: one document, one save). */
+function openElsewhere(e: Editors, group: string | null, path: string): boolean {
+  const g = group ?? e.active;
+  return groupOrder(e).some((id) => id !== g && e.groups[id]!.open.includes(path));
+}
+
+/** A frame read back from the store, each part checked (REQ-191). */
+function frameOf(raw: unknown): Frame {
+  const r = (raw && typeof raw === "object" ? raw : {}) as Partial<Record<keyof Frame, unknown>>;
+  const num = (v: unknown, d: number, lo: number, hi: number) =>
+    typeof v === "number" && v >= lo && v <= hi ? v : d;
+  return {
+    panelPos: r.panelPos === "right" || r.panelPos === "left" ? r.panelPos : "bottom",
+    panelSize: num(r.panelSize, FRAME.panelSize, 80, 2000),
+    panelMax: r.panelMax === true,
+    sideW: num(r.sideW, FRAME.sideW, 180, 1200),
+    agent: typeof r.agent === "boolean" ? r.agent : FRAME.agent,
+    agentW: num(r.agentW, FRAME.agentW, 220, 1200),
+  };
+}
+
+/** The group that holds `path`: the active one first (REQ-191's collapsed view). */
+function groupHolding(e: Editors, path: string): string {
+  if (e.groups[e.active]?.open.includes(path)) return e.active;
+  return groupOrder(e).find((id) => e.groups[id]!.open.includes(path)) ?? e.active;
+}
+
+const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
+
+/** Follows the pointer from a sash until it is released (REQ-190). */
+function follow(e: PointerEvent, onMove: (ev: PointerEvent) => void): void {
+  const el = e.currentTarget as HTMLElement;
+  el.setPointerCapture(e.pointerId);
+  e.preventDefault();
+  const up = () => {
+    el.removeEventListener("pointermove", onMove);
+    el.removeEventListener("pointerup", up);
+  };
+  el.addEventListener("pointermove", onMove);
+  el.addEventListener("pointerup", up);
+}
+
+/** A sash dragged along an axis: the size it started at, plus the way moved (inverted on a far edge). */
+function drag(
+  e: PointerEvent,
+  axis: "x" | "y",
+  start: number,
+  set: (size: number) => void,
+  invert = false,
+): void {
+  const from = axis === "x" ? e.clientX : e.clientY;
+  follow(e, (ev) => {
+    const by = (axis === "x" ? ev.clientX : ev.clientY) - from;
+    set(Math.round(start + (invert ? -by : by)));
+  });
+}
+
+const TAB_MENU = [
+  "split-up",
+  "split-down",
+  "split-left",
+  "split-right",
+  "close",
+  "close-group",
+] as const;
+type TabAction = (typeof TAB_MENU)[number];
+
+/** A tab's menu (draft-workbench-v2 REQ-188, REQ-192): split four ways, each with its "?"; close. */
+function TabMenu(props: {
+  tr: (key: string, vars?: Record<string, string | number>) => string;
+  menu: { path: string; x: number; y: number };
+  onClose: () => void;
+  onPick: (a: TabAction) => void;
+  onHelp: (a: TabAction) => void;
+}) {
+  useEffect(() => {
+    const away = (e: Event) => {
+      if (!(e.target as Element | null)?.closest?.(".ctx")) props.onClose();
+    };
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && props.onClose();
+    window.addEventListener("mousedown", away, true);
+    window.addEventListener("keydown", esc, true);
+    return () => {
+      window.removeEventListener("mousedown", away, true);
+      window.removeEventListener("keydown", esc, true);
+    };
+  }, []);
+  return (
+    <div
+      class="ctx"
+      role="menu"
+      aria-label={props.menu.path}
+      style={{
+        left: `${Math.min(props.menu.x, window.innerWidth - 280)}px`,
+        top: `${Math.min(props.menu.y, window.innerHeight - 230)}px`,
+      }}
+    >
+      {TAB_MENU.map((a) => (
+        <div class="ctx-row" key={a}>
+          <button type="button" role="menuitem" data-act={a} onClick={() => props.onPick(a)}>
+            {props.tr(`tabmenu.${a}`)}
+          </button>
+          {a.startsWith("split-") && (
+            <HelpButton
+              label={props.tr("help.title", { feature: props.tr(`tabmenu.${a}`) })}
+              onOpen={() => props.onHelp(a)}
+            />
+          )}
+        </div>
+      ))}
     </div>
   );
 }

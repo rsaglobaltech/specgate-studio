@@ -19,7 +19,10 @@ test("REQ-102 SCN-303 against specgate: an uncommitted file makes Build wait; co
   fs.writeFileSync(path.join(p.dir, "src", "wip.js"), "// work in progress\n");
   const { host, ui } = await realHost(p.dir);
   try {
-    const list = (await ui.ask<any>("build.get")).result;
+    // The adoption baseline is listed once named (draft-live-polish REQ-101, A10).
+    const unnamed = (await ui.ask<any>("build.get")).result;
+    assert.ok(!unnamed.ready.some((r: any) => r.id === "REQ-000"), JSON.stringify(unnamed));
+    const list = (await ui.ask<any>("build.get", { named: "REQ-000" })).result;
     assert.ok(
       list.ready.some((r: any) => r.id === "REQ-000"),
       JSON.stringify(list),
@@ -183,7 +186,7 @@ test("REQ-101: the studio as it runs — `specgate-studio serve` on a project an
   const host = await startProjectHost(p.dir, { home: path.join(p.parent, "home") });
   const ui = await client(host.url);
   try {
-    const list = await ui.ask<any>("build.get");
+    const list = await ui.ask<any>("build.get", { named: "REQ-000" });
     assert.equal(list.error, undefined, JSON.stringify(list.error));
     assert.ok(list.result.ready.some((r: any) => r.id === "REQ-000"));
     assert.equal(list.result.agent, "node");

@@ -14,8 +14,8 @@ export interface NodeBuildRunnerOptions {
 /**
  * BuildPort over the specgate CLI (draft-build-live A5): `specgate harness
  * run` with its arguments as an array and no shell (REQ-007). Its standard
- * error streams to the studio as it is written; its standard output is the
- * JSON report, given whole when it ends. Stopping it ends the whole tree of
+ * error streams to the studio as it is written; its standard output — the
+ * JSON lines of `--format jsonl` — as it is written too, and whole when it ends. Stopping it ends the whole tree of
  * processes it started — the agent, its tests, the servers they start — on
  * Windows with `taskkill /T`, elsewhere by its process group and every
  * descendant (REQ-105).
@@ -23,7 +23,11 @@ export interface NodeBuildRunnerOptions {
 export class NodeBuildRunner implements BuildPort {
   constructor(private readonly options: NodeBuildRunnerOptions) {}
 
-  start(args: readonly string[], onOutput: (chunk: string) => void): BuildProcess {
+  start(
+    args: readonly string[],
+    onOutput: (chunk: string) => void,
+    onStdout?: (chunk: string) => void,
+  ): BuildProcess {
     const { program, prefix, projectDir } = this.options;
     const child = spawn(program, [...prefix, ...args, "--project-dir", projectDir], {
       cwd: projectDir,
@@ -35,7 +39,10 @@ export class NodeBuildRunner implements BuildPort {
       env: { ...process.env, NO_COLOR: "1", FORCE_COLOR: "0" },
     });
     let stdout = "";
-    child.stdout!.setEncoding("utf8").on("data", (c: string) => (stdout += c));
+    child.stdout!.setEncoding("utf8").on("data", (c: string) => {
+      stdout += c;
+      onStdout?.(c);
+    });
     child.stderr!.setEncoding("utf8").on("data", onOutput);
     const done = new Promise<{ exitCode: number; stdout: string }>((resolve) => {
       let settled = false;

@@ -7,7 +7,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { Finding, SpecgateAnswer } from "@specgate-studio/core";
-import { MOD, close, open, studio, untilTerm, type Page } from "./support.js";
+import {
+  MOD,
+  close,
+  open,
+  showPanel,
+  studio,
+  untilTerm,
+  type Page,
+  openFromExplorer,
+} from "./support.js";
 
 /** sprich's brief (A1): `pedidos` and `pagos`, and the notes of the call outside both. */
 const BRIEF = `---
@@ -74,8 +83,7 @@ function sprich() {
 /** Opens docs/brief.md in the editor, sets its text as the Developer would type it, and saves. */
 async function saveBrief(page: Page, text: string) {
   if (!(await page.$('.tab[title="docs/brief.md"]'))) {
-    await page.click('.sga[data-view="explorer"]');
-    await page.click('.row[title="docs/brief.md"]');
+    await openFromExplorer(page, "docs/brief.md");
   } else await page.click('.tab[title="docs/brief.md"]');
   await page.waitForSelector(".monaco-editor .view-lines");
   await page.evaluate((t) => {
@@ -92,6 +100,7 @@ test('REQ-072 SCN-213: on the desktop, "Shipping is free above some amount" save
   const s = await sprich();
   const page = await open(s);
   try {
+    await showPanel(page);
     await page.click('.ptab:has-text("Problems")');
     await page.waitForSelector('[data-panel="problems"] [data-empty]');
     const vague = BRIEF.replace("Orders are kept a year.", "Shipping is free above some amount.");
@@ -104,7 +113,11 @@ test('REQ-072 SCN-213: on the desktop, "Shipping is free above some amount" save
     assert.match(text, /Give the number and its unit/);
     assert.match(text, new RegExp(`docs/brief\\.md:${line}`));
     assert.equal(s.disk["docs/brief.md"], vague, "the file is saved as written");
-    assert.deepEqual(s.calls, [["propose", "--from-brief", "--check", "--brief", "docs/brief.md"]]);
+    // The brief's own reads (Home reads the changes and the agent's cost beside it).
+    assert.deepEqual(
+      s.calls.filter((c) => c[0] === "propose"),
+      [["propose", "--from-brief", "--check", "--brief", "docs/brief.md"]],
+    );
     // And underlined in the editor at that line (draft-editor REQ-043).
     await page.waitForFunction(
       (l) =>
@@ -125,6 +138,7 @@ test('REQ-072 SCN-214: in the browser, the rule rewritten as "Shipping is free a
   const s = await sprich();
   const page = await open(s);
   try {
+    await showPanel(page);
     await page.click('.ptab:has-text("Problems")');
     await saveBrief(
       page,
@@ -137,7 +151,7 @@ test('REQ-072 SCN-214: in the browser, the rule rewritten as "Shipping is free a
     );
     await page.waitForSelector('[data-panel="problems"] [data-empty]');
     assert.equal(await page.$('[data-panel="problems"] [data-code="B6_unmeasured"]'), null);
-    assert.equal(s.calls.length, 2, "one check per save");
+    assert.equal(s.calls.filter((c) => c[0] === "propose").length, 2, "one check per save");
   } finally {
     await close(s, page);
   }

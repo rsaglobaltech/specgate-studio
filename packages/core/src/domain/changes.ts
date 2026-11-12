@@ -34,6 +34,131 @@ export interface ChangeCard {
   requirements: ChangeRequirement[];
   /** The requirements not applied yet: while any is, the change is not archived. */
   toApply: string[];
+  /** The requests for change of its review.md, open or addressed (REQ-082); null when it has none. */
+  review: ChangeReview | null;
+}
+
+/** A piece of a requirement's text, marked when a redraft changed it (REQ-082, SCN-244). */
+export interface Segment {
+  text: string;
+  changed: boolean;
+}
+
+/** What a redraft changed for a request: one requirement's text before and after, side by side. */
+export interface ReviewChangeView {
+  requirement: string | null;
+  file: string;
+  line: number | null;
+  before: Segment[];
+  after: Segment[];
+}
+
+/** A request for change of a draft's review.md (REQ-082), as `change show --json` gives it. */
+export interface ReviewNoteView {
+  /** `N1`, `N2`… in the table's order. */
+  id: string;
+  date: string;
+  requirement: string | null;
+  text: string;
+  state: "open" | "addressed";
+  /** When the redraft that addressed it ran; null while open. */
+  addressedOn: string | null;
+  changes: ReviewChangeView[];
+}
+
+export interface ChangeReview {
+  /** review.md, relative to the project. */
+  file: string | null;
+  /** How many requests are open: "Draft again with N requested changes" (REQ-083). */
+  open: number;
+  notes: ReviewNoteView[];
+}
+
+/**
+ * Two texts word by word (REQ-082, SCN-244): each side's words, the ones the
+ * other side does not have marked — the longest common run of words kept.
+ */
+export function wordDiff(before: string, after: string): { before: Segment[]; after: Segment[] } {
+  const a = before.split(/(\s+)/).filter((w) => w !== "");
+  const b = after.split(/(\s+)/).filter((w) => w !== "");
+  // Past this many words, a requirement is shown whole on each side, unmarked.
+  if (a.length * b.length > 4_000_000)
+    return { before: [{ text: before, changed: false }], after: [{ text: after, changed: false }] };
+  const lcs: number[][] = Array.from({ length: a.length + 1 }, () =>
+    new Array<number>(b.length + 1).fill(0),
+  );
+  for (let i = a.length - 1; i >= 0; i--)
+    for (let j = b.length - 1; j >= 0; j--)
+      lcs[i]![j] =
+        a[i] === b[j] ? lcs[i + 1]![j + 1]! + 1 : Math.max(lcs[i + 1]![j]!, lcs[i]![j + 1]!);
+  const left: Segment[] = [];
+  const right: Segment[] = [];
+  const push = (side: Segment[], text: string, changed: boolean) => {
+    // Whitespace between two changed words reads as part of the change.
+    const last = side[side.length - 1];
+    if (last && last.changed === changed) last.text += text;
+    else side.push({ text, changed });
+  };
+  let i = 0;
+  let j = 0;
+  while (i < a.length || j < b.length) {
+    if (i < a.length && j < b.length && a[i] === b[j]) {
+      push(left, a[i]!, false);
+      push(right, b[j]!, false);
+      i++;
+      j++;
+    } else if (j < b.length && (i >= a.length || lcs[i]![j + 1]! >= lcs[i + 1]![j]!)) {
+      push(right, b[j]!, !/^\s+$/.test(b[j]!) || (right[right.length - 1]?.changed ?? false));
+      j++;
+    } else {
+      push(left, a[i]!, !/^\s+$/.test(a[i]!) || (left[left.length - 1]?.changed ?? false));
+      i++;
+    }
+  }
+  return { before: left, after: right };
+}
+
+/** The `review` of `change show --json` (specgate REQ-484), each change's words marked; null when absent. */
+export function reviewOf(show: unknown): ChangeReview | null {
+  const r = (show as { change?: { review?: unknown } } | null)?.change?.review as
+    { file?: unknown; open?: unknown; notes?: unknown } | null | undefined;
+  if (!r || typeof r !== "object" || !Array.isArray(r.notes)) return null;
+  const notes: ReviewNoteView[] = (r.notes as Array<Record<string, unknown>>).flatMap((n) => {
+    const id = str(n?.id);
+    if (!id) return [];
+    const addressed = n.addressed as { date?: unknown; changes?: unknown } | null | undefined;
+    const changes = Array.isArray(addressed?.changes)
+      ? (addressed!.changes as Array<Record<string, unknown>>).map((c) => {
+          const words = wordDiff(
+            typeof c.before === "string" ? c.before : "",
+            typeof c.after === "string" ? c.after : "",
+          );
+          return {
+            requirement: str(c.requirement),
+            file: (str(c.file) ?? "").replace(/\\/g, "/"),
+            line: typeof c.line === "number" ? c.line : null,
+            before: words.before,
+            after: words.after,
+          };
+        })
+      : [];
+    return [
+      {
+        id,
+        date: str(n.date) ?? "",
+        requirement: str(n.requirement),
+        text: str(n.text) ?? "",
+        state: n.state === "addressed" ? ("addressed" as const) : ("open" as const),
+        addressedOn: addressed ? str(addressed.date) : null,
+        changes,
+      },
+    ];
+  });
+  return {
+    file: str(r.file),
+    open: notes.filter((n) => n.state === "open").length,
+    notes,
+  };
 }
 
 export interface ChangesView {
@@ -103,6 +228,7 @@ export function groupChanges(
       module: draft && id.startsWith("draft-") ? id.slice("draft-".length) : null,
       requirements: reqs,
       toApply,
+      review: reviewOf(shows[id]),
     });
   }
   return { groups };
