@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-101 — Build lists what is ready: each title with its estimate below, who codes, REQ-000 only when named
 
-<!-- specgate:trace actor=Developer feature=features/build-live/REQ-101.feature kind=functional -->
+<!-- specgate:trace status=Implemented feature=features/build-live/REQ-101.feature actor=Developer kind=functional -->
 
 The system SHALL list in Build every requirement ready to build — approved, with its scenario and no open question blocking it — each with its id, its title on the row's full width, wrapped and never cut to nothing, its estimate on a line below the title, and the agent that will code it, with no horizontal scroll; SHALL say for each one left out why it is not ready; and SHALL leave out REQ-000, the adoption baseline, unless the Developer names it.
 
@@ -36,7 +36,7 @@ The system SHALL list in Build every requirement ready to build — approved, wi
 
 ### Requirement: REQ-102 — Build waits on uncommitted work and offers commit, stash or ignore; the commit's message labelled
 
-<!-- specgate:trace actor=Developer feature=features/build-live/REQ-102.feature kind=business-rule -->
+<!-- specgate:trace status=Implemented feature=features/build-live/REQ-102.feature actor=Developer kind=business-rule -->
 
 The system SHALL, when the project has uncommitted files that are not the specification, refuse to start a build, say why — the agent works on its own branch from the last commit and would leave that work out — and offer to commit, stash or ignore it, each run only after the Developer confirms it, and showing the files it touches grouped by folder; and SHALL show, when the Developer chooses commit, a labelled message field in the dialog and a Confirm that, while the message is empty, is disabled and says next to it that a message is needed.
 
@@ -68,7 +68,7 @@ The system SHALL, when the project has uncommitted files that are not the specif
 
 ### Requirement: REQ-103 — Live as the "En vivo" board: the harness's stages, a header with counts, time, tokens and cost, the queue and what is finished
 
-<!-- specgate:trace actor=Developer feature=features/build-live/REQ-103.feature kind=functional -->
+<!-- specgate:trace status=Implemented feature=features/build-live/REQ-103.feature actor=Developer kind=functional -->
 
 The system SHALL show in Live, while a build runs, the requirement in progress with its title and "intento N de M" and its branch; its steps as the harness's stages — "Rama creada", the setup with its command, "Agente escribiendo · test primero, después el código", "Gate: validate", "Gate: tests", "Gate: arquitectura" and "Aplicar · commit en su rama" — each marked ✓ done, ● running, ○ waiting or ✗ failed, with the time it took or, while it runs, a timer that advances every second; a header with the requirements passed, running and failed, the time elapsed, the tokens and the cost so far; on the left the modules and the queue, each queued requirement with its estimate; and on the right NECESITA ATENCIÓN and TERMINADOS, each finished requirement with its time and cost. From the moment the run starts a step SHALL be running, so Live never shows an empty step list while a build runs.
 
@@ -100,7 +100,7 @@ The system SHALL show in Live, while a build runs, the requirement in progress w
 
 ### Requirement: REQ-105 — "Parar tras este requisito", or "Parar ya…" after a confirmation, in Live's header
 
-<!-- specgate:trace actor=Developer feature=features/build-live/REQ-105.feature kind=business-rule -->
+<!-- specgate:trace status=Implemented feature=features/build-live/REQ-105.feature actor=Developer kind=business-rule -->
 
 The system SHALL offer in Live's header, while a build runs, "Parar tras este requisito", which stops the build after the requirement in progress, and "Parar ya…", which stops it at once after the Developer confirms; and SHALL end every process the agent started when it stops.
 

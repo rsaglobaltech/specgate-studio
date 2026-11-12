@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-201 — SALIDA DEL AGENTE: one timestamped line per action, following the end
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL show in Live's SALIDA DEL AGENTE, while the agent works, one line per action of the agent — its time, then `read <file>`, `edit <file>`, `run <command>` with ✓ or ✗, or `ask <question>`; the lines an edit added (`+N`) and the tests a run passed or failed (`✓ N passing`, `✗ N failing`) shown as soon as specgate's events give them, and left out, never guessed from the agent's text, while they do not (specgate 0.34.0) — each line one row however long its command, the full command shown on hover and when the line is expanded; and SHALL keep the end in view as lines arrive unless the Developer scrolls up, then pause, saying "sigue el final · sube para pausar", until the Developer returns to the end.
 
@@ -36,7 +36,7 @@ The system SHALL show in Live's SALIDA DEL AGENTE, while the agent works, one li
 
 ### Requirement: REQ-202 — No overlap, no dead column, no sideways scroll, at 1440×900 and 1280×800
 
-<!-- specgate:trace actor=Developer kind=non-functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=non-functional -->
 
 The system SHALL, in every view at 1440×900 px and at 1280×800 px, with the side bar and the agent panel shown or hidden and at their minimum or their default width, draw no control or panel over another (0 px of overlap between their boxes), leave no empty column between panels after one is resized or closed (the content takes the room), and show no side panel wider than its own box (0 px of horizontal scroll in a side panel).
 
@@ -56,7 +56,7 @@ The system SHALL, in every view at 1440×900 px and at 1280×800 px, with the si
 
 ### Requirement: REQ-203 — "Configurar agente" from Build, and Build following `harness.config.yaml`
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL offer in Build, when no agent is set, a button "Configurar agente" that runs `specgate agents init --tool claude` only after the Developer confirms it, showing it in the terminal; and SHALL show in Build the agent `harness.config.yaml` sets as soon as that file changes — by the button, a terminal or an editor — without a reload.
 
@@ -76,7 +76,7 @@ The system SHALL offer in Build, when no agent is set, a button "Configurar agen
 
 ### Requirement: REQ-204 — The agent panel reopened from a visible button, the status bar, Ctrl/Cmd+Alt+B and the palette
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL, once the agent panel is closed, reopen it from a button always visible in the activity bar, an "Agente" item in the status bar, Ctrl/Cmd+Alt+B and the palette, each of them also closing it when it is open, as draft-workbench-v2 REQ-190 hides and shows it.
 
