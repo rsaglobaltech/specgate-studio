@@ -174,7 +174,9 @@ test('REQ-102 SCN-611: on the desktop in English, "Commit message" in view witho
     const confirm = await box(page, `${dialog} [data-act="confirm"]`);
     assert.ok(field.y >= 0 && field.bottom <= 800, "the field in view");
     assert.ok(confirm.bottom <= 800, "Confirm in view");
-    assert.equal(await page.evaluate(() => document.activeElement?.tagName), "TEXTAREA");
+    await page.waitForFunction(() => document.activeElement?.tagName === "TEXTAREA", null, {
+      timeout: 2000,
+    });
     assert.equal(
       await text(page, `${dialog} [data-testid="confirm-why"]`),
       "Write a message to confirm",

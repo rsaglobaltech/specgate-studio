@@ -574,7 +574,12 @@ function Confirm(props: {
   const empty = kind === "commit" && !message.trim();
   const field = useRef<HTMLTextAreaElement>(null);
   // The message is what is asked: the cursor is in it (A12).
-  useEffect(() => field.current?.focus(), []);
+  useEffect(() => {
+    field.current?.focus();
+    // Once the click that opened it has settled: it does not take the focus back.
+    const t = window.setTimeout(() => field.current?.focus(), 0);
+    return () => window.clearTimeout(t);
+  }, []);
   const title = t(`build.confirm.${kind}`, { n: waits.waits.total });
   return (
     <div class="scrim" onClick={props.onCancel}>
