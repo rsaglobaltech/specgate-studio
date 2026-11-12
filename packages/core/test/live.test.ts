@@ -224,7 +224,7 @@ test("REQ-103 SCN-305: Build on REQ-032 while REQ-030 builds queues it; it start
     "--req",
     "REQ-032",
     "--format",
-    "json",
+    "jsonl",
   ]);
   live = await s.builds.live();
   assert.equal(live.building, "REQ-032");

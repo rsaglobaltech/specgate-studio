@@ -45,10 +45,12 @@ test("REQ-101 SCN-301: Build on the desktop — REQ-030 with its estimate and `c
     // Build only reads: nothing ran, nothing was written.
     assert.deepEqual(s.runs, []);
     assert.deepEqual(s.writes, []);
-    assert.deepEqual(s.calls.map((c) => c.join(" ")).sort(), [
+    assert.deepEqual([...new Set(s.calls.map((c) => c.join(" ")))].sort(), [
       "change show draft-pedidos",
       "config list",
       "harness report",
+      // Each requirement's own estimate (specgate 0.34, REQ-493): none recorded here.
+      "plan",
     ]);
   } finally {
     await close(s, page);
@@ -120,7 +122,7 @@ test('REQ-102 SCN-303: sprich\'s 325 files on the desktop — grouped by folder 
     assert.equal(s.git.commits[0]!.message, "Work in progress before building REQ-030");
     assert.equal(s.git.commits[0]!.files.length, 325);
     assert.deepEqual(s.harness.started, [
-      ["harness", "run", "--req", "REQ-030", "--format", "json"],
+      ["harness", "run", "--req", "REQ-030", "--format", "jsonl"],
     ]);
     assert.equal(await page.$('[data-testid="build-waits"]'), null);
     // The commit's notice says what it did and what it wrote.
@@ -159,9 +161,87 @@ test("REQ-102 SCN-304: stash cancelled in the browser — nothing is stashed, th
       /Construir espera: 2 archivos sin commit/,
     );
     assert.deepEqual(s.harness.started, []);
-    // Ignore is offered, and says why it cannot run with specgate 0.33.2.
-    assert.equal(await page.isDisabled('[data-testid="build-waits"] [data-act="ignore"]'), true);
-    assert.match(await text(page, '[data-testid="ignore-unsupported"]'), /specgate 0\.33\.2/);
+    // Ignore is offered: with specgate 0.34 it builds with `--allow-dirty`.
+    assert.equal(await page.isDisabled('[data-testid="build-waits"] [data-act="ignore"]'), false);
+    assert.match(
+      (await page.getAttribute('[data-testid="build-waits"] [data-act="ignore"]', "title"))!,
+      /--allow-dirty/,
+    );
+  } finally {
+    await close(s, page);
+  }
+});
+
+test("REQ-102: Ignore confirmed on the desktop — `harness run --allow-dirty`, the files left as they are; cancelled, nothing runs", async () => {
+  const files = ["src/orders/cancel.ts", "README.md"];
+  const s = await studio({
+    homeRequirements: SPRICH as never,
+    specgate: buildAnswers("claude -p < {prompt_file}"),
+    uncommitted: files,
+  });
+  const page = await open(s);
+  try {
+    await build(page);
+    await page.click(`${row("REQ-030")} [data-act="build"]`);
+    await page.waitForSelector('[data-testid="build-waits"]');
+    await page.click('[data-testid="build-waits"] [data-act="ignore"]');
+    await page.waitForSelector('[data-confirm="ignore"]');
+    assert.match(
+      await text(page, '[data-confirm="ignore"]'),
+      /Build anyway and leave these 2 files out\?[\s\S]*--allow-dirty/,
+    );
+    await page.click('[data-confirm="ignore"] [data-act="cancel"]');
+    await page.waitForSelector('[data-confirm="ignore"]', { state: "detached" });
+    assert.deepEqual(s.harness.started, [], "nothing runs before the confirmation");
+
+    await page.click('[data-testid="build-waits"] [data-act="ignore"]');
+    await page.click('[data-confirm="ignore"] [data-act="confirm"]');
+    await page.waitForSelector('.bstarted[data-req="REQ-030"]');
+    assert.deepEqual(s.harness.started, [
+      ["harness", "run", "--req", "REQ-030", "--allow-dirty", "--format", "jsonl"],
+    ]);
+    assert.deepEqual(await s.git.uncommitted(s.projectDir), files, "the files stay as they were");
+    assert.equal(s.git.commits.length, 0);
+    assert.equal(s.git.stashes, 0);
+  } finally {
+    await close(s, page);
+  }
+});
+
+test("REQ-101: Build on the desktop with specgate's own estimate per requirement — REQ-030 about 9 min from its history, REQ-032 none yet", async () => {
+  const s = await studio({
+    homeRequirements: SPRICH as never,
+    specgate: {
+      ...buildAnswers("claude -p < {prompt_file}"),
+      plan: {
+        data: {
+          estimates: [
+            {
+              requirement: "REQ-030",
+              steps: 6,
+              time: { ms: 540_000, basis: "history", samples: 4, detail: "4 runs" },
+              cost: null,
+            },
+            {
+              requirement: "REQ-032",
+              steps: 3,
+              time: { ms: null, basis: "none", samples: 0, detail: "no run recorded yet" },
+              cost: null,
+            },
+          ],
+        },
+        findings: [],
+        exitCode: 0,
+      },
+    },
+  });
+  const page = await open(s);
+  try {
+    await build(page);
+    assert.match(await text(page, `${row("REQ-030")} .best`), /~9 min/);
+    assert.equal(await page.getAttribute(`${row("REQ-030")} .best`, "data-own"), "history");
+    assert.match((await page.getAttribute(`${row("REQ-030")} .best`, "title"))!, /history, over 4/);
+    assert.match(await text(page, `${row("REQ-032")} .best`), /no estimate yet/);
   } finally {
     await close(s, page);
   }

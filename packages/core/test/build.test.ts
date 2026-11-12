@@ -146,7 +146,12 @@ test("REQ-101 SCN-301: Builds.list reads status, the drafts to review, the repor
   );
   assert.equal(list.agent, "claude");
   assert.equal(list.estimate?.minutes, 12);
-  assert.deepEqual(calls.sort(), ["change show draft-pedidos", "config list", "harness report"]);
+  assert.deepEqual(calls.sort(), [
+    "change show draft-pedidos",
+    "config list",
+    "harness report",
+    "plan",
+  ]);
 });
 
 test("REQ-101: a report or config specgate cannot give leaves the list, without estimate or agent", async () => {

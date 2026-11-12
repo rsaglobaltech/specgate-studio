@@ -12,5 +12,13 @@ export interface BuildProcess {
 }
 
 export interface BuildPort {
-  start(args: readonly string[], onOutput: (chunk: string) => void): BuildProcess;
+  /**
+   * `onStdout`, when given, gets its standard output as it is written: the
+   * JSON lines of `--format jsonl` (specgate REQ-496), which Live folds as they come.
+   */
+  start(
+    args: readonly string[],
+    onOutput: (chunk: string) => void,
+    onStdout?: (chunk: string) => void,
+  ): BuildProcess;
 }

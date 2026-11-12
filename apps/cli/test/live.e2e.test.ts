@@ -264,6 +264,14 @@ test("REQ-105 SCN-310: Stop after this requirement in the browser — REQ-030 fi
     );
     assert.equal(await page.$('[data-confirm="stop-now"]'), null, "no confirmation asked");
     assert.equal(s.harness.stopped, 0, "REQ-030 goes on");
+    // specgate's harness is asked too: it starts no other requirement (specgate 0.34, REQ-491).
+    for (
+      let i = 0;
+      i < 100 && !s.calls.some((c) => c.join(" ") === "harness stop --after-current");
+      i++
+    )
+      await new Promise((ok) => setTimeout(ok, 20));
+    assert.ok(s.calls.some((c) => c.join(" ") === "harness stop --after-current"));
 
     s.events.append("REQ-030", {
       attempt: 1,
@@ -279,6 +287,46 @@ test("REQ-105 SCN-310: Stop after this requirement in the browser — REQ-030 fi
     assert.equal(s.harness.started.length, 1, "REQ-032 was not started");
     assert.match(await text(page, '[data-testid="live-queue"]'), /nothing queued/);
     await page.waitForSelector('.notice[data-tone]:has-text("REQ-030 finished")');
+  } finally {
+    await close(s, page);
+  }
+});
+
+test("REQ-103: Live during REQ-030 from `harness run --format jsonl` as it streams — the step and the agent's output before any events file says them", async () => {
+  const s = await studio({
+    homeRequirements: SPRICH as never,
+    specgate: buildAnswers("claude -p < {prompt_file}"),
+  });
+  const page = await open(s);
+  try {
+    await page.click('.sga[data-view="build"]');
+    await page.waitForSelector(".breq");
+    await page.click('.breq[data-req="REQ-030"] [data-act="build"]');
+    await page.waitForSelector('.bstarted[data-req="REQ-030"]');
+    await page.click('.sga[data-view="live"]');
+    const t = Date.now() / 1000;
+    s.harness.stream({ type: "attempt", t, req: "REQ-030", attempt: 1, state: "start" });
+    s.harness.stream({
+      type: "output",
+      t,
+      req: "REQ-030",
+      attempt: 1,
+      stream: "stdout",
+      text: "Writing the test of SCN-030a",
+    });
+    s.harness.stream({
+      type: "step",
+      t: t + 1,
+      req: "REQ-030",
+      attempt: 1,
+      kind: "write",
+      tool: "Write",
+      target: "test/cancel.test.ts",
+      result: "ok",
+    });
+    await page.waitForSelector('.lreq[data-req="REQ-030"] .lstep[data-kind="write"]');
+    await page.waitForSelector('[data-kind="output"] >> text=Writing the test of SCN-030a');
+    s.harness.finish(0, { results: [{ requirement: "REQ-030", result: "pass" }] });
   } finally {
     await close(s, page);
   }

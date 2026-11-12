@@ -41,7 +41,7 @@ export function Build(p: BuildProps) {
   const [list, setList] = useState<BuildList | null>(null);
   const [unreadable, setUnreadable] = useState(false);
   const [waits, setWaits] = useState<Waits | null>(null);
-  const [confirm, setConfirm] = useState<"commit" | "stash" | null>(null);
+  const [confirm, setConfirm] = useState<"commit" | "stash" | "ignore" | null>(null);
   const [started, setStarted] = useState<{ req: string; queued: boolean } | null>(null);
   const [refused, setRefused] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -77,13 +77,11 @@ export function Build(p: BuildProps) {
     p.announce(t("build.req", { req }));
     p.rpc.ask("build.start", { req }).then(answered, (e: Error) => setRefused(e.message));
   };
-  const resolve = (choice: "commit" | "stash", message: string) => {
+  const resolve = (choice: "commit" | "stash" | "ignore", message: string) => {
     if (!waits) return;
-    p.announce(t(choice === "commit" ? "build.commit" : "build.stash"));
+    p.announce(t(`build.${choice}`));
     const params =
-      choice === "commit"
-        ? { req: waits.req, choice, message }
-        : { req: waits.req, choice: "stash" as const };
+      choice === "commit" ? { req: waits.req, choice, message } : { req: waits.req, choice };
     p.rpc.ask("build.resolve", params).then(answered, (e: Error) => setRefused(e.message));
   };
 
@@ -262,9 +260,26 @@ export function Build(p: BuildProps) {
               </div>
             )}
             <div class="muted best-line" data-testid="build-estimate">
-              {t("build.estimate")}: <EstimateText estimate={list.estimate} t={t} />
-              {list.estimate && list.estimate.runs > 0 && (
-                <span> · {t("build.estimateFrom", { runs: list.estimate.runs })}</span>
+              {t("build.estimate")}:{" "}
+              {"estimate" in shown && shown.estimate ? (
+                // specgate's own estimate for this requirement (REQ-493).
+                <span data-own={shown.estimate.basis}>
+                  {shown.estimate.minutes !== null
+                    ? t("build.estimateEach", { minutes: shown.estimate.minutes })
+                    : t("build.noEstimateOwn")}{" "}
+                  ·{" "}
+                  {t("build.estimateOwn", {
+                    basis: shown.estimate.basis,
+                    n: shown.estimate.samples,
+                  })}
+                </span>
+              ) : (
+                <>
+                  <EstimateText estimate={list.estimate} t={t} />
+                  {list.estimate && list.estimate.runs > 0 && (
+                    <span> · {t("build.estimateFrom", { runs: list.estimate.runs })}</span>
+                  )}
+                </>
               )}
             </div>
           </section>
@@ -301,7 +316,9 @@ function ReadyRow(props: {
   onHelp: () => void;
 }) {
   const { r, t } = props;
-  const minutes = props.estimate?.minutes;
+  // specgate's own estimate for this requirement (REQ-493), else the average of past builds.
+  const own = r.estimate;
+  const minutes = own ? own.minutes : props.estimate?.minutes;
   return (
     <li
       class="tr breq"
@@ -322,14 +339,24 @@ function ReadyRow(props: {
         {r.id.replace(/^REQ-/, "")}
       </span>
       <span class="name">{r.title}</span>
-      <span class="right best">
+      <span
+        class="right best"
+        data-own={own ? own.basis : undefined}
+        title={own ? t("build.estimateOwn", { basis: own.basis, n: own.samples }) : undefined}
+      >
         {minutes != null ? (
           <>
             <span aria-hidden="true">~{minutes} min</span>
             <span class="sr">
-              <EstimateText estimate={props.estimate} t={t} />
+              {own ? (
+                t("build.estimateEach", { minutes })
+              ) : (
+                <EstimateText estimate={props.estimate} t={t} />
+              )}
             </span>
           </>
+        ) : own ? (
+          t("build.noEstimateOwn")
         ) : (
           <EstimateText estimate={props.estimate} t={t} />
         )}
@@ -411,7 +438,7 @@ function Groups(props: { files: Uncommitted; t: T }) {
 function WaitsPanel(props: {
   waits: Waits;
   t: T;
-  onChoose: (kind: "commit" | "stash") => void;
+  onChoose: (kind: "commit" | "stash" | "ignore") => void;
   onHelp: (action: "build-commit" | "build-stash" | "build-ignore", feature: string) => void;
 }) {
   const { waits, t } = props;
@@ -448,8 +475,8 @@ function WaitsPanel(props: {
           type="button"
           class="btn"
           data-act="ignore"
-          disabled
-          title={t("build.ignore.unsupported")}
+          title={t("build.ignore.title")}
+          onClick={() => props.onChoose("ignore")}
         >
           {t("build.ignore")}
         </button>
@@ -458,16 +485,13 @@ function WaitsPanel(props: {
           onOpen={() => props.onHelp("build-ignore", t("build.ignore"))}
         />
       </div>
-      <p class="muted" data-testid="ignore-unsupported" style="margin:6px 0 0;font-size:12px">
-        {t("build.ignore")}: {t("build.ignore.unsupported")}
-      </p>
     </section>
   );
 }
 
-/** The confirmation before a commit or a stash runs: the files it touches, by folder. */
+/** The confirmation before a commit, a stash or a build that ignores them runs: the files, by folder. */
 function Confirm(props: {
-  kind: "commit" | "stash";
+  kind: "commit" | "stash" | "ignore";
   waits: Waits;
   t: T;
   onCancel: () => void;
@@ -475,9 +499,7 @@ function Confirm(props: {
 }) {
   const { kind, waits, t } = props;
   const [message, setMessage] = useState("");
-  const title = t(kind === "commit" ? "build.confirm.commit" : "build.confirm.stash", {
-    n: waits.waits.total,
-  });
+  const title = t(`build.confirm.${kind}`, { n: waits.waits.total });
   return (
     <div class="scrim" onClick={props.onCancel}>
       <div
@@ -488,11 +510,7 @@ function Confirm(props: {
         onClick={(e) => e.stopPropagation()}
       >
         <h2>{title}</h2>
-        <p class="muted">
-          {t(kind === "commit" ? "build.confirm.commitBody" : "build.confirm.stashBody", {
-            req: waits.req,
-          })}
-        </p>
+        <p class="muted">{t(`build.confirm.${kind}Body`, { req: waits.req })}</p>
         <Groups files={waits.waits} t={t} />
         {kind === "commit" && (
           <textarea

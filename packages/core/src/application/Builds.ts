@@ -2,6 +2,7 @@ import { commandLine, shown, type SpecgateCommand } from "../domain/command.js";
 import {
   REQ_ID,
   buildList,
+  estimatesOf,
   harnessArgs,
   harnessReport,
   saveSpecification,
@@ -13,7 +14,14 @@ import {
   type StopResult,
 } from "../domain/build.js";
 import { groupChanges, changeIds } from "../domain/changes.js";
-import { foldLive, liveQuestions, queueStarted, type LiveView } from "../domain/live.js";
+import {
+  foldLive,
+  liveQuestions,
+  queueStarted,
+  streamByRequirement,
+  type LiveView,
+} from "../domain/live.js";
+import { findingLine } from "../domain/changes.js";
 import type { HarnessEventsPort } from "../ports/HarnessEventsPort.js";
 import type { SpecgateAnswer, SpecgatePort } from "../ports/SpecgatePort.js";
 import type { GitPort, GitWriter } from "../ports/GitPort.js";
@@ -83,6 +91,10 @@ export class Builds {
   private since: number | null = null;
   private poll: ReturnType<typeof setInterval> | null = null;
   private shown = "";
+  /** `--format jsonl`'s whole lines, as the run writes them (REQ-496); what is not whole yet waits. */
+  private stream: string[] = [];
+  private partial = "";
+  private telling: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private readonly options: BuildsOptions) {}
 
@@ -93,9 +105,11 @@ export class Builds {
       this.options.sections.section("questions").catch(() => null),
     ]);
     const shows: Record<string, unknown> = {};
-    const [report, config] = await Promise.all([
+    const [report, config, plan] = await Promise.all([
       this.data({ name: "harness-report" }),
       this.data({ name: "config-list" }),
+      // Each requirement's own estimate (specgate REQ-493).
+      this.data({ name: "plan" }),
       ...changeIds(changes).map(async (change) => {
         shows[change] = await this.data({ name: "change-show", change });
       }),
@@ -117,6 +131,7 @@ export class Builds {
         Object.entries(settings).filter((e): e is [string, string] => typeof e[1] === "string"),
       ),
       questions,
+      estimatesOf(plan),
     );
   }
 
@@ -131,7 +146,7 @@ export class Builds {
    * would be left out; otherwise the uncommitted specification is committed
    * and `specgate harness run --req <req>` starts.
    */
-  async start(req: string): Promise<BuildStart> {
+  async start(req: string, allowDirty = false): Promise<BuildStart> {
     const refused = await this.refusal(req);
     if (refused) return refused;
     const { git, root } = this.wired();
@@ -144,7 +159,8 @@ export class Builds {
         message: "This folder is not a git repository: the agent builds on a branch of its own.",
       };
     const work = uncommittedWork(files);
-    if (work.other.total > 0)
+    // "Ignore": the agent's branch leaves them out, and they stay as they are (REQ-102, specgate REQ-490).
+    if (work.other.total > 0 && !allowDirty)
       return { ok: false, code: "build_waits", req, message: WAITS, waits: work.other };
     // One build at a time: another waits in the queue, once (REQ-103).
     if (this.current) {
@@ -156,7 +172,7 @@ export class Builds {
     if (saved) return saved;
     this.since = Math.floor(this.now() / 1000);
     this.stopped.clear();
-    this.launch(req);
+    this.launch(req, allowDirty);
     return { ok: true, req, queued: false };
   }
 
@@ -171,7 +187,9 @@ export class Builds {
       ? await this.options.events.read(root, this.since ?? 0).catch(() => null)
       : null;
     const since = this.since ?? queueStarted(read?.queue ?? null) ?? 0;
-    const view = foldLive(read?.files ?? {}, since, {
+    // The stream says more, and sooner, than the events files: it wins for what it names (REQ-496).
+    const files = { ...(read?.files ?? {}), ...streamByRequirement(this.stream) };
+    const view = foldLive(files, since, {
       building: this.current?.req ?? null,
       queue: this.queue,
       stopping: this.stopping,
@@ -202,7 +220,14 @@ export class Builds {
     void this.tell();
     if (!now) {
       // Told as a run until the requirement ends: then, what was not started.
-      void commands.track(`stop after ${req}`, false, async (output) => {
+      // specgate's harness is asked too: it finishes the requirement and starts no other (REQ-491).
+      const args = commandLine({ name: "harness-stop" })!.args;
+      void commands.track(shown(args), false, async (output) => {
+        const asked = await this.options.specgate.call(args).catch((e: unknown) => {
+          output(`${e instanceof Error ? e.message : String(e)}\n`);
+          return null;
+        });
+        for (const f of asked?.findings ?? []) output(findingLine(f));
         output(`${req} goes on; ${vars.queued} will not start.\n`);
         await this.afterCurrent();
         return { exitCode: 0, action: "build-stop-after", vars };
@@ -253,20 +278,13 @@ export class Builds {
   /**
    * What the Developer confirmed about the work Build waits on (REQ-102, A7):
    * a commit of the files shown with their message, or a stash; then the
-   * build starts. Ignore is refused: specgate 0.33.2's harness will not run
-   * while any file is uncommitted.
+   * build starts. Ignore builds anyway with `--allow-dirty` (specgate
+   * REQ-490): the agent's branch leaves the files out, and they stay.
    */
   async resolve(req: string, resolution: Resolution): Promise<BuildStart> {
     const refused = await this.refusal(req);
     if (refused) return refused;
-    if (resolution.choice === "ignore")
-      return {
-        ok: false,
-        code: "build_ignore_unsupported",
-        req,
-        message:
-          "specgate 0.33.2's harness refuses to start while any file is uncommitted: commit or stash them.",
-      };
+    if (resolution.choice === "ignore") return this.start(req, true);
     if (resolution.choice === "commit" && !resolution.message.trim())
       return {
         ok: false,
@@ -299,6 +317,8 @@ export class Builds {
     if (this.current) this.stopped.add(this.current.req);
     await this.current?.process?.stop();
     await this.idle();
+    if (this.telling) clearTimeout(this.telling);
+    this.telling = null;
     if (this.poll) clearInterval(this.poll);
     this.poll = null;
   }
@@ -392,9 +412,11 @@ export class Builds {
   }
 
   /** `specgate harness run --req <req>`, told as a run until it ends, with its notice. */
-  private launch(req: string): void {
+  private launch(req: string, allowDirty = false): void {
     const { harness, commands } = this.wired();
-    const args = harnessArgs(req)!;
+    const args = harnessArgs(req, allowDirty)!;
+    this.stream = [];
+    this.partial = "";
     const me: { req: string; process: BuildProcess | null; done: Promise<unknown> } = {
       req,
       process: null,
@@ -407,14 +429,38 @@ export class Builds {
       this.poll.unref?.();
     }
     void this.tell();
-    // Shown as the person would type it: `--format json` is the studio's, like `--json`.
+    // Shown as the person would type it: `--format jsonl` is the studio's, like `--json`.
     me.done = commands
-      .track(shown(args.slice(0, 4)), false, async (output): Promise<Tracked> => {
-        me.process = harness.start(args, output);
+      .track(shown(args.slice(0, -2)), false, async (output): Promise<Tracked> => {
+        me.process = harness.start(args, output, (chunk) => this.streamed(chunk));
         const { exitCode, stdout } = await me.process.done;
-        return { ...this.outcome(req, exitCode, stdout), action: "build", vars: { req } };
+        return {
+          ...this.outcome(req, exitCode, stdout),
+          action: allowDirty ? "build-ignore" : "build",
+          vars: { req },
+        };
       })
       .finally(() => this.ended(me));
+  }
+
+  /** Lines of the stream as they come: Live is told at once, not at the next poll (REQ-496). */
+  private streamed(chunk: string): void {
+    const lines = (this.partial + chunk).split("\n");
+    this.partial = lines.pop() ?? "";
+    const whole = lines.map((l) => l.replace(/\r$/, "")).filter((l) => l.trim());
+    if (whole.length === 0) return;
+    this.stream.push(...whole);
+    // A long run keeps its steps; only the agent's oldest output is let go.
+    if (this.stream.length > 20_000)
+      this.stream = this.stream.filter(
+        (l, i) => i >= this.stream.length - 5_000 || !l.includes('"type":"output"'),
+      );
+    // Many lines at once are told once.
+    if (!this.telling)
+      this.telling = setTimeout(() => {
+        this.telling = null;
+        void this.tell();
+      }, 30);
   }
 
   /**
