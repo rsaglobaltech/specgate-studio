@@ -38,6 +38,7 @@ import { attachBuilds, type BuildsWiring } from "./builds.js";
 import { attachBrief, type BriefWiring } from "./brief.js";
 import { attachAgent, type AgentWiring } from "./agent.js";
 import { attachExplorer } from "./explorer.js";
+import { attachTraceability } from "./traceability.js";
 import { attachHome } from "./home.js";
 import { attachFolders, type FoldersWiring } from "./folders.js";
 import type { ProjectFiles } from "./files.js";
@@ -245,6 +246,25 @@ export async function startHost(given: HostOptions): Promise<Host> {
       )
     : null;
 
+  // Traceability: one row per scenario, and "Fix" (draft-traceability REQ-121 … REQ-123).
+  const files = options.files;
+  const traceability = files
+    ? attachTraceability(
+        {
+          sections: state,
+          files: {
+            list: () => files.list(),
+            read: (p) => files.read(p),
+            ...(files.create ? { create: (p: string, dir: boolean) => files.create!(p, dir) } : {}),
+            ...(files.write ? { write: (p: string, t: string) => files.write!(p, t) } : {}),
+          },
+          ...(agent ? { agent: agent.agent } : {}),
+        },
+        broadcast,
+        (m) => rpcError(RPC_ERRORS.params, m),
+      )
+    : null;
+
   // Home's next step, route, cost and activity (draft-design-conformance REQ-173).
   const homeSpecgate =
     options.builds?.specgate ?? options.changes?.specgate ?? options.brief?.specgate;
@@ -372,6 +392,7 @@ export async function startHost(given: HostOptions): Promise<Host> {
               "id",
               "then",
               "count",
+              "scenario",
             ].includes(k) && typeof v === "string",
         ),
       ) as HelpVars;
@@ -445,6 +466,7 @@ export async function startHost(given: HostOptions): Promise<Host> {
     ...builds?.handlers,
     ...brief?.handlers,
     ...agent?.handlers,
+    ...traceability?.handlers,
     ...explorer?.handlers,
     ...home.handlers,
     ...(options.folders

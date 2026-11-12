@@ -80,6 +80,15 @@ import type {
   AgentView,
   AppliedPlan,
   Mention,
+  ScenarioStep,
+  TestProposal,
+  TraceAgentResult,
+  TraceFilter,
+  TraceLink,
+  TraceRow,
+  TraceView,
+  TraceWriteResult,
+  FixResult,
 } from "@specgate-studio/core";
 
 export type { CommandEvent, RunResult, Section, SectionData, SpecgateCommand };
@@ -147,6 +156,18 @@ export type {
 };
 /** The Brief view (draft-brief). */
 export type { BriefModule, BriefView, DraftResult };
+/** Traceability: one row per scenario, its filters, "Fix" and "Ask the agent" (draft-traceability). */
+export type {
+  FixResult,
+  ScenarioStep,
+  TestProposal,
+  TraceAgentResult,
+  TraceFilter,
+  TraceLink,
+  TraceRow,
+  TraceView,
+  TraceWriteResult,
+};
 /** The brief as a form, and the client's text proposing one (draft-brief REQ-071, REQ-074). */
 export type { BriefForm, BriefFormActor, BriefFormModule, BriefFormResult, BriefFormView };
 
@@ -314,6 +335,27 @@ export interface Requests {
   "agent.applied": { params: Record<string, never>; result: AppliedPlan[] };
   /** What "@" offers: requirements with their titles, then files (REQ-183). */
   "agent.mentions": { params: { query: string }; result: Mention[] };
+  /** One row per scenario from specgate's matrix, and each filter's count (draft-traceability REQ-121, REQ-122). */
+  "trace.get": { params: Record<string, never>; result: TraceView };
+  /** "Fix": the missing test proposed as a skeleton from the scenario; nothing written (REQ-123). */
+  "trace.fix": { params: { requirement: string; scenario: string }; result: FixResult };
+  /** The skeleton confirmed: written, never over a file; the notice names it (REQ-123). */
+  "trace.confirm": {
+    params: { requirement: string; scenario: string };
+    result: TraceWriteResult;
+  };
+  /** The proposal cancelled, the agent's plan discarded with it: nothing written (REQ-123). */
+  "trace.cancel": {
+    params: { requirement: string; scenario: string; plan?: number };
+    result: TraceWriteResult;
+  };
+  /** "Ask the agent": its test against the skeleton, with its cost; nothing written (REQ-123). */
+  "trace.ask": { params: { requirement: string; scenario: string }; result: TraceAgentResult };
+  /** The agent's test confirmed: `specgate agent apply` writes it (REQ-123). */
+  "trace.agentConfirm": {
+    params: { plan: number; requirement: string; scenario: string; path: string };
+    result: TraceWriteResult;
+  };
 }
 
 /** What the host tells every connected UI, unasked. */

@@ -36,7 +36,7 @@ export function attachAgent(
   broadcast: Broadcast,
   files: () => Promise<string[]>,
   store?: StorePort,
-): { handlers: Record<string, (params: unknown) => Promise<unknown>> } {
+): { handlers: Record<string, (params: unknown) => Promise<unknown>>; agent: Agent } {
   const nOf = (params: unknown) => (params as { n?: unknown } | null)?.n;
   const agent = new Agent({
     commands,
@@ -50,6 +50,7 @@ export function attachAgent(
     },
   });
   return {
+    agent,
     handlers: {
       "agent.get": () => agent.view(),
       "agent.ask": (params) => agent.ask((params as { request?: unknown } | null)?.request),

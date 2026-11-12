@@ -57,6 +57,9 @@ export const ACTIONS = [
   "redraft",
   "brief-form",
   "brief-propose",
+  "traceability",
+  "trace-fix",
+  "trace-ask-agent",
 ] as const;
 export type ActionId = (typeof ACTIONS)[number];
 
@@ -79,6 +82,8 @@ interface NoticeText {
   after?: string;
   /** What did not happen, when it was refused or failed: the notice's headline (REQ-178, A19). */
   failed?: string;
+  /** What was dropped when the person cancelled: nothing was written (draft-traceability REQ-123). */
+  cancelled?: string;
 }
 
 export type Catalog = Record<ActionId, Partial<Record<Lang, Explanation & { notice: NoticeText }>>>;
@@ -1199,6 +1204,91 @@ export const HELP: Catalog = {
       notice: { ranOk: "Maximizado el panel", next: "El mismo botón lo restaura" },
     },
   },
+
+  traceability: {
+    en: {
+      does: "Shows one row per scenario of the project: its requirement, its feature file, the tests that name it, the code that implements it and its requirement's status. A row that lacks a feature, a test or code is a gap.",
+      command: "specgate matrix --json --dry-run",
+      files: "None: reading it changes no file; the matrix on disk is not regenerated.",
+      doesNot:
+        "It never reads the prose of docs/specs/traceability.md, never shows one row per requirement, and runs no test.",
+      next: "Filter the gaps, the rows without a test or the ones waiting for an answer; Fix proposes a missing test.",
+      notice: { ranOk: "`{command}` listed the scenarios", next: "Choose a filter" },
+    },
+    es: {
+      does: "Muestra una fila por escenario del proyecto: su requisito, su feature, las pruebas que lo nombran, el código que lo implementa y el estado de su requisito. Una fila a la que le falta la feature, una prueba o código es un hueco.",
+      command: "specgate matrix --json --dry-run",
+      files: "Ninguno: leerla no cambia ningún archivo; la matriz en disco no se regenera.",
+      doesNot:
+        "Nunca lee la prosa de docs/specs/traceability.md, nunca muestra una fila por requisito y no ejecuta ninguna prueba.",
+      next: "Filtra los huecos, las filas sin prueba o las que esperan respuesta; Arreglar propone una prueba que falta.",
+      notice: { ranOk: "`{command}` listó los escenarios", next: "Elige un filtro" },
+    },
+  },
+  "trace-fix": {
+    en: {
+      does: "Opens {scenario} in its feature file and proposes the missing test: a skeleton the studio writes from the scenario's GIVEN, WHEN and THEN, naming {req} and {scenario}, with a failing placeholder where the assertions go.",
+      command:
+        "None: the studio writes the skeleton from the scenario; no agent runs and nothing is spent.",
+      files: "{path}, and only once you confirm; until then no file changes.",
+      doesNot:
+        "It runs no agent and costs nothing; it never overwrites a file, never commits, never runs the tests and never marks the requirement.",
+      next: "Write the assertions, then `specgate apply {req}`.",
+      notice: {
+        ranOk: "Wrote {path}: the test for {scenario}, from its scenario",
+        next: "specgate apply {req}",
+        after: "Write its assertions; it fails until you do.",
+        cancelled: "Cancelled the proposed test for {scenario}",
+      },
+    },
+    es: {
+      does: "Abre {scenario} en su feature y propone la prueba que falta: un esqueleto que el studio escribe a partir del GIVEN, WHEN y THEN del escenario, que nombra {req} y {scenario}, con un marcador que falla donde van las aserciones.",
+      command:
+        "Ninguno: el studio escribe el esqueleto a partir del escenario; no se ejecuta ningún agente y no cuesta nada.",
+      files: "{path}, y solo cuando confirmas; hasta entonces no cambia ningún archivo.",
+      doesNot:
+        "No ejecuta ningún agente y no cuesta nada; nunca sobrescribe un archivo, no hace commit, no ejecuta las pruebas y no marca el requisito.",
+      next: "Escribe las aserciones y luego `specgate apply {req}`.",
+      notice: {
+        ranOk: "Escrita {path}: la prueba de {scenario}, a partir de su escenario",
+        next: "specgate apply {req}",
+        after: "Escribe sus aserciones; falla hasta que lo hagas.",
+        cancelled: "Cancelada la prueba propuesta para {scenario}",
+      },
+    },
+  },
+  "trace-ask-agent": {
+    en: {
+      does: "Has the project's agent complete the skeleton of {scenario}: specgate runs it on a scratch copy and answers its test, shown as a diff against the skeleton with the tokens and the cost of that run.",
+      command:
+        'specgate agent ask "<complete the test of {scenario}>" --plan --json, then specgate agent apply <plan-id> once you confirm',
+      files:
+        "None while you look: the plan writes nothing. Once confirmed, specgate writes {path} and runs the plan's checks.",
+      doesNot:
+        "It writes nothing until you confirm, never commits or pushes, and never marks the requirement. The run costs what the agent spends.",
+      next: "Read the diff; confirm it, or go back to the skeleton. Then `specgate apply {req}`.",
+      notice: {
+        ranOk: "`specgate agent apply` wrote {path}: the agent's test for {scenario}",
+        next: "specgate apply {req}",
+        cancelled: "Discarded the agent's test for {scenario}",
+      },
+    },
+    es: {
+      does: "Hace que el agente del proyecto complete el esqueleto de {scenario}: specgate lo ejecuta en una copia aparte y responde con su prueba, que se ve como un diff contra el esqueleto con los tokens y el coste de esa ejecución.",
+      command:
+        'specgate agent ask "<completa la prueba de {scenario}>" --plan --json, y specgate agent apply <plan-id> cuando confirmas',
+      files:
+        "Ninguno mientras miras: el plan no escribe nada. Al confirmar, specgate escribe {path} y ejecuta las comprobaciones del plan.",
+      doesNot:
+        "No escribe nada hasta que confirmas, no hace commit ni push y no marca el requisito. La ejecución cuesta lo que gaste el agente.",
+      next: "Lee el diff; confírmalo o vuelve al esqueleto. Luego `specgate apply {req}`.",
+      notice: {
+        ranOk: "`specgate agent apply` escribió {path}: la prueba del agente para {scenario}",
+        next: "specgate apply {req}",
+        cancelled: "Descartada la prueba del agente para {scenario}",
+      },
+    },
+  },
 };
 
 /** What a placeholder reads as when the action has no value for it yet. */
@@ -1218,6 +1308,7 @@ const UNSET: Record<string, string> = {
   side: "<beside>",
   id: "<plan-id>",
   then: "<its checks>",
+  scenario: "<SCN>",
 };
 
 export type HelpVars = Partial<
@@ -1235,7 +1326,8 @@ export type HelpVars = Partial<
     | "repo"
     | "side"
     | "id"
-    | "then",
+    | "then"
+    | "scenario",
     string
   >
 >;
@@ -1454,6 +1546,39 @@ export function fileNotice(
   return {
     tone: "refused" in outcome ? "refused" : "failed",
     ran,
+    wrote: say.nothing,
+    next: fill(e.next, all),
+  };
+}
+
+/**
+ * The notice of a proposal confirmed or cancelled (draft-traceability
+ * REQ-123): the file written and the next step, or that nothing was written —
+ * in both languages, never only "done". A refusal says why nothing was.
+ */
+export function proposalNotice(
+  action: "trace-fix" | "trace-ask-agent",
+  lang: Lang,
+  vars: HelpVars,
+  outcome: { written: string } | { cancelled: true } | { refused: string },
+): Notice {
+  const e = HELP[action][lang] ?? HELP[action].en!;
+  const say = SAY[lang];
+  const all = { ...vars, ...("written" in outcome ? { path: outcome.written } : {}) };
+  if ("written" in outcome) {
+    const wrote = fill(say.wrote, { files: `\`${outcome.written}\`` });
+    return {
+      tone: "ok",
+      ran: fill(e.notice.ranOk, all),
+      wrote: e.notice.after ? `${wrote} ${fill(e.notice.after, all)}` : wrote,
+      next: fill(e.notice.next, all),
+    };
+  }
+  if ("refused" in outcome)
+    return { tone: "refused", ran: outcome.refused, wrote: say.nothing, next: fill(e.next, all) };
+  return {
+    tone: "ok",
+    ran: fill(e.notice.cancelled ?? e.notice.ranOk, all),
     wrote: say.nothing,
     next: fill(e.next, all),
   };

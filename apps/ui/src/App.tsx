@@ -58,7 +58,7 @@ import {
 } from "./tabs.js";
 import { BOTTOM_VIEWS, PANEL_TABS, TOP_VIEWS, type PanelTab, type ViewId } from "./views.js";
 import { AgentIcon, Logo, ViewIcon } from "./icons.js";
-import { VirtualList } from "./VirtualList.js";
+import { Traceability, TraceProposal, type ProposalState } from "./views/Traceability.js";
 import { HelpButton, HelpDialog, NoticeToast, type HelpRequest } from "./Help.js";
 import { Changes } from "./views/Changes.js";
 import { Build } from "./views/Build.js";
@@ -224,6 +224,17 @@ export function App({ rpc }: { rpc: Rpc }) {
   const [closing, setClosing] = useState<string | null>(null);
   const [buildReq, setBuildReq] = useState<string | null>(null);
   const [traceFilter, setTraceFilter] = useState("");
+  /** "Fix"'s proposed test, in the panel's Traceability tab (draft-traceability REQ-123). */
+  const [proposal, setProposal] = useState<ProposalState | null>(null);
+  /** The project's agent, for "Ask the agent" (REQ-123, A11); null when none is set. */
+  const [agentName, setAgentName] = useState<string | null>(null);
+  useEffect(() => {
+    void rpc.ask("agent.get", {}).then(
+      (v) => setAgentName(v.agent),
+      () => undefined,
+    );
+    return rpc.on("agent.changed", (v) => setAgentName(v.agent));
+  }, [rpc]);
   const annotateTimer = useRef<number | undefined>(undefined);
   const activeRef = useRef<string | null>(null);
   const annotateRef = useRef<(path: string) => Promise<unknown>>(async () => undefined);
@@ -1339,6 +1350,40 @@ export function App({ rpc }: { rpc: Rpc }) {
                         />
                       }
                       traceFilter={traceFilter}
+                      traceView={
+                        <Traceability
+                          rpc={rpc}
+                          lang={lang}
+                          stamp={[sections.matrix, sections.home]}
+                          initial={traceFilter}
+                          onFix={(row) =>
+                            void rpc
+                              .ask("trace.fix", {
+                                requirement: row.requirement,
+                                scenario: row.scenario ?? "",
+                              })
+                              .then(
+                                (r) => {
+                                  if (!r.ok) return setNotice(r.message);
+                                  // The scenario in the editor, the proposal beside it in the panel.
+                                  openFile(r.proposal.feature, r.proposal.line);
+                                  setPanel({ open: true, tab: "traceability" });
+                                  // Room for the skeleton under the scenario (REQ-123).
+                                  setFrame((f) =>
+                                    f.panelPos === "bottom" && f.panelSize < 340
+                                      ? { ...f, panelSize: 340 }
+                                      : f,
+                                  );
+                                  setProposal({ step: "skeleton", proposal: r.proposal });
+                                },
+                                (e: Error) => setNotice(e.message),
+                              )
+                          }
+                          onHelp={(feature, requests) =>
+                            setHelp({ title: tr("help.title", { feature }), requests })
+                          }
+                        />
+                      }
                     />
                   )}
                 </div>
@@ -1472,6 +1517,18 @@ export function App({ rpc }: { rpc: Rpc }) {
                 !TerminalPane && tr("panel.empty")
               ) : panel.tab === "gate" ? (
                 <pre style="margin:0;white-space:pre-wrap">{output || tr("panel.empty")}</pre>
+              ) : panel.tab === "traceability" ? (
+                <TraceProposal
+                  rpc={rpc}
+                  lang={lang}
+                  state={proposal}
+                  agent={agentName}
+                  onState={setProposal}
+                  onNotice={setEnded}
+                  onHelp={(feature, requests) =>
+                    setHelp({ title: tr("help.title", { feature }), requests })
+                  }
+                />
               ) : panel.tab === "problems" ? (
                 <Problems
                   lang={lang}
@@ -1777,6 +1834,8 @@ interface ViewProps {
   buildView: JSX.Element;
   liveView: JSX.Element;
   traceFilter: string;
+  /** Traceability (draft-traceability). */
+  traceView: JSX.Element;
 }
 
 function View(p: ViewProps) {
@@ -1860,36 +1919,9 @@ function View(p: ViewProps) {
       return p.buildView;
     case "live":
       return p.liveView;
-    case "traceability": {
-      // Trace from the editor: the requirement's own row first (REQ-042).
-      const rows = p.traceFilter
-        ? p.requirements.filter((r) => r.id === p.traceFilter)
-        : p.requirements;
-      return (
-        <div style="display:flex;flex-direction:column;height:100%">
-          <h2 style="margin:0;padding:12px" class="muted" data-filter={p.traceFilter}>
-            {p.tr("traceability.rows", { n: rows.length })}
-          </h2>
-          <div style="flex:1;min-height:0" data-testid="traceability-list">
-            <VirtualList
-              count={rows.length}
-              row={(i) => {
-                const r = rows[i]!;
-                return (
-                  <div class="row">
-                    <span class="mono">{r.id}</span>
-                    <span>{r.title}</span>
-                    <span class="muted" style="margin-left:auto">
-                      {r.needs}
-                    </span>
-                  </div>
-                );
-              }}
-            />
-          </div>
-        </div>
-      );
-    }
+    case "traceability":
+      // Trace from the editor: the requirement's own rows first (REQ-042).
+      return p.traceView;
     case "report":
       return (
         <>

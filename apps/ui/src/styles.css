@@ -3752,3 +3752,301 @@ ul.notes > li:first-child {
   max-height: 40%;
   overflow-y: auto;
 }
+
+/* Traceability (draft-traceability REQ-121 … REQ-123): one row per scenario, as the board draws it. */
+.trace {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  height: 100%;
+  min-height: 0;
+  padding: 20px 24px 12px;
+  box-sizing: border-box;
+}
+.trace-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.trace-head h1 {
+  margin: 0;
+  font-size: 24px;
+  letter-spacing: -0.02em;
+}
+.trace-sub {
+  font-size: 13px;
+}
+.trace-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.trace-filter {
+  flex: 1 1 220px;
+  max-width: 380px;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--text);
+  font:
+    13px "IBM Plex Sans",
+    system-ui,
+    sans-serif;
+}
+.trace-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--row-text);
+  font:
+    13px "IBM Plex Sans",
+    system-ui,
+    sans-serif;
+  white-space: nowrap;
+}
+.chip[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--text);
+  background: var(--row-current);
+}
+.trace-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 13px;
+}
+.tcard {
+  flex: 1 1 200px;
+  padding: 10px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--bg-raised);
+}
+.tcard .k {
+  font-size: 12px;
+  color: var(--muted);
+}
+.tcard .v {
+  font-size: 22px;
+  font-weight: 700;
+}
+.tcard .v .muted {
+  font-size: 13px;
+  font-weight: 400;
+}
+.tcard.bad {
+  border-color: #5c2a2a;
+  background: #1e1616;
+}
+.tcard.bad .v {
+  color: #ff9c9c;
+}
+:root[data-theme="light"] .tcard.bad {
+  border-color: #f0b8b8;
+  background: #fff3f3;
+}
+:root[data-theme="light"] .tcard.bad .v {
+  color: var(--bad);
+}
+.trace-table {
+  flex: 1 1 auto;
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.trace-rows {
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
+}
+.trow {
+  display: grid;
+  grid-template-columns:
+    minmax(96px, 1.4fr) minmax(84px, 0.75fr) minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 0.8fr)
+    minmax(150px, 2.1fr) 72px;
+  align-items: center;
+  height: 36px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+.trow > span {
+  min-width: 0;
+  padding: 0 10px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.trow.thead {
+  flex: none;
+  background: var(--bg-input);
+  border-bottom-color: var(--line-strong);
+  font:
+    600 11px "IBM Plex Sans",
+    system-ui,
+    sans-serif;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.trow .mono {
+  font-size: 12px;
+}
+.treq {
+  color: var(--accent-soft);
+}
+.trow .ok {
+  color: var(--ok-text);
+}
+.trow .gap {
+  color: #ff9c9c;
+}
+:root[data-theme="light"] .trow .gap {
+  color: var(--bad);
+}
+.tc-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tpill {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: var(--bg-input);
+  color: var(--row-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.tpill[data-status="Verified"],
+.tpill[data-status="Implemented"],
+.tpill[data-status="Released"] {
+  background: #17271f;
+  color: var(--ok-text);
+}
+.tpill[data-status="Needs Clarification"] {
+  background: #3a3220;
+  color: var(--warn);
+}
+.tpill.gap {
+  flex: none;
+  background: #2a1716;
+  color: #ff9c9c;
+}
+:root[data-theme="light"] .tpill[data-status="Verified"],
+:root[data-theme="light"] .tpill[data-status="Implemented"],
+:root[data-theme="light"] .tpill[data-status="Released"] {
+  background: #e3f4ea;
+}
+:root[data-theme="light"] .tpill[data-status="Needs Clarification"] {
+  background: #fbf0d6;
+}
+:root[data-theme="light"] .tpill.gap {
+  background: #fde8e8;
+  color: var(--bad);
+}
+.tc-act {
+  display: flex;
+  justify-content: flex-end;
+}
+.tfix {
+  border: 0;
+  background: transparent;
+  color: var(--accent-soft);
+  font:
+    12px "IBM Plex Sans",
+    system-ui,
+    sans-serif;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+.tfix:hover {
+  text-decoration: underline;
+}
+.trace-empty {
+  padding: 12px;
+}
+.trace-foot {
+  margin: 0;
+  font-size: 12px;
+  flex: none;
+}
+.trace-unavailable {
+  max-width: 640px;
+}
+
+/* "Fix"'s proposal in the panel's Traceability tab (REQ-123). */
+.pbody[data-panel="traceability"] {
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+}
+.proposal {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--text);
+}
+.proposal-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  font-size: 12px;
+}
+.proposal-path {
+  color: var(--accent-soft);
+}
+.proposal-acts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.proposal-acts .btn {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+.proposal-acts .btn:disabled {
+  opacity: 0.5;
+}
+pre.skeleton {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--row-text);
+  font:
+    12px/1.55 "IBM Plex Mono",
+    monospace;
+  white-space: pre;
+  overflow: auto;
+}
+.proposal-left p {
+  margin: 0 0 4px;
+}
+.proposal-none {
+  margin: 0;
+  font-size: 12px;
+}
