@@ -9,3 +9,4 @@ export const systemClock = { now: (): string => new Date().toISOString() };
 export { NodeHarnessEvents } from "./NodeHarnessEvents.js";
 export { freedesktopTrash, systemTrash, type Exec, type Trash } from "./NodeTrash.js";
 export { NodeFolders, NodePrograms } from "./NodeFolders.js";
+export { NodeScratch } from "./NodeScratch.js";
