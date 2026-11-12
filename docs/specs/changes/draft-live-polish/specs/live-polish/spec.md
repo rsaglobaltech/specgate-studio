@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-201 — SALIDA DEL AGENTE: one timestamped line per action, following the end
 
-<!-- specgate:trace actor=Developer kind=functional status="Needs Clarification" -->
+<!-- specgate:trace actor=Developer kind=functional status=Draft -->
 
 The system SHALL show in Live's SALIDA DEL AGENTE, while the agent works, one line per action of the agent — its time, then `read <file>`, `edit <file> +N`, `run <command>` with `✓ N passing` or `✗ N failing`, or `ask <question>` — each line one row however long its command, the full command shown on hover and when the line is expanded; and SHALL keep the end in view as lines arrive unless the Developer scrolls up, then pause, saying "sigue el final · sube para pausar", until the Developer returns to the end.
 
