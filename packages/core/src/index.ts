@@ -1,4 +1,10 @@
-export { SECTIONS, type Section, type SectionData } from "./domain/section.js";
+export {
+  SECTIONS,
+  unreadableOf,
+  type Section,
+  type SectionData,
+  type Unreadable,
+} from "./domain/section.js";
 export { sectionsFedBy } from "./domain/fedBy.js";
 export type { SectionReader } from "./ports/SectionReader.js";
 export { ProjectState, type ChangeListener } from "./application/ProjectState.js";
@@ -46,8 +52,10 @@ export {
   LANGS,
   PART_LABELS,
   explain,
+  fileNotice,
   missingTranslations,
   notice,
+  type FileOutcome,
   type ActionId,
   type Catalog,
   type Explanation,
@@ -90,7 +98,7 @@ export {
 } from "./domain/workspace.js";
 export type { FileSystemPort } from "./ports/FileSystemPort.js";
 export type { GitPort, GitWriter } from "./ports/GitPort.js";
-export { ANY_FILE, type Watch, type WatcherPort } from "./ports/WatcherPort.js";
+export { ANY_FILE, GIT_STATE, type Watch, type WatcherPort } from "./ports/WatcherPort.js";
 export type { StorePort } from "./ports/StorePort.js";
 export type { ClockPort } from "./ports/ClockPort.js";
 export { Workspace, type WorkspaceListener } from "./application/Workspace.js";
@@ -207,3 +215,31 @@ export {
 } from "./domain/brief.js";
 export { quoted } from "./domain/args.js";
 export { Brief, type CommandRunner, type DraftResult } from "./application/Brief.js";
+export {
+  OPEN_FOLDERS_KEY,
+  OPEN_FOLDERS_LIMIT,
+  childPath,
+  cleanOpenFolders,
+  foldersAbove,
+  foldersWithChanges,
+  letterOf,
+  parentOf,
+  sortEntries,
+  validName,
+  type GitLetter,
+  type OpenFolders,
+  type TreeEntry,
+} from "./domain/explorer.js";
+export {
+  ROUTE,
+  activityOf,
+  agentCostOf,
+  briefModuleNames,
+  nextStep,
+  routeOf,
+  type Activity,
+  type HomeView,
+  type NextStep,
+  type RouteState,
+  type RouteStep,
+} from "./domain/home.js";

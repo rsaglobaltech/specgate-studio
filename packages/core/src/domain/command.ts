@@ -11,6 +11,8 @@ import { BRIEF_FILE } from "./brief.js";
 export type SpecgateCommand =
   | { name: "check" }
   | { name: "status" }
+  // Home's "Doctor" (draft-design-conformance REQ-173, A9): every diagnostic, read-only.
+  | { name: "doctor" }
   | { name: "change-validate"; change: string }
   | { name: "apply"; req: string }
   | { name: "archive"; change: string }
@@ -75,6 +77,8 @@ export function commandLine(c: SpecgateCommand): CommandLine | null {
       return { args: ["check"], write: false };
     case "status":
       return { args: ["status"], write: false };
+    case "doctor":
+      return { args: ["doctor"], write: false };
     case "change-validate":
       return { args: ["change", "validate", c.change], write: false };
     case "apply":

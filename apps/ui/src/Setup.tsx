@@ -14,7 +14,7 @@ import { HelpButton, type HelpRequest } from "./Help.js";
 type Tr = (key: string, vars?: Record<string, string | number>) => string;
 type Options = Requests["setup.options"]["result"];
 
-export type SetupStep = "create" | "adopt";
+export type SetupStep = "create" | "adopt" | "created";
 
 export interface SetupProps {
   rpc: Rpc;
@@ -120,17 +120,38 @@ function Create(p: SetupProps & { onCreated: () => void }) {
   if (!options || !answers) return <p class="muted">{p.tr("setup.reading")}</p>;
   const set = (k: keyof InitAnswers) => (e: Event) =>
     setAnswers({ ...answers, [k]: (e.target as HTMLInputElement).value } as InitAnswers);
-  const select = (k: keyof InitAnswers, values: Array<{ id: string; label: string }>) => (
-    <label class="setup-q">
-      <span>{p.tr(`setup.q.${k}`)}</span>
-      <select class="filter" value={answers[k]} onChange={set(k)}>
+  const choose = (k: keyof InitAnswers, id: string) =>
+    setAnswers({ ...answers, [k]: id } as InitAnswers);
+  /** One question as option cards (draft-design-conformance REQ-174, A10). */
+  const cards = (
+    k: keyof InitAnswers,
+    values: Array<{ id: string; label: string; sub?: string; tone?: string }>,
+    wide = false,
+  ) => (
+    <div class="setup-q cards-q">
+      <span id={`q-${k}`}>{p.tr(`setup.q.${k}`)}</span>
+      <div
+        class={`opts ${wide ? "wide" : ""}`}
+        role="radiogroup"
+        aria-labelledby={`q-${k}`}
+        data-q={k}
+      >
         {values.map((v) => (
-          <option key={v.id} value={v.id}>
-            {v.label}
-          </option>
+          <button
+            type="button"
+            role="radio"
+            class="opt"
+            key={v.id}
+            data-value={v.id}
+            aria-checked={answers[k] === v.id}
+            onClick={() => choose(k, v.id)}
+          >
+            <b>{v.label}</b>
+            {v.sub && <span class={v.tone ?? ""}>{v.sub}</span>}
+          </button>
         ))}
-      </select>
-    </label>
+      </div>
+    </div>
   );
   const create = async () => {
     setBusy(true);
@@ -147,26 +168,39 @@ function Create(p: SetupProps & { onCreated: () => void }) {
     }
   };
   return (
-    <form class="setup" onSubmit={(e) => (e.preventDefault(), void create())}>
+    <form class="setup card" onSubmit={(e) => (e.preventDefault(), void create())}>
+      <h2 class="setup-title">{p.tr("setup.here")}</h2>
       <label class="setup-q">
         <span>{p.tr("setup.q.name")}</span>
         <input class="filter" value={answers.name} onInput={set("name")} />
       </label>
-      {select(
+      {cards(
         "kind",
-        options.kinds.map((id) => ({ id, label: p.tr(`setup.kind.${id}`) })),
+        options.kinds.map((id) => ({
+          id,
+          label: p.tr(`setup.kind.${id}`),
+          sub: p.tr(`setup.kindSub.${id}`),
+        })),
       )}
-      {select("stack", options.stacks)}
-      {select("agent", [...options.agents, { id: "none", label: p.tr("setup.agent.none") }])}
-      {select(
+      {cards("stack", options.stacks, true)}
+      {cards("agent", [
+        ...options.agents.map((a) => ({
+          id: a.id,
+          label: a.label,
+          sub: a.detected ? p.tr("setup.detected") : p.tr("setup.notInstalled"),
+          tone: a.detected ? "ok" : "",
+        })),
+        { id: "none", label: p.tr("setup.agent.none") },
+      ])}
+      {cards(
         "architecture",
         options.architectures.map((id) => ({ id, label: p.tr(`setup.arch.${id}`) })),
       )}
-      <h2 class="setup-h">{p.tr("setup.command")}</h2>
       {plan?.problem ? (
         <p class="setup-problem">{plan.problem}</p>
       ) : (
-        <>
+        <details class="setup-plan">
+          <summary>{p.tr("setup.command")}</summary>
           {plan?.commands.map((c) => (
             <div class="mono setup-cmd" key={c}>
               {c}
@@ -175,7 +209,7 @@ function Create(p: SetupProps & { onCreated: () => void }) {
           <pre class="mono setup-config" aria-label={p.tr("setup.config")}>
             {plan?.config}
           </pre>
-        </>
+        </details>
       )}
       {failed && <p class="setup-problem">{failed}</p>}
       <div class="actions">
@@ -187,12 +221,124 @@ function Create(p: SetupProps & { onCreated: () => void }) {
         >
           {p.tr("setup.createButton")}
         </button>
+        <span class="muted setup-runs">
+          {p.tr("setup.runs", { command: plan?.commands[0] ?? "specgate init" })}
+        </span>
         <HelpButton
           label={p.tr("help.button", { feature: p.tr("setup.createButton") })}
           onOpen={() => p.onHelp({ action: "init", feature: p.tr("setup.createButton") })}
         />
       </div>
     </form>
+  );
+}
+
+/**
+ * An empty folder's Home as `IDE-Nuevo.dc.html` draws it (REQ-174): the five
+ * questions as option cards beside "Already have code?" and the recent
+ * projects.
+ */
+export function NewProject(p: SetupProps & { root: string; onCreated: () => void }) {
+  const [done, setDone] = useState(false);
+  const [recent, setRecent] = useState<Array<{ path: string; name: string }>>([]);
+  const [folder, setFolder] = useState<string | null>(null);
+  const [failed, setFailed] = useState<string | null>(null);
+  useEffect(() => {
+    p.rpc.ask("recent.list", {}).then(
+      (r) =>
+        setRecent(
+          r.filter((x) => x.path && x.path.replace(/\\/g, "/") !== p.root.replace(/\\/g, "/")),
+        ),
+      () => undefined,
+    );
+  }, [p.rpc]);
+  const openFolder = async (path: string) => {
+    setFailed(null);
+    try {
+      const { url } = await p.rpc.ask("recent.open", { path });
+      location.href = url.replace(/^ws/, "http");
+    } catch (e) {
+      setFailed(e instanceof Error ? e.message : String(e));
+    }
+  };
+  if (done)
+    return (
+      <>
+        <h1>{p.tr("setup.create")}</h1>
+        <Readiness {...p} />
+        <div class="actions">
+          <button type="button" class="btn" data-setup="home" onClick={p.onDone}>
+            {p.tr("setup.home")}
+          </button>
+        </div>
+      </>
+    );
+  return (
+    <div class="newp">
+      <div class="newp-head">
+        <div class="eyebrow mono">[ {p.tr("setup.emptyEyebrow")} ]</div>
+        <h1>{p.tr("setup.startTitle")}</h1>
+        <p class="muted">{p.tr("setup.startSub")}</p>
+      </div>
+      <div class="newp-cols">
+        <Create {...p} onCreated={() => (setDone(true), p.onCreated())} />
+        <aside class="newp-side">
+          <section class="card" data-testid="have-code">
+            <h2>{p.tr("setup.haveCode")}</h2>
+            <p class="muted">{p.tr("setup.haveCodeBody")}</p>
+            {folder === null ? (
+              <div class="actions">
+                <button
+                  type="button"
+                  class="btn"
+                  data-act="open-folder"
+                  onClick={() => setFolder("")}
+                >
+                  {p.tr("setup.openFolder")}
+                </button>
+                <HelpButton
+                  label={p.tr("help.button", { feature: p.tr("setup.openFolder") })}
+                  onOpen={() => p.onHelp({ action: "adopt", feature: p.tr("setup.openFolder") })}
+                />
+              </div>
+            ) : (
+              <form
+                class="actions"
+                onSubmit={(e) => (e.preventDefault(), folder && void openFolder(folder))}
+              >
+                <input
+                  class="filter"
+                  aria-label={p.tr("setup.folderPath")}
+                  placeholder={p.tr("setup.folderPath")}
+                  value={folder}
+                  onInput={(e) => setFolder((e.target as HTMLInputElement).value)}
+                />
+                <button type="submit" class="btn" disabled={!folder.trim()}>
+                  {p.tr("setup.open")}
+                </button>
+              </form>
+            )}
+            {failed && <p class="setup-problem">{failed}</p>}
+          </section>
+          <section class="card" data-testid="recent">
+            <h2>{p.tr("setup.recent")}</h2>
+            {recent.length === 0 && <p class="muted">{p.tr("setup.noRecent")}</p>}
+            {recent.map((r) => (
+              <button
+                type="button"
+                class="recent-row"
+                key={r.path}
+                data-path={r.path}
+                onClick={() => void openFolder(r.path)}
+              >
+                <span>{r.name}</span>
+                <span class="mono muted">{r.path.replace(/^\/(Users|home)\/[^/]+/, "~")}</span>
+              </button>
+            ))}
+          </section>
+        </aside>
+      </div>
+    </div>
   );
 }
 
@@ -398,10 +544,11 @@ export function Readiness(p: Omit<SetupProps, "step" | "onDone" | "announce">) {
 
 /** The setup a folder needs, then what is ready (draft-project-setup). */
 export function SetupPane(p: SetupProps) {
-  const [done, setDone] = useState(false);
+  // Created from an empty folder's Home: what is ready and what is not (REQ-114).
+  const [done, setDone] = useState(p.step === "created");
   return (
     <>
-      <h1>{p.tr(p.step === "create" ? "setup.create" : "setup.adopt")}</h1>
+      <h1>{p.tr(p.step === "adopt" ? "setup.adopt" : "setup.create")}</h1>
       {done ? (
         <>
           <Readiness {...p} />

@@ -20,8 +20,15 @@ export class ProjectState {
   constructor(private readonly specgate: SectionReader) {}
 
   /** The first read: every section, at once. */
+  /**
+   * Every section read once. A section that cannot be read does not keep the
+   * others from opening (draft-design-conformance REQ-178): only when none
+   * can be read is the project not opened — a folder that is no project.
+   */
   async open(): Promise<void> {
-    await Promise.all(SECTIONS.map((section) => this.section(section)));
+    const read = await Promise.allSettled(SECTIONS.map((section) => this.section(section)));
+    const failed = read.find((r): r is PromiseRejectedResult => r.status === "rejected");
+    if (failed && read.every((r) => r.status === "rejected")) throw failed.reason;
   }
 
   /** A section's data, from memory once it has been read. */

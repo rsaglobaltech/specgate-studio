@@ -13,6 +13,8 @@ import {
   InMemoryHarnessEvents,
   InMemoryFileSystem,
   InMemoryGit,
+  InMemoryWatcher,
+  IgnoreRules,
   type Finding,
   type ProcessRunner,
   type Section,
@@ -81,6 +83,15 @@ export interface StudioOptions {
   homeRequirements?: Array<{ id: string; title: string; category: string; needs: string | null }>;
   /** The project's uncommitted files (draft-build-live); none by default. */
   uncommitted?: string[];
+  /** git's two letters of some uncommitted files: `"??"`, `"A "` (draft-explorer-tree). */
+  status?: Record<string, string>;
+  /** Empty folders of the project, and links to folders outside it (draft-explorer-tree). */
+  folders?: string[];
+  links?: string[];
+  /** Sections read slowly, in ms (draft-design-conformance REQ-178). */
+  slow?: Partial<Record<Section, number>>;
+  /** The port to serve on; a free one by default. */
+  port?: number;
 }
 
 export async function studio(opts: StudioOptions = {}) {
@@ -111,7 +122,14 @@ export async function studio(opts: StudioOptions = {}) {
     ...opts.sections,
   };
   const reader: SectionReader = {
-    read: async (s) => (reads.push(s), structuredClone(data[s])),
+    read: async (s) => {
+      reads.push(s);
+      const wait = opts.slow?.[s];
+      if (wait) await new Promise((ok) => setTimeout(ok, wait));
+      // A section given as an Error cannot be read (draft-design-conformance REQ-178).
+      if (data[s] instanceof Error) throw data[s];
+      return structuredClone(data[s]);
+    },
   };
   const runs: string[][] = [];
   const runner: ProcessRunner = {
@@ -147,8 +165,20 @@ export async function studio(opts: StudioOptions = {}) {
     "spec.md": "# spec.md\n",
   };
   const writes: string[] = [];
+  // Empty folders the tree made, and links to folders outside the project (draft-explorer-tree).
+  const folders = new Set<string>(opts.folders ?? []);
+  const links = new Set<string>(opts.links ?? []);
+  const trash: string[] = [];
+  const childrenReads: string[] = [];
+  const refusal = (code: string, message: string) => Object.assign(new Error(message), { code });
+  const throughLink = (p: string) => [...links].some((l) => p === l || p.startsWith(`${l}/`));
+  const isFolder = (p: string) =>
+    folders.has(p) || links.has(p) || Object.keys(disk).some((f) => f.startsWith(`${p}/`));
+  const exists = (p: string) => p in disk || isFolder(p);
+  // What the project's .gitignore names and the workspace's rules, left out as the real port does.
+  const ignored = (p: string) => new IgnoreRules(disk[".gitignore"] ?? "").ignores(p);
   const files: ProjectFiles = {
-    list: async () => Object.keys(disk),
+    list: async () => Object.keys(disk).filter((p) => !ignored(p)),
     read: async (p) => {
       if (!(p in disk)) throw new Error(`no ${p}`);
       return disk[p]!;
@@ -156,6 +186,44 @@ export async function studio(opts: StudioOptions = {}) {
     write: async (p, text) => {
       writes.push(p);
       disk[p] = text;
+    },
+    children: async (dir) => {
+      childrenReads.push(dir);
+      if (dir && !isFolder(dir)) throw refusal("missing", `no folder ${dir}`);
+      const prefix = dir ? `${dir}/` : "";
+      const out = new Map<string, boolean>();
+      for (const p of [...Object.keys(disk), ...folders, ...links]) {
+        if (!p.startsWith(prefix) || p === dir || ignored(p)) continue;
+        const rest = p.slice(prefix.length);
+        const at = rest.indexOf("/");
+        if (at < 0) out.set(rest, out.get(rest) ?? (folders.has(p) || links.has(p)));
+        else out.set(rest.slice(0, at), true);
+      }
+      return [...out].map(([name, isDir]) => ({ name, dir: isDir }));
+    },
+    create: async (p, dir) => {
+      if (throughLink(p)) throw refusal("outside", "not inside the project");
+      if (exists(p)) throw refusal("exists", `${p} already exists`);
+      if (dir) folders.add(p);
+      else disk[p] = "";
+    },
+    rename: async (from, to) => {
+      if (throughLink(from) || throughLink(to)) throw refusal("outside", "not inside the project");
+      if (!exists(from)) throw refusal("missing", `${from} is not there`);
+      if (exists(to)) throw refusal("exists", `${to} already exists`);
+      for (const f of Object.keys(disk))
+        if (f === from || f.startsWith(`${from}/`)) {
+          disk[to + f.slice(from.length)] = disk[f]!;
+          delete disk[f];
+        }
+      if (folders.delete(from)) folders.add(to);
+    },
+    remove: async (p, permanent) => {
+      if (throughLink(p)) throw refusal("outside", "not inside the project");
+      if (!exists(p)) throw refusal("missing", `${p} is not there`);
+      if (!permanent) trash.push(p);
+      for (const f of Object.keys(disk)) if (f === p || f.startsWith(`${p}/`)) delete disk[f];
+      folders.delete(p);
     },
   };
   const projectDir = path.join(dir, "sprich");
@@ -168,11 +236,14 @@ export async function studio(opts: StudioOptions = {}) {
   // Build's harness: a build ends when the test says (draft-build-live).
   const harness = new FakeHarness();
   const events = new InMemoryHarnessEvents();
+  if (opts.status) git.setStatus(projectDir, opts.status);
+  const watcher = new InMemoryWatcher();
   const workspace = {
     fs: new InMemoryFileSystem({
       [path.join(projectDir, "docs/specs/traceability.md")]: "# Matrix\n",
     }),
     git,
+    watcher,
   };
   const calls: string[][] = [];
   const answers = opts.specgate;
@@ -186,7 +257,7 @@ export async function studio(opts: StudioOptions = {}) {
   };
   const host = await serve({
     projectDir,
-    port: 0,
+    port: opts.port ?? 0,
     reader,
     runner,
     files,
@@ -203,10 +274,15 @@ export async function studio(opts: StudioOptions = {}) {
     writes,
     disk,
     git,
+    watcher,
+    trash,
+    childrenReads,
+    folders,
     harness,
     events,
     projectDir,
     url: host.url.replace(/^ws/, "http"),
+    newPage: () => browser.newPage({ locale: "en-US" }),
   };
 }
 
@@ -227,7 +303,8 @@ export async function open(
   await page.goto(host.url);
   await page.waitForSelector("body[data-ready] .activity .sga");
   // Settled: the terminals' chunk too, which asks the host for its terminals once.
-  await page.waitForSelector(".term-tabs");
+  // The panel is hidden until it holds something (draft-design-conformance REQ-172).
+  await page.waitForSelector(".term-tabs", { state: "attached" });
   return page;
 }
 
@@ -258,4 +335,31 @@ export async function untilTerm(page: Page, id: string, re: RegExp, ms = 20_000)
       throw new Error(`terminal ${id}: no ${re} in ${JSON.stringify(text.slice(-400))}`);
     await new Promise((ok) => setTimeout(ok, 50));
   }
+}
+
+/** The bottom panel shown: hidden until it holds something (draft-design-conformance REQ-172). */
+export async function showPanel(page: Page): Promise<void> {
+  if (await page.$eval(".panel", (e) => (e as HTMLElement).hidden)) {
+    await page.keyboard.press(`${MOD}+J`);
+    await page.waitForSelector(".panel:not([hidden])");
+  }
+}
+
+/** The bottom panel hidden. */
+export async function hidePanel(page: Page): Promise<void> {
+  if (!(await page.$eval(".panel", (e) => (e as HTMLElement).hidden))) {
+    await page.keyboard.press(`${MOD}+J`);
+    await page.waitForSelector(".panel[hidden]", { state: "attached" });
+  }
+}
+
+/**
+ * A file opened from the Explorer: its tree in the side panel, the file found
+ * with the filter inside the tree (draft-explorer-tree REQ-167), then chosen.
+ */
+export async function openFromExplorer(page: Page, file: string): Promise<void> {
+  await page.click('.sga[data-view="explorer"]');
+  await page.fill(".explorer .filter", file);
+  await page.click(`.explorer .row[title="${file}"]`);
+  await page.fill(".explorer .filter", "");
 }

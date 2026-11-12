@@ -17,6 +17,8 @@ export interface TerminalPaneProps {
   showStudio: number;
   /** Bumped when a new terminal of the Developer's should open (Ctrl+`, "Open a terminal"). */
   openShell: number;
+  /** A terminal to open in a folder of the project: "Open in terminal" (draft-explorer-tree A15). */
+  openShellIn?: { n: number; cwd: string } | null;
   labels: { newTerminal: string; close: string; readonly: string; openTerminal: string };
 }
 
@@ -108,8 +110,8 @@ export default function TerminalPane(p: TerminalPaneProps) {
     setSelected(id);
   }
 
-  async function openShell() {
-    const size = { cols: 100, rows: 24 };
+  async function openShell(cwd?: string) {
+    const size = { cols: 100, rows: 24, ...(cwd ? { cwd } : {}) };
     const { id, name } = await props.current.rpc.ask("terminal.open", size);
     add(id, name);
   }
@@ -167,6 +169,10 @@ export default function TerminalPane(p: TerminalPaneProps) {
   useEffect(() => {
     if (p.openShell > 0) void openShell();
   }, [p.openShell]);
+
+  useEffect(() => {
+    if (p.openShellIn) void openShell(p.openShellIn.cwd);
+  }, [p.openShellIn?.n]);
 
   useEffect(() => {
     for (const e of entries.current.values()) e.term.options.theme = THEMES[p.theme];

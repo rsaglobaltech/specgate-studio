@@ -65,7 +65,8 @@ export async function startProjectHost(
   const fs = new NodeFileSystem();
   const git = new NodeGit();
   const caseInsensitive = caseInsensitivePaths();
-  const recent = new RecentProjects(new NodeStore(options.home), systemClock, caseInsensitive);
+  const store = new NodeStore(options.home);
+  const recent = new RecentProjects(store, systemClock, caseInsensitive);
   const registry: HostRegistry =
     options.registry ??
     new HostRegistry(
@@ -100,6 +101,8 @@ export async function startProjectHost(
     }),
     port: options.port ?? 0,
     workspace: { fs, git, watcher: new NodeWatcher(), recent, registry },
+    // The folders the Explorer leaves open, kept per project (draft-explorer-tree A4).
+    store,
     ...(options.ui ? { ui: options.ui } : {}),
     ...(options.files ? { files: options.files(projectDir) } : {}),
     ...(options.findings ? { findings: options.findings(projectDir) } : {}),

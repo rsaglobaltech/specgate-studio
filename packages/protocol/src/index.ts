@@ -49,6 +49,13 @@ import type {
   BriefModule,
   BriefView,
   DraftResult,
+  GitLetter,
+  TreeEntry,
+  Unreadable,
+  HomeView,
+  NextStep,
+  RouteState,
+  Activity,
 } from "@specgate-studio/core";
 
 export type { CommandEvent, RunResult, Section, SectionData, SpecgateCommand };
@@ -56,6 +63,19 @@ export type { CommandEvent, RunResult, Section, SectionData, SpecgateCommand };
 export type { Annotations };
 /** The open folder (draft-workspace): its kind, git state and the recent projects. */
 export type { FolderKind, GitState, RecentProject, UncommittedGroup, WorkspaceState };
+/** Home as the boards draw it (draft-design-conformance REQ-173). */
+export type { Activity, HomeView, NextStep, RouteState };
+/** The Explorer's tree (draft-explorer-tree). */
+export type { GitLetter, TreeEntry };
+/** Why a section could not be read (draft-design-conformance REQ-178). */
+export type { Unreadable };
+/** How a write of the tree ended, with its notice in both languages (REQ-166, REQ-168). */
+export interface FileWriteResult {
+  ok: boolean;
+  /** The path written: the new one for a rename. */
+  path: string;
+  notice: Record<Lang, Notice>;
+}
 /** What every action says about itself (draft-help). */
 export type { ActionId, Explanation, HelpVars, Lang, Notice };
 /** The Changes view (draft-changes). */
@@ -98,17 +118,47 @@ export interface Requests {
   "recent.open": { params: { path: string }; result: { url: string; reused: boolean } };
   /** The project's files, relative with `/`, as Explorer lists them (draft-workbench REQ-032). */
   "files.list": { params: Record<string, never>; result: string[] };
+  /** Home's next step, route, agent's cost and activity (draft-design-conformance REQ-173). */
+  "home.get": { params: Record<string, never>; result: HomeView };
+  /** One folder's entries, folders first, nothing ignored (draft-explorer-tree REQ-161). */
+  "files.children": { params: { path: string }; result: { entries: TreeEntry[] } };
+  /** Git's letter of each changed file (REQ-163). */
+  "files.status": { params: Record<string, never>; result: { changes: Record<string, GitLetter> } };
+  /** The folders left open in this project, and keeping them (REQ-161). */
+  "explorer.open.get": { params: Record<string, never>; result: { open: string[] } };
+  "explorer.open.set": { params: { open: string[] }; result: Record<string, never> };
+  /** The tree's writes, through the host's file port, inside the project only (REQ-166). */
+  "file.create": { params: { path: string; dir: boolean }; result: FileWriteResult };
+  "file.rename": { params: { from: string; to: string }; result: FileWriteResult };
+  "file.delete": { params: { path: string; permanent: boolean }; result: FileWriteResult };
+  /** Where a requirement is written: its file and the line of its heading (REQ-169). */
+  "requirement.locate": {
+    params: { req: string };
+    result: { path: string; line: number } | null;
+  };
   /** The "?" of an action: its five parts and their labels; runs nothing (draft-help REQ-061). */
   "help.explain": {
     params: { action: ActionId; lang: Lang; vars?: HelpVars };
     result: { labels: Record<keyof Explanation, string>; explanation: Explanation };
+  };
+  /** Every action's "?" in one language, for the Help view (draft-design-conformance REQ-179). */
+  "help.catalog": {
+    params: { lang: Lang };
+    result: {
+      labels: Record<keyof Explanation, string>;
+      actions: Array<{ action: ActionId; explanation: Explanation }>;
+    };
   };
   /** Save a file: only when the person saves (draft-editor REQ-045). */
   "file.write": { params: { path: string; text: string }; result: { path: string } };
   /** A file's findings and blocking questions (draft-editor REQ-043, REQ-044). */
   "file.annotations": { params: { path: string; text?: string }; result: Annotations };
   /** A terminal of the Developer's: their shell in the project's folder (draft-terminal REQ-051). */
-  "terminal.open": { params: { cols: number; rows: number }; result: { id: string; name: string } };
+  "terminal.open": {
+    /** `cwd`: a folder of the project to start in (draft-explorer-tree REQ-166, A15). */
+    params: { cols: number; rows: number; cwd?: string };
+    result: { id: string; name: string };
+  };
   "terminal.input": { params: { id: string; data: string }; result: Record<string, never> };
   "terminal.resize": {
     params: { id: string; cols: number; rows: number };
@@ -130,7 +180,7 @@ export interface Requests {
     result: {
       kinds: string[];
       stacks: Array<{ id: string; label: string }>;
-      agents: Array<{ id: string; label: string }>;
+      agents: Array<{ id: string; label: string; detected?: boolean }>;
       architectures: string[];
       name: string;
     };
@@ -187,11 +237,15 @@ export interface Notifications {
   "live.changed": LiveView;
   /** The brief was saved and checked: what Problems lists now (draft-brief REQ-072). */
   "problems.changed": { findings: Finding[] };
+  /** The tree wrote these paths (draft-explorer-tree REQ-166): read their folders again. */
+  "files.changed": { paths: string[] };
 }
 
 export interface ProjectOpened {
   project: string;
   sections: Partial<Record<Section, SectionData>>;
+  /** The sections that could not be read, and why (draft-design-conformance REQ-178). */
+  unreadable?: Partial<Record<Section, Unreadable>>;
 }
 
 export type Method = keyof Requests;

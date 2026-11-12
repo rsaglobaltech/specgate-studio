@@ -5,6 +5,13 @@
  */
 export const ANY_FILE = "*";
 
+/**
+ * The path told when only git's own state changed — a commit, a stage, a
+ * checkout: no file of the project, but the uncommitted files and their
+ * letters (draft-explorer-tree REQ-163) are read again.
+ */
+export const GIT_STATE = ".git";
+
 /** A watch that can be stopped. */
 export interface Watch {
   close(): Promise<void>;

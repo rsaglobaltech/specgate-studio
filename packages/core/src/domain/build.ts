@@ -82,8 +82,9 @@ export function agentProgram(command: string): string | null {
 
 /**
  * What Build lists (REQ-101, A2): every requirement `status --json` has left
- * to build, ready or apart with why — an open question, a draft no person
- * approved (`review`, the changes of that group), or no scenario yet. The
+ * to build, ready or apart with why — an open question (from `status` or from
+ * `questions --json`'s `blocks`), a change no person approved (`review`), or
+ * no scenario yet. The
  * estimate is specgate's (A3), the agent the project's (A4).
  */
 export function buildList(
@@ -91,8 +92,20 @@ export function buildList(
   review: ReadonlySet<string>,
   report: unknown,
   config: Readonly<Record<string, string>>,
+  questions: unknown = null,
 ): BuildList {
   const all = (status as { requirements?: unknown } | null)?.requirements;
+  // `status --json` does not always say a question blocks a requirement:
+  // `questions --json` does, by each open question's `blocks`.
+  const blockedBy = new Map<string, string>();
+  const open = (questions as { questions?: { open?: unknown } } | null)?.questions?.open;
+  for (const q of Array.isArray(open) ? (open as Array<Record<string, unknown>>) : []) {
+    const qid = str(q.id);
+    // The agent's own question, asked while it builds, is answered in Live
+    // (REQ-104) and the run goes on: it does not take the requirement out.
+    if (!qid || !Array.isArray(q.blocks) || q.asked === "build") continue;
+    for (const b of q.blocks) if (typeof b === "string" && !blockedBy.has(b)) blockedBy.set(b, qid);
+  }
   const ready: BuildItem[] = [];
   const waiting: WaitingItem[] = [];
   for (const r of Array.isArray(all) ? (all as Array<Record<string, unknown>>) : []) {
@@ -100,8 +113,12 @@ export function buildList(
     const category = str(r.category);
     if (!id || !category || BUILT.has(category)) continue;
     const item: BuildItem = { id, title: str(r.title), change: str(r.change) };
-    if (category === "WAITING_FOR_ANSWER")
-      waiting.push({ ...item, why: "question", question: str(r.question) });
+    if (category === "WAITING_FOR_ANSWER" || blockedBy.has(id))
+      waiting.push({
+        ...item,
+        why: "question",
+        question: str(r.question) ?? blockedBy.get(id) ?? null,
+      });
     else if (item.change && review.has(item.change))
       waiting.push({ ...item, why: "review", question: null });
     else if (category === "NEEDS_FEATURE")

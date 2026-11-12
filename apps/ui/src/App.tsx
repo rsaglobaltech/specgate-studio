@@ -12,6 +12,7 @@ import type {
   QuestionsSection,
   Requests,
   RunResult,
+  Unreadable,
   SectionData,
   SpecgateCommand,
   WorkspaceState,
@@ -19,8 +20,16 @@ import type {
 import { Rpc } from "./rpc.js";
 import { t, type Lang } from "./i18n.js";
 import { shortcut, type Action } from "./keys.js";
-import { FEATURES, filterFeatures, type Feature } from "./palette.js";
-import { closeTab, nextTab, openTab, previousTab, type Tabs } from "./tabs.js";
+import { AREAS, FEATURES, MENUS, filterFeatures, type Feature } from "./palette.js";
+import {
+  closeTab,
+  closeTabs,
+  nextTab,
+  openTab,
+  previousTab,
+  renameTab,
+  type Tabs,
+} from "./tabs.js";
 import { BOTTOM_VIEWS, PANEL_TABS, TOP_VIEWS, type PanelTab, type ViewId } from "./views.js";
 import { Logo, ViewIcon } from "./icons.js";
 import { VirtualList } from "./VirtualList.js";
@@ -30,10 +39,14 @@ import { Build } from "./views/Build.js";
 import { Live } from "./views/Live.js";
 import { loadSettings, saveSettings, type Theme } from "./settings.js";
 import Questions from "./views/Questions.js";
-import { AdoptedAreas, SetupNext, SetupPane, type SetupStep } from "./Setup.js";
+import { AdoptedAreas, NewProject, SetupNext, SetupPane, type SetupStep } from "./Setup.js";
 import { Problems } from "./views/Problems.js";
 import { Brief } from "./views/Brief.js";
 import { bt } from "./views/briefText.js";
+import { Explorer } from "./Explorer.js";
+import { Home } from "./views/Home.js";
+import { HelpView } from "./views/HelpView.js";
+import { fileType, modulesOf } from "./tree.js";
 
 type Sections = Partial<
   Record<"home" | "changes" | "questions" | "matrix" | "report", SectionData>
@@ -61,11 +74,27 @@ export function App({ rpc }: { rpc: Rpc }) {
   const [lang, setLang] = useState<Lang>(initial.lang);
   const [theme, setTheme] = useState<Theme>(initial.theme);
   const [view, setView] = useState<ViewId>("home");
+  /** What the main area shows while the Explorer's panel is the open view (draft-explorer-tree A7). */
+  const [behind, setBehind] = useState<ViewId>("home");
+  /** A line to bring into view in the editor: a requirement opened from the Explorer (REQ-169). */
+  const [reveal, setReveal] = useState<{ path: string; line: number; n: number } | null>(null);
+  /** The requirement the studio is building, for the modules' dots (REQ-169). */
+  const [building, setBuilding] = useState<string | null>(null);
+  /** The drafts no person approved yet (REQ-169). */
+  const [unapproved, setUnapproved] = useState<ReadonlySet<string>>(new Set());
+  const [focusEditor, setFocusEditor] = useState(0);
+  /** The tabs opened on a requirement: their id and title (REQ-177, A16). */
+  const [tabReq, setTabReq] = useState<Record<string, { id: string; title: string }>>({});
+  /** Where the cursor is, for the breadcrumb (REQ-177). */
+  const [cursor, setCursor] = useState<{ path: string; line: number } | null>(null);
+  const [openShellIn, setOpenShellIn] = useState<{ n: number; cwd: string } | null>(null);
   const [ticketPanel, setTicketPanel] = useState(false);
   const [tabs, setTabs] = useState<Tabs>({ open: [], active: null });
   const [texts, setTexts] = useState<Record<string, string>>({});
+  // Hidden until it holds something: a terminal, a command's echo, or the Developer's
+  // Ctrl/Cmd+J (draft-design-conformance REQ-172, A4).
   const [panel, setPanel] = useState<{ open: boolean; tab: PanelTab }>({
-    open: true,
+    open: false,
     tab: "terminal",
   });
   const [sidebar, setSidebar] = useState(false);
@@ -78,6 +107,7 @@ export function App({ rpc }: { rpc: Rpc }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [ended, setEnded] = useState<Record<NoticeLang, Notice> | null>(null);
   const [help, setHelp] = useState<{ title: string; requests: HelpRequest[] } | null>(null);
+  const closeHelp = useCallback(() => setHelp(null), []);
   // The editor (draft-editor): Monaco loads with the first file, not before (REQ-041).
   const [EditorPane, setEditorPane] = useState<ComponentType<EditorPaneProps> | null>(null);
   const editorApi = useRef<{
@@ -94,6 +124,10 @@ export function App({ rpc }: { rpc: Rpc }) {
   const activeRef = useRef<string | null>(null);
   const annotateRef = useRef<(path: string) => Promise<unknown>>(async () => undefined);
   const [lost, setLost] = useState(false);
+  /** The host gone for over a second: a banner and a grey status bar (REQ-178, A17). */
+  const [offline, setOffline] = useState(false);
+  /** The sections that could not be read, and why (REQ-178, A18). */
+  const [unreadable, setUnreadable] = useState<Partial<Record<string, Unreadable>>>({});
   const [workspace, setWorkspace] = useState<WorkspaceState | null>(null);
   // Setting up a folder that is no project yet (draft-project-setup).
   const [setup, setSetup] = useState<SetupStep | null>(null);
@@ -125,6 +159,17 @@ export function App({ rpc }: { rpc: Rpc }) {
       answer: t(lang, "question.answer"),
       other: t(lang, "question.other"),
       options: t(lang, "question.options"),
+      traceCount: (scenarios: number, tests: number) =>
+        t(lang, "lens.traceCount", {
+          scenarios: t(lang, scenarios === 1 ? "lens.scenario" : "lens.scenarios", {
+            n: scenarios,
+          }),
+          tests: t(lang, tests === 1 ? "lens.test" : "lens.tests", { n: tests }),
+        }),
+      qOpen: (q: string, req: string) => t(lang, "question.open", { q, req }),
+      qSource: (change: string) => t(lang, "question.source", { change }),
+      qFoot: (q: string) => t(lang, "question.foot", { q }),
+      qHelp: t(lang, "question.help"),
     }),
     [lang],
   );
@@ -142,6 +187,7 @@ export function App({ rpc }: { rpc: Rpc }) {
         (opened) => {
           setProject(opened.project);
           setSections(opened.sections as Sections);
+          setUnreadable(opened.unreadable ?? {});
         },
         // A folder that is no project yet has nothing to read: Home offers its setup.
         () =>
@@ -157,6 +203,11 @@ export function App({ rpc }: { rpc: Rpc }) {
   useEffect(() => {
     void openProject();
     rpc.ask("files.list", {}).then(setFiles, () => undefined);
+    // A terminal of the Developer's still open (a reload, a second tab): the panel holds it.
+    rpc.ask("terminal.list", {}).then(
+      (open) => open.length > 0 && setPanel((p) => ({ ...p, open: true })),
+      () => undefined,
+    );
     // The open folder: its branch, team and ticket (draft-workspace), kept current.
     rpc.ask("workspace.get", {}).then(setWorkspace, () => undefined);
     const offWorkspace = rpc.on("workspace.changed", ({ state }) => setWorkspace(state));
@@ -202,9 +253,49 @@ export function App({ rpc }: { rpc: Rpc }) {
     };
   }, [rpc]);
 
+  // The requirement being built and the drafts to review: the Explorer's dots (REQ-169).
+  useEffect(() => {
+    rpc.ask("live.get", {}).then(
+      (l) => setBuilding(l.building),
+      () => undefined,
+    );
+    return rpc.on("live.changed", (l) => setBuilding(l.building));
+  }, [rpc]);
+  // The drafts to review come with what Home and the Explorer read (REQ-169, REQ-173).
+  const onReview = useCallback(
+    (ids: readonly string[]) =>
+      setUnapproved((old) =>
+        old.size === ids.length && ids.every((i) => old.has(i)) ? old : new Set(ids),
+      ),
+    [],
+  );
+  const refreshFiles = useCallback(
+    () => void rpc.ask("files.list", {}).then(setFiles, () => undefined),
+    [rpc],
+  );
+
+  // The host lost and back (REQ-178, A17): said after 1 s; once back, what is open is read again.
+  useEffect(() => {
+    let timer: number | undefined;
+    return rpc.onStatus((c) => {
+      window.clearTimeout(timer);
+      if (c === "lost") timer = window.setTimeout(() => setOffline(true), 1000);
+      else {
+        setOffline(false);
+        void openProject();
+        rpc.ask("files.list", {}).then(setFiles, () => undefined);
+        rpc.ask("workspace.get", {}).then(setWorkspace, () => undefined);
+      }
+    });
+  }, [rpc, openProject]);
+
   // A folder created or adopted here is read once it is a project (draft-project-setup).
   const kind = workspace?.kind;
   const wasProject = useRef<boolean | null>(null);
+  // A folder that was a project when opened shows its shape while it is read (REQ-178);
+  // one being created or adopted keeps its setup on screen instead.
+  const firstKind = useRef<string | null>(null);
+  if (kind && firstKind.current === null) firstKind.current = kind;
   useEffect(() => {
     if (!kind) return;
     if (wasProject.current === false && kind === "specgate") {
@@ -220,6 +311,14 @@ export function App({ rpc }: { rpc: Rpc }) {
 
   const show = useCallback((v: ViewId) => {
     performance.mark(`view:${v}`);
+    // The Explorer is a side panel: what was in the main area stays (A7).
+    if (v === "explorer") {
+      setView((old) => {
+        if (old !== "explorer") setBehind(old);
+        return "explorer";
+      });
+      return;
+    }
     setView(v);
     setTicketPanel(false);
     setTabs((tb) => ({ ...tb, active: null }));
@@ -238,7 +337,10 @@ export function App({ rpc }: { rpc: Rpc }) {
   activeRef.current = tabs.active;
 
   const openFile = useCallback(
-    (path: string) => {
+    (path: string, line?: number, req?: { id: string; title: string }) => {
+      if (line) setReveal((r) => ({ path, line, n: (r?.n ?? 0) + 1 }));
+      // A tab opened on a requirement shows its id and title (REQ-177, A16).
+      if (req) setTabReq((t) => ({ ...t, [path]: req }));
       setTabs((tb) => openTab(tb, path));
       if (!EditorPane) {
         void import("./EditorPane.js").then((m) => setEditorPane(() => m.default));
@@ -278,9 +380,12 @@ export function App({ rpc }: { rpc: Rpc }) {
     setShowStudio((n) => n + 1);
   }, []);
 
+  /** The last command a button ran: a failed one can be run again (REQ-178, A19). */
+  const lastRun = useRef<{ label: string; command: SpecgateCommand } | null>(null);
   /** Runs a studio command for a button, which the terminal's echo names (REQ-053). */
   const runCommand = useCallback(
     (label: string, command: SpecgateCommand): Promise<RunResult> => {
+      lastRun.current = { label, command };
       announce(label);
       return rpc.ask("command.run", command);
     },
@@ -327,7 +432,12 @@ export function App({ rpc }: { rpc: Rpc }) {
       } else if (r.kind === "language") setLang((l) => (l === "en" ? "es" : "en"));
       else if (r.kind === "theme") setTheme((th) => (th === "dark" ? "light" : "dark"));
       else if (r.kind === "togglePanel") setPanel((p) => ({ ...p, open: !p.open }));
-      else setSidebar((s) => !s);
+      else if (r.kind === "openFile") setPalette("files");
+      else if (r.kind === "palette") setPalette("features");
+      else if (r.kind === "newTerminal") {
+        setPanel({ open: true, tab: "terminal" });
+        setOpenShell((n) => n + 1);
+      } else setSidebar((s) => !s);
     },
     [rpc, show, runCommand, lang],
   );
@@ -418,26 +528,92 @@ export function App({ rpc }: { rpc: Rpc }) {
     (sections.changes as { changes?: Array<{ id: string }> } | undefined)?.changes ?? [];
   const questionsSection = sections.questions as QuestionsSection | undefined;
   const questions = questionsSection?.questions?.open ?? [];
+  // How many tests name each requirement, as `report --json` says: Trace's count (REQ-171).
+  const testsOf = useMemo(() => {
+    const tested = new Map<string, number>();
+    const rows = (sections.report as { requirements?: unknown[] } | undefined)?.requirements ?? [];
+    for (const r of rows as Array<{ requirement?: unknown; testExists?: unknown }>)
+      if (typeof r.requirement === "string")
+        tested.set(r.requirement, r.testExists === true ? 1 : 0);
+    return (req: string) => tested.get(req) ?? 0;
+  }, [sections.report]);
+  const titles = useMemo(
+    () => new Map(requirements.map((r) => [r.id, r.title ?? ""])),
+    [requirements],
+  );
+  const questionsByChange = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const q of questions) m.set(q.change, (m.get(q.change) ?? 0) + 1);
+    return m;
+  }, [questions]);
   const badge: Partial<Record<ViewId, number>> = {
     changes: changes.length,
     questions: questions.length,
   };
   const activeFile = tabs.active;
+  // The requirement under the cursor ends the breadcrumb (REQ-177, A16).
+  const crumbReq = (() => {
+    if (!activeFile) return null;
+    const heads = annotations[activeFile]?.headings ?? [];
+    const line =
+      cursor?.path === activeFile ? cursor.line : reveal?.path === activeFile ? reveal.line : 1;
+    let at: string | null = null;
+    for (const h of heads) if (h.line <= line) at = h.req;
+    return at;
+  })();
+  /** What the main area shows: the Explorer is a side panel beside it (A7). */
+  const mainView: ViewId = view === "explorer" ? behind : view;
+  const mainSection = SECTION_OF[mainView] ?? null;
+  const readAgain = (section: string) =>
+    rpc.ask("section.get", { section: section as never }).then(
+      (data) => {
+        setSections((old) => ({ ...old, [section]: data }));
+        setUnreadable(({ [section]: _, ...rest }) => rest);
+      },
+      (e: Error) => setUnreadable((u) => ({ ...u, [section]: { message: e.message } })),
+    );
+  // What the open view counts, in the status bar (REQ-172, A7).
+  const answered = questionsSection?.questions?.answered ?? [];
+  const viewStatus =
+    !activeFile && mainView === "questions"
+      ? tr("status.questions", { open: questions.length, confirm: answered.length })
+      : null;
 
   return (
-    <div class="wb">
+    <div class={`wb ${offline ? "offline" : ""}`}>
+      {offline && (
+        <div class="banner" role="status" data-testid="reconnecting">
+          <span class="spin" />
+          <b>{tr("offline.title")}</b> {tr("offline.body")}
+        </div>
+      )}
       <header class="top">
         <span class="brand">
           <Logo />
           specgate<b>studio</b>
         </span>
+        {/* The menu bar: in the page in the browser; the desktop app's is the system's (REQ-172). */}
+        {!DESKTOP && <MenuBar lang={lang} onFeature={(f) => runFeature(f)} />}
         <button type="button" class="search" onClick={() => setPalette("features")}>
           <span>{tr("palette.search", { project: project || "…" })}</span>
           <span class="mono">{isMac ? "⌘ ⇧ P" : "Ctrl ⇧ P"}</span>
         </button>
-        <span class={`pill ${gate}`} data-testid="gate-pill">
-          <span class="dot" />
-          {tr(`status.gate.${gate}`)}
+        <span class="top-end">
+          <span class={`pill ${gate}`} data-testid="gate-pill">
+            <span class="dot" />
+            {tr(`pill.${gate}`)}
+          </span>
+          <button
+            type="button"
+            class="btn pri build"
+            data-testid="header-build"
+            onClick={() => show("build")}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M7 4l13 8-13 8z" />
+            </svg>
+            {tr("view.build")}
+          </button>
         </span>
       </header>
 
@@ -465,41 +641,104 @@ export function App({ rpc }: { rpc: Rpc }) {
           ))}
         </nav>
 
-        {sidebar && (
-          <aside class="side" aria-label={tr("explorer.files")}>
-            <h2>{tr("view.explorer")}</h2>
-            <FileList files={files} onOpen={openFile} empty={tr("explorer.empty")} />
-          </aside>
+        {(view === "explorer" || sidebar) && (
+          <Explorer
+            rpc={rpc}
+            lang={lang}
+            tr={tr}
+            files={files}
+            requirements={requirements}
+            changes={changes}
+            questions={questionsSection}
+            report={sections.report}
+            unapproved={unapproved}
+            onReview={onReview}
+            building={building}
+            activeFile={activeFile}
+            activeReq={crumbReq}
+            project={project}
+            workspaceStamp={workspace}
+            filterRef={filterRef}
+            openFile={openFile}
+            onHelp={(title, requests) => setHelp({ title, requests })}
+            onNotice={setEnded}
+            onOpenTerminal={(cwd) => {
+              setPanel({ open: true, tab: "terminal" });
+              setOpenShellIn((o) => ({ n: (o?.n ?? 0) + 1, cwd }));
+              setEnded({
+                en: {
+                  tone: "ok",
+                  ran: t("en", "tree.terminalOpened", { path: cwd || "." }),
+                  wrote: t("en", "tree.copiedWrote"),
+                  next: t("en", "tree.terminalNext"),
+                },
+                es: {
+                  tone: "ok",
+                  ran: t("es", "tree.terminalOpened", { path: cwd || "." }),
+                  wrote: t("es", "tree.copiedWrote"),
+                  next: t("es", "tree.terminalNext"),
+                },
+              });
+            }}
+            onRenamed={(from, to) => {
+              setTabs((tb) => renameTab(tb, from, to));
+              setTexts((old) => {
+                const next: Record<string, string> = {};
+                for (const [k, v] of Object.entries(old))
+                  next[k === from || k.startsWith(`${from}/`) ? to + k.slice(from.length) : k] = v;
+                return next;
+              });
+            }}
+            onDeleted={(path) =>
+              setTabs((tb) => closeTabs(tb, (p) => p === path || p.startsWith(`${path}/`)))
+            }
+            onFilesChanged={refreshFiles}
+          />
         )}
 
         <section class="main">
-          <div class="tabs" role="tablist" aria-label={tr("explorer.files")}>
-            {tabs.open.map((p) => (
-              <button
-                type="button"
-                role="tab"
-                class="tab"
-                key={p}
-                aria-selected={p === activeFile}
-                title={p}
-                onClick={() => setTabs((tb) => ({ ...tb, active: p }))}
-              >
-                {p.split("/").pop()}
-                {unsaved[p] && (
-                  <span class="dirty" aria-label={tr("editor.unsaved")}>
-                    ●
+          {tabs.open.length > 0 && (
+            <div class="tabs" role="tablist" aria-label={tr("explorer.files")}>
+              {tabs.open.map((p) => (
+                <button
+                  type="button"
+                  role="tab"
+                  class="tab"
+                  key={p}
+                  aria-selected={p === activeFile}
+                  title={p}
+                  data-type={tabReq[p] ? "REQ" : (fileType(p.split("/").pop()!) ?? "·")}
+                  onClick={() => setTabs((tb) => ({ ...tb, active: p }))}
+                >
+                  {tabReq[p] ? `${tabReq[p]!.id} · ${tabReq[p]!.title}` : p.split("/").pop()}
+                  {unsaved[p] && (
+                    <span class="dirty" aria-label={tr("editor.unsaved")}>
+                      ●
+                    </span>
+                  )}
+                  <span class="x" aria-label="×" onClick={(e) => (e.stopPropagation(), close(p))}>
+                    ×
                   </span>
-                )}
-                <span class="x" aria-label="×" onClick={(e) => (e.stopPropagation(), close(p))}>
-                  ×
-                </span>
-              </button>
-            ))}
-          </div>
+                </button>
+              ))}
+            </div>
+          )}
           <div
-            class={`content ${activeFile || view === "explorer" || view === "traceability" ? "flush" : ""}`}
-            data-view={activeFile ? "file" : view}
+            class={`content ${activeFile || SPLIT_VIEWS.has(mainView) ? "flush" : ""}`}
+            data-view={activeFile ? "file" : mainView}
           >
+            {activeFile && (
+              <nav class="crumbs" aria-label={tr("crumbs.label")} data-testid="breadcrumb">
+                {[
+                  ...activeFile.split("/").slice(0, -1),
+                  ...(crumbReq ? [crumbReq] : [activeFile.split("/").pop()!]),
+                ].map((part, i, all) => (
+                  <span key={i} class={i === all.length - 1 ? "here" : ""}>
+                    {part}
+                  </span>
+                ))}
+              </nav>
+            )}
             {activeFile ? (
               EditorPane && texts[activeFile] !== undefined ? (
                 <EditorPane
@@ -510,6 +749,22 @@ export function App({ rpc }: { rpc: Rpc }) {
                   labels={lensLabels}
                   commands={LENS_COMMANDS}
                   register={(api) => (editorApi.current = api)}
+                  reveal={reveal}
+                  focus={focusEditor}
+                  testsOf={testsOf}
+                  onQuestionHelp={(q) =>
+                    setHelp({
+                      title: tr("help.title", { feature: lensLabels.answer }),
+                      requests: [
+                        {
+                          action: "answer",
+                          feature: lensLabels.answer,
+                          vars: { q: q.id, change: q.change },
+                        },
+                      ],
+                    })
+                  }
+                  onCursor={(path, line) => setCursor({ path, line })}
                   onEdit={(path, value) => {
                     setUnsaved((u) => {
                       if (value !== texts[path]) return { ...u, [path]: true };
@@ -564,9 +819,19 @@ export function App({ rpc }: { rpc: Rpc }) {
               ) : (
                 <pre class="file">{texts[activeFile] ?? ""}</pre>
               )
+            ) : mainSection && unreadable[mainSection] ? (
+              <CouldNotRead
+                tr={tr}
+                view={tr(`view.${mainView}`)}
+                why={unreadable[mainSection]!}
+                onAgain={() => void readAgain(mainSection)}
+                onOpen={(file, line) => openFile(file, line)}
+              />
+            ) : !project && firstKind.current === "specgate" ? (
+              <Skeleton tr={tr} />
             ) : (
               <View
-                view={view}
+                view={mainView}
                 tr={tr}
                 lang={lang}
                 theme={theme}
@@ -578,6 +843,7 @@ export function App({ rpc }: { rpc: Rpc }) {
                 next={home?.nextCommand ?? null}
                 rpc={rpc}
                 folder={workspace?.name ?? ""}
+                root={workspace?.root ?? ""}
                 kind={kind ?? null}
                 setup={setup}
                 openSetup={setSetup}
@@ -641,6 +907,40 @@ export function App({ rpc }: { rpc: Rpc }) {
                 onHelp={(r: HelpRequest) =>
                   setHelp({ title: tr("help.title", { feature: r.feature }), requests: [r] })
                 }
+                homeView={
+                  <Home
+                    rpc={rpc}
+                    tr={tr}
+                    project={project}
+                    branch={workspace?.git?.branch ?? null}
+                    requirements={requirements}
+                    total={total}
+                    done={done}
+                    report={sections.report}
+                    stamp={[sections.home, sections.changes, sections.questions]}
+                    unapproved={unapproved}
+                    onReview={onReview}
+                    questionsByChange={questionsByChange}
+                    next={home?.nextCommand ?? null}
+                    show={show}
+                    onCheck={() =>
+                      runFeature(
+                        FEATURES.find((f) => f.id === "gate.check")!,
+                        tr("home.check"),
+                      )
+                    }
+                    onDoctor={() => void runCommand(tr("home.doctor"), { name: "doctor" })}
+                    checking={gate === "running"}
+                    onFromTicket={() => (show("changes"), setTicketPanel(true))}
+                    onOpenTerminal={() => {
+                      setPanel({ open: true, tab: "terminal" });
+                      setOpenShell((n) => n + 1);
+                    }}
+                    onHelp={(r) =>
+                      setHelp({ title: tr("help.title", { feature: r.feature }), requests: [r] })
+                    }
+                  />
+                }
                 buildView={
                   <Build
                     rpc={rpc}
@@ -663,6 +963,8 @@ export function App({ rpc }: { rpc: Rpc }) {
                       setHelp({ title: tr("help.title", { feature }), requests })
                     }
                     announce={announce}
+                    modules={modulesOf(requirements, sections.report, { building, unapproved })}
+                    titles={titles}
                   />
                 }
                 traceFilter={traceFilter}
@@ -702,6 +1004,7 @@ export function App({ rpc }: { rpc: Rpc }) {
                 echo={echo}
                 showStudio={showStudio}
                 openShell={openShell}
+                openShellIn={openShellIn}
                 labels={{
                   newTerminal: tr("term.new"),
                   close: tr("term.close"),
@@ -733,7 +1036,8 @@ export function App({ rpc }: { rpc: Rpc }) {
         </div>
       </section>
 
-      <footer class="status" data-testid="status-bar">
+      <footer class="status" data-testid="status-bar" data-offline={offline ? "1" : undefined}>
+        {offline && <span data-testid="status-offline">{tr("offline.status")}</span>}
         <span data-testid="status-branch">⎇ {workspace?.git?.branch ?? tr("status.noBranch")}</span>
         <span data-testid="status-ticket">
           {workspace?.git?.ticket
@@ -742,6 +1046,7 @@ export function App({ rpc }: { rpc: Rpc }) {
         </span>
         <span data-testid="status-gate">{tr(`status.gate.${gate}`)}</span>
         <span data-testid="status-progress">{tr("status.progress", { done, total })}</span>
+        {viewStatus && <span data-testid="status-view">{viewStatus}</span>}
         <span class="end" data-testid="status-cost">
           {tr("status.cost")} $0.00
         </span>
@@ -753,10 +1058,11 @@ export function App({ rpc }: { rpc: Rpc }) {
           mode={palette}
           lang={lang}
           tr={tr}
+          rpc={rpc}
           files={files}
           onClose={() => setPalette(null)}
           onFeature={runFeature}
-          onFile={(p) => (setPalette(null), openFile(p))}
+          onFile={(p) => (setPalette(null), openFile(p), setFocusEditor((n) => n + 1))}
           onHelp={(f) => {
             setPalette(null);
             setHelp({
@@ -773,7 +1079,8 @@ export function App({ rpc }: { rpc: Rpc }) {
           requests={help.requests}
           title={help.title}
           closeLabel={tr("help.close")}
-          onClose={() => setHelp(null)}
+          eyebrow={tr("help.eyebrow")}
+          onClose={closeHelp}
         />
       )}
       {ended && (
@@ -781,6 +1088,17 @@ export function App({ rpc }: { rpc: Rpc }) {
           notice={ended[lang]}
           nextLabel={tr("notice.next")}
           fixLabel={tr("notice.fix")}
+          retryLabel={tr("notice.retry")}
+          closeLabel={tr("help.close")}
+          onRetry={
+            lastRun.current
+              ? () => {
+                  const r = lastRun.current!;
+                  setEnded(null);
+                  void runCommand(r.label, r.command);
+                }
+              : undefined
+          }
           onClose={() => setEnded(null)}
         />
       )}
@@ -873,37 +1191,12 @@ function ActivityButton(props: {
   );
 }
 
-function FileList(props: {
-  files: string[];
-  onOpen: (p: string) => void;
-  empty: string;
-  filter?: string;
-}) {
-  const shown = props.filter
-    ? props.files.filter((f) => f.toLowerCase().includes(props.filter!.toLowerCase()))
-    : props.files;
-  if (shown.length === 0)
-    return (
-      <p class="muted" style="padding:0 12px">
-        {props.empty}
-      </p>
-    );
-  return (
-    <VirtualList
-      count={shown.length}
-      row={(i) => (
-        <button type="button" class="row" onClick={() => props.onOpen(shown[i]!)} title={shown[i]}>
-          {shown[i]}
-        </button>
-      )}
-    />
-  );
-}
-
 interface ViewProps {
   view: ViewId;
   rpc: Rpc;
   folder: string;
+  /** The open folder's path: not one of its own recent projects (REQ-174). */
+  root: string;
   kind: WorkspaceState["kind"] | null;
   setup: SetupStep | null;
   openSetup: (step: SetupStep) => void;
@@ -936,6 +1229,8 @@ interface ViewProps {
   reportTotal: number | undefined;
   onCheck: () => void;
   onHelp: (r: HelpRequest) => void;
+  /** Home as the boards draw it (draft-design-conformance REQ-173). */
+  homeView: JSX.Element;
   /** Build and Live (draft-build-live). */
   buildView: JSX.Element;
   liveView: JSX.Element;
@@ -943,7 +1238,6 @@ interface ViewProps {
 }
 
 function View(p: ViewProps) {
-  const [filter, setFilter] = useState("");
   const title = <h1>{p.tr(`view.${p.view}`)}</h1>;
   switch (p.view) {
     case "home": {
@@ -961,7 +1255,22 @@ function View(p: ViewProps) {
         );
       }
       // A folder that is no project yet: its setup is the next step (REQ-116).
-      const step = p.kind === "empty" ? "create" : p.kind === "code" ? "adopt" : null;
+      // An empty folder's Home: the five questions at once (draft-design-conformance REQ-174).
+      if (p.kind === "empty")
+        return (
+          <NewProject
+            root={p.root}
+            rpc={p.rpc}
+            tr={p.tr}
+            step="create"
+            run={p.run}
+            announce={p.announce}
+            onHelp={p.onHelp}
+            onDone={p.closeSetup}
+            onCreated={() => p.openSetup("created")}
+          />
+        );
+      const step = p.kind === "code" ? "adopt" : null;
       if (step) {
         return (
           <>
@@ -970,89 +1279,24 @@ function View(p: ViewProps) {
           </>
         );
       }
-      return (
-        <>
-          <h1>{p.project || p.tr("view.home")}</h1>
-          <div class="cards">
-            <div class="card">
-              <div class="k">{p.tr("home.requirements")}</div>
-              <div class="v">{p.total}</div>
-            </div>
-            <div class="card">
-              <div class="k">{p.tr("home.done")}</div>
-              <div class="v">{p.done}</div>
-            </div>
-            <div class="card">
-              <div class="k">{p.tr("home.pending")}</div>
-              <div class="v">{p.total - p.done}</div>
-            </div>
-          </div>
-          {p.areas?.adopted ? (
-            <AdoptedAreas tr={p.tr} byKind={p.areas.byKind} areas={p.areas.areas} />
-          ) : (
-            p.next && (
-              <div class="next">
-                <div class="k">[ {p.tr("home.next").toUpperCase()} ]</div>
-                <div class="mono" style="margin-top:6px">
-                  {p.next}
-                </div>
+      // Just adopted: the areas it found and what is next (REQ-115).
+      if (p.areas?.adopted)
+        return (
+          <>
+            <h1>{p.project || p.tr("view.home")}</h1>
+            <div class="cards">
+              <div class="card">
+                <div class="k">{p.tr("home.requirements")}</div>
+                <div class="v">{p.total}</div>
               </div>
-            )
-          )}
-          <div class="actions">
-            <button type="button" class="btn pri" onClick={p.onCheck}>
-              {p.tr("home.check")}
-            </button>
-            <HelpButton
-              label={p.tr("help.button", { feature: p.tr("home.check") })}
-              onOpen={() =>
-                p.onHelp({
-                  action: "check",
-                  feature: p.tr("home.check"),
-                  vars: (() => {
-                    const req = /\bREQ-\d+\b/.exec(p.next ?? "")?.[0];
-                    return req ? { req } : {};
-                  })(),
-                })
-              }
-            />
-          </div>
-        </>
-      );
+            </div>
+            <AdoptedAreas tr={p.tr} byKind={p.areas.byKind} areas={p.areas.areas} />
+          </>
+        );
+      return p.homeView;
     }
-    case "explorer":
-      return (
-        <div style="display:flex;flex-direction:column;height:100%">
-          <h2
-            style="margin:0;padding:12px 12px 8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase"
-            class="muted"
-          >
-            {p.tr("view.explorer")}
-          </h2>
-          <input
-            ref={p.filterRef}
-            class="filter"
-            value={filter}
-            onInput={(e) => setFilter((e.target as HTMLInputElement).value)}
-            aria-label={p.tr("explorer.files")}
-          />
-          <div style="flex:1;min-height:0">
-            <FileList
-              files={p.files}
-              onOpen={p.openFile}
-              empty={p.tr("explorer.empty")}
-              filter={filter}
-            />
-          </div>
-        </div>
-      );
     case "changes":
-      return (
-        <>
-          {title}
-          {p.changesView}
-        </>
-      );
+      return p.changesView;
     case "brief":
       return p.briefView;
     case "questions":
@@ -1071,19 +1315,9 @@ function View(p: ViewProps) {
         />
       );
     case "build":
-      return (
-        <>
-          {title}
-          {p.buildView}
-        </>
-      );
+      return p.buildView;
     case "live":
-      return (
-        <>
-          {title}
-          {p.liveView}
-        </>
-      );
+      return p.liveView;
     case "traceability": {
       // Trace from the editor: the requirement's own row first (REQ-042).
       const rows = p.traceFilter
@@ -1120,10 +1354,23 @@ function View(p: ViewProps) {
           {title}
           <div class="card">
             <div class="k">{p.tr("home.requirements")}</div>
-            <div class="v">{p.reportTotal ?? "—"}</div>
+            {/* The same count as Home: `report --json`'s total leaves out open changes. */}
+            <div class="v" data-testid="report-total">
+              {p.total}
+            </div>
+            {p.reportTotal !== undefined && (
+              <div class="muted" data-testid="report-split">
+                {p.tr("report.split", {
+                  spec: String(p.reportTotal),
+                  changes: String(Math.max(0, p.total - p.reportTotal)),
+                })}
+              </div>
+            )}
           </div>
         </>
       );
+    case "help":
+      return <HelpView rpc={p.rpc} lang={p.lang} tr={p.tr} />;
     case "settings":
       return (
         <div class="settings">
@@ -1166,6 +1413,7 @@ function Palette(props: {
   mode: "features" | "files";
   lang: Lang;
   tr: (k: string) => string;
+  rpc: Rpc;
   files: string[];
   onClose: () => void;
   onFeature: (f: Feature) => void;
@@ -1174,72 +1422,182 @@ function Palette(props: {
 }) {
   const [query, setQuery] = useState("");
   const [at, setAt] = useState(0);
-  const items =
+  type Item = {
+    key: string;
+    title: string;
+    command: string | null;
+    area: string | null;
+    feature: Feature | null;
+    pick: () => void;
+    help: null | (() => void);
+  };
+  const found =
+    props.mode === "features" ? filterFeatures(FEATURES, query, props.lang) : ([] as Feature[]);
+  // By area, as the boards group them (draft-design-conformance REQ-176, A15).
+  const items: Item[] =
     props.mode === "features"
-      ? filterFeatures(FEATURES, query, props.lang).map((f) => ({
-          key: f.id,
-          title: f.title[props.lang],
-          command: f.command,
-          pick: () => props.onFeature(f),
-          help: f.action ? () => props.onHelp(f) : null,
-        }))
+      ? AREAS.flatMap((area) =>
+          found
+            .filter((f) => f.area === area)
+            .map((f) => ({
+              key: f.id,
+              title: f.title[props.lang],
+              command: f.command,
+              area,
+              feature: f,
+              pick: () => props.onFeature(f),
+              help: f.action ? () => props.onHelp(f) : null,
+            })),
+        )
       : props.files
           .filter((f) => f.toLowerCase().includes(query.toLowerCase()))
           .slice(0, 50)
           .map((f) => ({
             key: f,
             title: f,
-            command: null as string | null,
+            command: null,
+            area: null,
+            feature: null,
             pick: () => props.onFile(f),
-            help: null as null | (() => void),
+            help: null,
           }));
+  const chosen = items[at] ?? null;
   const onKey = (e: KeyboardEvent) => {
     if (e.key === "ArrowDown")
       (e.preventDefault(), setAt((i) => Math.min(i + 1, items.length - 1)));
     else if (e.key === "ArrowUp") (e.preventDefault(), setAt((i) => Math.max(i - 1, 0)));
     else if (e.key === "Enter") (e.preventDefault(), items[at]?.pick());
     else if (e.key === "Escape") props.onClose();
+    else if (e.key === "?" && chosen?.help && query.trim() === "")
+      (e.preventDefault(), chosen.help());
   };
+  const row = (it: Item, i: number) => (
+    <li
+      key={it.key}
+      role="option"
+      aria-selected={i === at}
+      onMouseEnter={() => setAt(i)}
+      onClick={it.pick}
+    >
+      <span>{it.title}</span>
+      {it.command && <span class="mono">{it.command}</span>}
+      {it.help && (
+        <HelpButton
+          label={props.tr("help.button").replace("{feature}", it.title)}
+          onOpen={it.help}
+        />
+      )}
+    </li>
+  );
+  let index = 0;
   return (
     <div class="scrim" onClick={props.onClose}>
       <div
-        class="palette"
+        class={`palette ${props.mode === "features" ? "with-pane" : ""}`}
         role="dialog"
         aria-label="Command palette"
         onClick={(e) => e.stopPropagation()}
       >
-        <input
-          autoFocus
-          ref={(el) => el?.focus()}
-          value={query}
-          placeholder={props.tr("palette.placeholder")}
-          onInput={(e) => (setQuery((e.target as HTMLInputElement).value), setAt(0))}
-          onKeyDown={onKey}
-          aria-label={props.tr("palette.placeholder")}
-        />
-        <ul role="listbox">
-          {items.map((it, i) => (
-            <li
-              key={it.key}
-              role="option"
-              aria-selected={i === at}
-              onMouseEnter={() => setAt(i)}
-              onClick={it.pick}
-            >
-              <span>{it.title}</span>
-              {it.command && <span class="mono">{it.command}</span>}
-              {it.help && (
-                <HelpButton
-                  label={props.tr("help.button").replace("{feature}", it.title)}
-                  onOpen={it.help}
-                />
-              )}
-            </li>
-          ))}
-        </ul>
-        {items.length === 0 && <div class="none">{props.tr("palette.none")}</div>}
+        <div class="pinput">
+          <span class="prompt">›</span>
+          <input
+            autoFocus
+            ref={(el) => el?.focus()}
+            value={query}
+            placeholder={props.tr("palette.placeholder")}
+            onInput={(e) => (setQuery((e.target as HTMLInputElement).value), setAt(0))}
+            onKeyDown={onKey}
+            aria-label={props.tr("palette.placeholder")}
+          />
+          <span class="kbd">Esc</span>
+        </div>
+        <div class="pbody-wrap">
+          <div class="plist">
+            {props.mode === "features" ? (
+              AREAS.map((area) => {
+                const these = items.filter((it) => it.area === area);
+                if (these.length === 0) return null;
+                return (
+                  <div class="parea" key={area} data-area={area}>
+                    <div class="pgroup">{props.tr(`palette.area.${area}`)}</div>
+                    <ul role="listbox">{these.map((it) => row(it, index++))}</ul>
+                  </div>
+                );
+              })
+            ) : (
+              <ul role="listbox">{items.map((it, i) => row(it, i))}</ul>
+            )}
+            {items.length === 0 && <div class="none">{props.tr("palette.none")}</div>}
+          </div>
+          {props.mode === "features" && (
+            <PalettePane
+              rpc={props.rpc}
+              lang={props.lang}
+              tr={props.tr}
+              feature={chosen?.feature ?? null}
+            />
+          )}
+        </div>
       </div>
     </div>
+  );
+}
+
+/** The chosen feature's "?" beside the list, under "[ UNDER THE HOOD ]" (REQ-176, A15). */
+function PalettePane(props: {
+  rpc: Rpc;
+  lang: Lang;
+  tr: (k: string) => string;
+  feature: Feature | null;
+}) {
+  const f = props.feature;
+  const [answer, setAnswer] = useState<Requests["help.explain"]["result"] | null>(null);
+  // Asked once the choice settles: typing through the list asks nothing.
+  useEffect(() => {
+    let live = true;
+    setAnswer(null);
+    const action = f?.action;
+    const timer = window.setTimeout(() => {
+      if (action)
+        props.rpc.ask("help.explain", { action, lang: props.lang, vars: {} }).then(
+          (a) => live && setAnswer(a),
+          () => undefined,
+        );
+    }, 150);
+    return () => {
+      live = false;
+      window.clearTimeout(timer);
+    };
+  }, [f?.id, props.lang]);
+  return (
+    <aside class="ppane" data-testid="palette-pane" data-feature={f?.id ?? ""}>
+      <div class="eyebrow mono">[ {props.tr("help.eyebrow")} ]</div>
+      {f && <h2 class="syne">{f.title[props.lang]}</h2>}
+      {f && !f.action && (
+        <p class="muted">{f.command ? f.command : props.tr("palette.noCommand")}</p>
+      )}
+      {answer && (
+        <dl>
+          {(["does", "command", "files", "doesNot", "next"] as const).map((part) => (
+            <div key={part} data-part={part}>
+              <dt>{answer.labels[part]}</dt>
+              <dd class={part === "command" ? "mono" : ""}>{answer.explanation[part]}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      <div class="pfoot">
+        <span>
+          <span class="kbd">↑↓</span> {props.tr("palette.choose")}
+        </span>
+        <span>
+          <span class="kbd">Enter</span> {props.tr("palette.run")}
+        </span>
+        <span>
+          <span class="kbd">?</span> {props.tr("palette.explain")}
+        </span>
+      </div>
+    </aside>
   );
 }
 
@@ -1291,5 +1649,142 @@ function AskDialog(props: {
         </div>
       </div>
     </div>
+  );
+}
+
+/** The views drawn as a side panel beside their detail, edge to edge (REQ-175). */
+const SPLIT_VIEWS = new Set<ViewId>(["traceability", "changes", "questions", "build", "live"]);
+
+/** The desktop app: the operating system draws the menu (REQ-172, A5). */
+const DESKTOP =
+  typeof window !== "undefined" && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window);
+if (typeof window !== "undefined")
+  (window as unknown as { __studio?: Record<string, unknown> }).__studio = {
+    ...((window as unknown as { __studio?: Record<string, unknown> }).__studio ?? {}),
+    menus: MENUS,
+  };
+
+/** The menu bar in the page (REQ-172, A5): each menu's entries are the palette's features. */
+function MenuBar(props: { lang: Lang; onFeature: (f: Feature) => void }) {
+  const [open, setOpen] = useState<string | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: Event) => {
+      if (!(e.target as Element | null)?.closest?.(".menubar")) setOpen(null);
+    };
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(null);
+    window.addEventListener("mousedown", away, true);
+    window.addEventListener("keydown", esc, true);
+    return () => {
+      window.removeEventListener("mousedown", away, true);
+      window.removeEventListener("keydown", esc, true);
+    };
+  }, [open]);
+  return (
+    <nav class="menubar" aria-label={props.lang === "es" ? "Menú" : "Menu"}>
+      {MENUS.map((m) => (
+        <div class="menu" key={m.id}>
+          <button
+            type="button"
+            data-menu={m.id}
+            aria-expanded={open === m.id}
+            onClick={() => setOpen((o) => (o === m.id ? null : m.id))}
+            onMouseEnter={() => open && setOpen(m.id)}
+          >
+            {m.title[props.lang]}
+          </button>
+          {open === m.id && (
+            <div class="menu-list" role="menu">
+              {m.items.map((id) => {
+                const f = FEATURES.find((x) => x.id === id);
+                if (!f) return null;
+                return (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    key={id}
+                    data-feature={id}
+                    onClick={() => {
+                      setOpen(null);
+                      props.onFeature(f);
+                    }}
+                  >
+                    <span>{f.title[props.lang]}</span>
+                    {f.command && <span class="mono">{f.command}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ))}
+    </nav>
+  );
+}
+
+/** The section each view is made of (REQ-178). */
+const SECTION_OF: Partial<Record<ViewId, string>> = {
+  home: "home",
+  changes: "changes",
+  questions: "questions",
+  traceability: "matrix",
+  report: "report",
+};
+
+/** A section being read: its shape, never a blank page — after 150 ms (REQ-178, A18). */
+function Skeleton(props: { tr: (k: string) => string }) {
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const t = window.setTimeout(() => setShown(true), 150);
+    return () => window.clearTimeout(t);
+  }, []);
+  if (!shown) return null;
+  return (
+    <section class="card skeleton" data-testid="loading" aria-busy="true">
+      <div class="eyebrow mono">[ {props.tr("state.loading")} ]</div>
+      <p class="muted">{props.tr("state.loadingBody")}</p>
+      <div class="bar-s" style={{ width: "40%" }} />
+      <div class="bar-s" style={{ width: "92%" }} />
+      <div class="bar-s" style={{ width: "76%" }} />
+      <div class="bar-s" style={{ width: "84%" }} />
+    </section>
+  );
+}
+
+/** A section that cannot be read: its file and line, and to read it again (REQ-178, A18). */
+function CouldNotRead(props: {
+  tr: (k: string, v?: Record<string, string | number>) => string;
+  view: string;
+  why: Unreadable;
+  onAgain: () => void;
+  onOpen: (file: string, line?: number) => void;
+}) {
+  const { why } = props;
+  return (
+    <section class="card unreadable" data-testid="unreadable" role="alert">
+      <div class="eyebrow mono">[ {props.tr("state.unreadable")} ]</div>
+      <p>
+        <b>{props.tr("state.unreadableTitle", { view: props.view })}</b>{" "}
+        {why.file && <span class="mono">{why.file.split("/").pop()}</span>}
+        {why.line ? ` · ${props.tr("state.line", { n: why.line })}` : ""}
+      </p>
+      <p class="muted">{why.message}</p>
+      <p class="muted">{props.tr("state.restWorks")}</p>
+      <div class="actions">
+        <button type="button" class="btn" data-act="read-again" onClick={props.onAgain}>
+          {props.tr("state.readAgain")}
+        </button>
+        {why.file && (
+          <button
+            type="button"
+            class="btn"
+            data-act="open-line"
+            onClick={() => props.onOpen(why.file!, why.line)}
+          >
+            {why.line ? props.tr("state.openLine", { n: why.line }) : props.tr("state.openFile")}
+          </button>
+        )}
+      </div>
+    </section>
   );
 }

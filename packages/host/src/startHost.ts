@@ -19,10 +19,14 @@ import {
   ProjectState,
   type SpecgatePort,
   SECTIONS,
+  unreadableOf,
   type ProcessRunner,
   type Section,
   type SectionReader,
   type SpecgateCommand,
+  type StorePort,
+  type SpecgateAnswer,
+  type CommandEvent,
 } from "@specgate-studio/core";
 import { fromStudio, uiHandler } from "./serveUi.js";
 import { attachTerminals, type TerminalWiring } from "./terminals.js";
@@ -32,6 +36,9 @@ import { attachChanges, type ChangesWiring } from "./changes.js";
 import { attachSetup, type SetupWiring } from "./setup.js";
 import { attachBuilds, type BuildsWiring } from "./builds.js";
 import { attachBrief, type BriefWiring } from "./brief.js";
+import { attachExplorer } from "./explorer.js";
+import { attachHome } from "./home.js";
+import type { ProjectFiles } from "./files.js";
 
 export interface HostOptions {
   projectDir: string;
@@ -61,15 +68,12 @@ export interface HostOptions {
   builds?: BuildsWiring;
   /** specgate's `--json` answers for the Brief view: its checks and drafts (draft-brief). */
   brief?: BriefWiring;
+  /** Where the Explorer keeps the folders left open per project (draft-explorer-tree A4). */
+  store?: StorePort;
 }
 
-/** The project's files, by paths relative to it with `/`. */
-export interface ProjectFiles {
-  list(): Promise<string[]>;
-  read(path: string): Promise<string>;
-  /** Only when the person saves (draft-editor REQ-045). */
-  write?(path: string, text: string): Promise<void>;
-}
+export type { ProjectFiles, FileRefusal } from "./files.js";
+export { FILE_REFUSALS } from "./files.js";
 
 /** A path inside the project: relative, `/`-separated, never climbing out of it. */
 function insideProject(p: unknown): p is string {
@@ -97,8 +101,39 @@ export interface Host {
  * state, so a second tab or a reload reads nothing again (REQ-002), and every
  * UI is told of command events and state changes.
  */
-export async function startHost(options: HostOptions): Promise<Host> {
+export async function startHost(given: HostOptions): Promise<Host> {
+  // specgate's read-only answers, shared by Changes, Build and Home until
+  // anything changes: each is asked once (draft-design-conformance REQ-173).
+  const reads = new Map<string, Promise<SpecgateAnswer>>();
+  const forget = () => reads.clear();
+  const READ_ONLY = /^(change show \S+|harness report|config list)$/;
+  const memo = <P extends Pick<SpecgatePort, "call">>(port: P): P => {
+    const wrapped = Object.create(port) as P;
+    wrapped.call = (args: readonly string[]) => {
+      const key = args.join(" ");
+      if (!READ_ONLY.test(key)) {
+        forget();
+        return port.call(args);
+      }
+      let answer = reads.get(key);
+      if (!answer) {
+        answer = port.call(args);
+        reads.set(key, answer);
+        answer.catch(() => reads.get(key) === answer && reads.delete(key));
+      }
+      return answer.then((a) => structuredClone(a));
+    };
+    return wrapped;
+  };
+  const options: HostOptions = {
+    ...given,
+    ...(given.changes
+      ? { changes: { ...given.changes, specgate: memo(given.changes.specgate) } }
+      : {}),
+    ...(given.builds ? { builds: { ...given.builds, specgate: memo(given.builds.specgate) } } : {}),
+  };
   const state = new ProjectState(options.reader);
+  state.onChange(forget);
   // The requirement Home says to apply next, for the notices (REQ-063).
   let nextReq: string | undefined;
   const changes = options.changes
@@ -138,6 +173,9 @@ export async function startHost(options: HostOptions): Promise<Host> {
   );
 
   const broadcast = <N extends keyof Notifications>(method: N, params: Notifications[N]) => {
+    // What specgate answered may have changed with it.
+    if (method !== "terminal.data" && method !== "command.event") forget();
+    if (method === "command.event" && (params as CommandEvent).type === "ended") forget();
     const text = JSON.stringify({ jsonrpc: "2.0", method, params });
     for (const ws of server.clients) if (ws.readyState === ws.OPEN) ws.send(text);
   };
@@ -164,12 +202,47 @@ export async function startHost(options: HostOptions): Promise<Host> {
     ? await attachWorkspace(options.projectDir, options.workspace, state, broadcast)
     : null;
   const terminals = options.terminals
-    ? attachTerminals(options.projectDir, options.terminals, broadcast, (m) =>
-        rpcError(RPC_ERRORS.params, m),
+    ? attachTerminals(
+        options.projectDir,
+        options.terminals,
+        broadcast,
+        (m) => rpcError(RPC_ERRORS.params, m),
+        // A terminal opens only in a folder of the project (draft-explorer-tree A15).
+        async (dir) =>
+          options.files?.children
+            ? options.files.children(dir).then(
+                () => true,
+                () => false,
+              )
+            : false,
       )
     : null;
 
   const brief = options.brief ? attachBrief(options.brief, commands, broadcast) : null;
+
+  // Home's next step, route, cost and activity (draft-design-conformance REQ-173).
+  const homeSpecgate =
+    options.builds?.specgate ?? options.changes?.specgate ?? options.brief?.specgate;
+  const home = attachHome(options.projectDir, {
+    state,
+    ...(options.files ? { files: options.files } : {}),
+    ...(homeSpecgate ? { specgate: homeSpecgate } : {}),
+    ...(options.workspace?.git ? { git: options.workspace.git } : {}),
+  });
+
+  // The Explorer's tree and its writes (draft-explorer-tree).
+  const explorer = options.files
+    ? attachExplorer(
+        options.projectDir,
+        {
+          files: options.files,
+          ...(options.workspace?.git ? { git: options.workspace.git } : {}),
+          ...(options.store ? { store: options.store } : {}),
+        },
+        broadcast,
+        (m) => rpcError(RPC_ERRORS.params, m),
+      )
+    : null;
 
   const setup = options.setup
     ? attachSetup(
@@ -202,9 +275,24 @@ export async function startHost(options: HostOptions): Promise<Host> {
         opening = state.open();
         return opening.then(readNext);
       });
+      // A section that cannot be read is said apart; the others still open (REQ-178).
       const sections: ProjectOpened["sections"] = {};
-      for (const s of SECTIONS) sections[s] = await state.section(s);
-      return { project: path.basename(options.projectDir), sections } satisfies ProjectOpened;
+      const unreadable: NonNullable<ProjectOpened["unreadable"]> = {};
+      for (const s of SECTIONS) {
+        try {
+          sections[s] = await state.section(s);
+        } catch (e) {
+          unreadable[s] = unreadableOf(e);
+        }
+      }
+      // Nothing read at all: not a project yet, or specgate cannot answer.
+      if (Object.keys(sections).length === 0)
+        throw new Error(unreadable.home?.message ?? "nothing could be read");
+      return {
+        project: path.basename(options.projectDir),
+        sections,
+        ...(Object.keys(unreadable).length ? { unreadable } : {}),
+      } satisfies ProjectOpened;
     },
     "section.get": async (params) => {
       if (!checked.ok)
@@ -245,7 +333,8 @@ export async function startHost(options: HostOptions): Promise<Host> {
       const vars = Object.fromEntries(
         Object.entries((p.vars ?? {}) as Record<string, unknown>).filter(
           ([k, v]) =>
-            ["req", "change", "module", "key", "q", "agent"].includes(k) && typeof v === "string",
+            ["req", "change", "module", "key", "q", "agent", "path", "to"].includes(k) &&
+            typeof v === "string",
         ),
       ) as HelpVars;
       return { labels: PART_LABELS[lang], explanation: explain(p.action as ActionId, lang, vars) };
@@ -296,6 +385,15 @@ export async function startHost(options: HostOptions): Promise<Host> {
       );
       return annotate({ path, text, findings, questions });
     },
+    // The Help view: every action's "?", in one language (draft-design-conformance REQ-179).
+    "help.catalog": async (params) => {
+      const lang = (params as { lang?: unknown } | null)?.lang;
+      if (!LANGS.includes(lang as Lang)) throw rpcError(RPC_ERRORS.params, "no such language");
+      return {
+        labels: PART_LABELS[lang as Lang],
+        actions: ACTIONS.map((action) => ({ action, explanation: explain(action, lang as Lang) })),
+      };
+    },
     "file.read": async (params) => {
       const p = (params as { path?: unknown } | null)?.path;
       if (!insideProject(p) || !options.files)
@@ -308,6 +406,8 @@ export async function startHost(options: HostOptions): Promise<Host> {
     ...setup?.handlers,
     ...builds?.handlers,
     ...brief?.handlers,
+    ...explorer?.handlers,
+    ...home.handlers,
   };
 
   server.on("connection", (ws: WebSocket) => {
@@ -352,7 +452,11 @@ export async function startHost(options: HostOptions): Promise<Host> {
       await workspace?.close();
       await new Promise<void>((ok) => {
         for (const ws of server.clients) ws.terminate();
-        server.close(() => http.close(() => ok()));
+        // A page left open keeps its HTTP connections: dropped, so closing never waits on it.
+        server.close(() => {
+          http.close(() => ok());
+          http.closeAllConnections();
+        });
       });
     },
   };

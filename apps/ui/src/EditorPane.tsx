@@ -1,7 +1,7 @@
 import { render } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { Annotations } from "@specgate-studio/protocol";
-import { monaco } from "./monaco.js";
+import { SPEC_LANGUAGE, monaco } from "./monaco.js";
 
 export type LensAction = "build" | "check" | "trace" | "ask" | "help";
 
@@ -11,11 +11,32 @@ export interface EditorPaneProps {
   text: string;
   theme: "dark" | "light";
   annotations: Annotations | null;
-  labels: Record<LensAction, string> & { answer: string; other: string; options: string };
+  labels: Record<LensAction, string> & {
+    answer: string;
+    other: string;
+    options: string;
+    /** "(1 scenario, 0 tests)" beside Trace (draft-design-conformance REQ-171). */
+    traceCount: (scenarios: number, tests: number) => string;
+    /** The inline question's header, source and footnote (REQ-044, as the board draws it). */
+    qOpen: (q: string, req: string) => string;
+    qSource: (change: string) => string;
+    qFoot: (q: string) => string;
+    qHelp: string;
+  };
+  /** How many tests name a requirement, for Trace's count. */
+  testsOf?: (req: string) => number;
+  /** The "?" of an inline question. */
+  onQuestionHelp?: (q: { id: string; change: string }) => void;
   commands: Record<Exclude<LensAction, "help">, (req: string) => string>;
   onEdit: (path: string, value: string) => void;
   onLens: (action: LensAction, req: string) => void;
   onAnswer: (q: { id: string; change: string }, answer: string) => void;
+  /** A line to show and put the cursor on, bumped with `n` (a requirement opened, REQ-169). */
+  reveal?: { path: string; line: number; n: number } | null;
+  /** Bumped when the editor should take the keyboard: a file opened from the palette. */
+  focus?: number;
+  /** The line the cursor is on, for the breadcrumb and the status bar (REQ-177). */
+  onCursor?: (path: string, line: number, column: number) => void;
   register: (api: {
     value: (path: string) => string | null;
     discard: (path: string) => void;
@@ -28,6 +49,7 @@ let lensData: {
   headings: Annotations["headings"];
   labels: EditorPaneProps["labels"];
   commands: EditorPaneProps["commands"];
+  testsOf?: ((req: string) => number) | undefined;
 } | null = null;
 const lensChanged = new monaco.Emitter<monaco.languages.CodeLensProvider>();
 const COMMAND = "studio.lens";
@@ -36,13 +58,20 @@ monaco.editor.registerCommand(COMMAND, (_accessor, action: LensAction, req: stri
 );
 
 /** Build, Check, Trace, Ask for a change and "?" above each requirement (REQ-042). */
-monaco.languages.registerCodeLensProvider("markdown", {
+const lenses: monaco.languages.CodeLensProvider = {
   onDidChange: lensChanged.event,
-  provideCodeLenses: () => {
+  provideCodeLenses: (model) => {
     if (!lensData) return { lenses: [], dispose: () => undefined };
     const { headings, labels, commands } = lensData;
     const lenses: monaco.languages.CodeLens[] = [];
-    for (const h of headings) {
+    const lines = model.getLinesContent();
+    for (const [i, h] of headings.entries()) {
+      // What Trace finds, beside it as the board shows: its scenarios and the tests naming it.
+      const end = headings[i + 1]?.line ?? lines.length + 1;
+      const scenarios = lines
+        .slice(h.line, end - 1)
+        .filter((l) => /^#{2,6}\s+Scenario:/.test(l)).length;
+      const tests = lensData.testsOf?.(h.req) ?? 0;
       const range = {
         startLineNumber: h.line,
         startColumn: 1,
@@ -59,11 +88,18 @@ monaco.languages.registerCodeLensProvider("markdown", {
             arguments: [action, h.req],
           },
         });
+        if (action === "trace")
+          lenses.push({
+            range,
+            command: { id: "", title: labels.traceCount(scenarios, tests) },
+          });
       }
     }
     return { lenses, dispose: () => undefined };
   },
-});
+};
+monaco.languages.registerCodeLensProvider("markdown", lenses);
+monaco.languages.registerCodeLensProvider(SPEC_LANGUAGE, lenses);
 
 /**
  * The editor: Monaco, one model per open file (REQ-041); the actions above
@@ -86,13 +122,19 @@ export default function EditorPane(p: EditorPaneProps) {
       minimap: { enabled: false },
       wordWrap: "on",
       fontSize: 13,
-      lineHeight: 21,
+      lineHeight: 22,
+      codeLensFontFamily: "'IBM Plex Sans', system-ui, sans-serif",
+      codeLensFontSize: 12,
       fontFamily: "'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace",
       scrollBeyondLastLine: false,
       codeLens: true,
       renderValidationDecorations: "on",
     });
     editor.current = ed;
+    ed.onDidChangeCursorPosition((e) => {
+      const path = props.current.path;
+      props.current.onCursor?.(path, e.position.lineNumber, e.position.column);
+    });
     p.register({
       value: (path) => models.get(path)?.getValue() ?? null,
       // Don't save: the edits are dropped; the file is read again when reopened.
@@ -110,12 +152,27 @@ export default function EditorPane(p: EditorPaneProps) {
     const ed = editor.current!;
     let model = models.get(p.path);
     if (!model) {
-      model = monaco.editor.createModel(p.text, "markdown", monaco.Uri.parse(`file:///${p.path}`));
+      // A Markdown file is read as a specification: the boards' colours (REQ-171).
+      const language = /\.md$/i.test(p.path) ? SPEC_LANGUAGE : "markdown";
+      model = monaco.editor.createModel(p.text, language, monaco.Uri.parse(`file:///${p.path}`));
       models.set(p.path, model);
       model.onDidChangeContent(() => props.current.onEdit(p.path, model!.getValue()));
     }
     if (ed.getModel() !== model) ed.setModel(model);
   }, [p.path, p.text]);
+
+  useEffect(() => {
+    if (p.focus) editor.current?.focus();
+  }, [p.focus, p.path]);
+
+  // A requirement opened from the Explorer: its heading in view, the cursor on it (REQ-169).
+  useEffect(() => {
+    const r = p.reveal;
+    const ed = editor.current;
+    if (!r || !ed || r.path !== p.path) return;
+    ed.revealLineNearTop(r.line);
+    ed.setPosition({ lineNumber: r.line, column: 1 });
+  }, [p.reveal?.n, p.path, p.text]);
 
   useEffect(() => {
     monaco.editor.setTheme(p.theme === "dark" ? "studio-dark" : "studio-light");
@@ -127,7 +184,12 @@ export default function EditorPane(p: EditorPaneProps) {
     const model = models.get(p.path);
     if (!model) return;
     lensHandler = (action, req) => props.current.onLens(action, req);
-    lensData = { headings: p.annotations?.headings ?? [], labels: p.labels, commands: p.commands };
+    lensData = {
+      headings: p.annotations?.headings ?? [],
+      labels: p.labels,
+      commands: p.commands,
+      testsOf: p.testsOf,
+    };
     lensChanged.fire(undefined as never);
     monaco.editor.setModelMarkers(
       model,
@@ -167,6 +229,7 @@ export default function EditorPane(p: EditorPaneProps) {
             q={q}
             labels={p.labels}
             onAnswer={(answer) => props.current.onAnswer({ id: q.id, change: q.change }, answer)}
+            onHelp={() => props.current.onQuestionHelp?.({ id: q.id, change: q.change })}
           />,
           dom,
         );
@@ -180,7 +243,7 @@ export default function EditorPane(p: EditorPaneProps) {
         zones.current.push(
           zone.addZone({
             afterLineNumber: q.afterLine,
-            heightInPx: 76,
+            heightInPx: 150,
             domNode: document.createElement("div"),
             onDomNodeTop: (top) => {
               dom.style.top = `${top}px`;
@@ -200,41 +263,69 @@ function InlineQuestion(props: {
   q: Annotations["questions"][number];
   labels: EditorPaneProps["labels"];
   onAnswer: (answer: string) => void;
+  onHelp: () => void;
 }) {
+  const { q, labels } = props;
   const [chosen, setChosen] = useState<string>("");
+  const [other, setOther] = useState(false);
   return (
-    <div class="qbox" role="group" aria-label={`${props.q.id} ${props.q.text}`}>
-      <div>
-        <b>{props.q.id}</b> {props.q.text}
+    <div class="qbox" role="group" aria-label={`${q.id} ${q.text}`}>
+      <div class="qbox-head">
+        <span class="qbox-open">{labels.qOpen(q.id, q.req)}</span>
+        <span class="qbox-src">{labels.qSource(q.change)}</span>
       </div>
-      <div class="qopts">
-        <span class="muted">{props.labels.options}</span>
-        {props.q.options.map((o) => (
+      <div class="qbox-body">
+        <div class="qbox-text">
+          <span class="sr">{q.id} </span>
+          {q.text}
+        </div>
+        <div class="qopts">
+          {q.options.map((o) => (
+            <button
+              type="button"
+              class="btn qopt"
+              key={o}
+              data-option={o}
+              aria-pressed={chosen === o && !other}
+              onClick={() => (setOther(false), setChosen(o))}
+            >
+              {o}
+            </button>
+          ))}
+          {other ? (
+            <input
+              class="filter"
+              aria-label={labels.other}
+              placeholder={labels.other}
+              ref={(el) => el?.focus()}
+              onInput={(e) => setChosen((e.target as HTMLInputElement).value)}
+            />
+          ) : (
+            <button
+              type="button"
+              class="btn qopt"
+              data-act="other"
+              onClick={() => (setOther(true), setChosen(""))}
+            >
+              {labels.other}…
+            </button>
+          )}
+          {chosen.trim() && (
+            <button type="button" class="btn pri" onClick={() => props.onAnswer(chosen.trim())}>
+              {labels.answer}
+            </button>
+          )}
           <button
             type="button"
-            class="btn"
-            key={o}
-            data-option={o}
-            aria-pressed={chosen === o}
-            onClick={() => setChosen(o)}
+            class="hq"
+            aria-label={labels.qHelp}
+            title={labels.qHelp}
+            onClick={props.onHelp}
           >
-            {o}
+            ?
           </button>
-        ))}
-        <input
-          class="filter"
-          aria-label={props.labels.other}
-          placeholder={props.labels.other}
-          onInput={(e) => setChosen((e.target as HTMLInputElement).value)}
-        />
-        <button
-          type="button"
-          class="btn pri"
-          disabled={!chosen.trim()}
-          onClick={() => props.onAnswer(chosen.trim())}
-        >
-          {props.labels.answer}
-        </button>
+        </div>
+        <div class="qbox-foot">{labels.qFoot(q.id)}</div>
       </div>
     </div>
   );

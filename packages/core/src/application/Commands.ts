@@ -44,6 +44,8 @@ function noticed(
   switch (c.name) {
     case "check":
       return { action: "check", written: [], vars: {} };
+    case "doctor":
+      return { action: "doctor", written: [], vars: {} };
     case "answer":
       return {
         action: "answer",

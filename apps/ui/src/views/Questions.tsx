@@ -32,20 +32,74 @@ export function questionsOf(section: QuestionsSection | undefined): {
 
 export default function Questions(p: QuestionsProps) {
   const { open, answered } = questionsOf(p.section);
+  const [selected, setSelected] = useState<string | null>(null);
+  const key = (q: Question) => `${q.change}/${q.id}`;
+  // The agent's questions apart, as the board groups them (REQ-175, A11).
+  const fromAgent = open.filter((q) => q.asked === "build");
+  const asked = open.filter((q) => q.asked !== "build");
+  const shown = open.find((q) => key(q) === selected) ?? asked[0] ?? fromAgent[0] ?? null;
+  const row = (q: Question, tone: string) => (
+    <button
+      type="button"
+      class="tr qrow"
+      key={key(q)}
+      data-question={q.id}
+      data-change={q.change}
+      aria-current={shown && key(shown) === key(q) ? "true" : undefined}
+      onClick={() => setSelected(key(q))}
+    >
+      <span class={`dot ${tone}`} />
+      <span class="qid mono">{q.id}</span>
+      <span class="name">{q.text}</span>
+      <span class="right">{p.tr(`questions.where.${q.asked ?? "draft"}`)}</span>
+    </button>
+  );
   return (
-    <>
-      <h1>{p.tr("view.questions")}</h1>
-      {open.length === 0 && answered.length === 0 && <p class="muted">{p.tr("questions.none")}</p>}
-      {open.map((q) => (
-        <OpenCard key={`${q.change}/${q.id}`} q={q} {...p} />
-      ))}
-      {answered.length > 0 && (
-        <h2 class="qhead">{p.tr("questions.answered", { n: answered.length })}</h2>
-      )}
-      {answered.map((q) => (
-        <AnsweredCard key={`${q.change}/${q.id}`} q={q} {...p} />
-      ))}
-    </>
+    <div class="split" data-view="questions">
+      <aside class="side" aria-label={p.tr("view.questions")}>
+        <div class="shead">
+          <h1 class="shead-h">{p.tr("view.questions")}</h1>
+          <HelpButton
+            label={p.tr("help.button", { feature: p.tr("question.answer") })}
+            onOpen={() => p.onHelp({ action: "answer", feature: p.tr("question.answer") })}
+          />
+        </div>
+        <div class="sgroup" data-group="open">
+          {p.tr("questions.groupOpen", { n: asked.length })}
+        </div>
+        {asked.map((q) => row(q, "waiting"))}
+        <div class="sgroup" data-group="confirm">
+          {p.tr("questions.groupConfirm", { n: answered.length })}
+        </div>
+        {answered.map((q) => (
+          <div class="tr qrow done" key={key(q)} data-question={q.id} data-state="answered">
+            <span class="dot blue" />
+            <span class="qid mono">{q.id}</span>
+            <span class="name">
+              {q.text} → {q.answer ?? ""}
+            </span>
+          </div>
+        ))}
+        <div class="sgroup" data-group="agent">
+          {p.tr("questions.groupAgent", { n: fromAgent.length })}
+        </div>
+        {fromAgent.map((q) => row(q, "building"))}
+      </aside>
+      <div class="detail qdetail">
+        {open.length === 0 && answered.length === 0 && (
+          <p class="muted">{p.tr("questions.none")}</p>
+        )}
+        {shown && <OpenCard key={key(shown)} q={shown} {...p} />}
+        {answered.length > 0 && (
+          <section class="card qconfirm">
+            <h3 class="qhead">{p.tr("questions.answered", { n: answered.length })}</h3>
+            {answered.map((q) => (
+              <AnsweredCard key={key(q)} q={q} {...p} />
+            ))}
+          </section>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -93,17 +147,21 @@ function OpenCard(p: QuestionsProps & { q: Question }) {
       data-state="open"
       aria-label={`${q.id} ${q.text}`}
     >
-      <div>
-        <b>{q.id}</b> {q.text}
+      <div class="qtop">
+        <span class="qbig mono">{q.id}</span>
+        <Where q={q} tr={tr} />
+        <Blocks q={q} waiting={p.waiting} tr={tr} />
       </div>
-      <Where q={q} tr={tr} />
-      <Blocks q={q} waiting={p.waiting} tr={tr} />
-      <div class="qopts">
-        {(q.options ?? []).length > 0 && <span class="muted">{tr("question.options")}</span>}
+      <h2 class="syne qtitle">
+        <span class="sr">{q.id} </span>
+        {q.text}
+      </h2>
+      {/* As IDE-Preguntas.dc.html draws it: chips, a full-width answer, Save with what it writes. */}
+      <div class="qopts qchips">
         {(q.options ?? []).map((o) => (
           <button
             type="button"
-            class="btn"
+            class="btn chip"
             key={o}
             data-option={o}
             aria-pressed={chosen === o}
@@ -112,12 +170,21 @@ function OpenCard(p: QuestionsProps & { q: Question }) {
             {o}
           </button>
         ))}
-        <input
-          class="filter"
-          aria-label={tr("question.other")}
-          placeholder={tr("question.other")}
-          onInput={(e) => setChosen((e.target as HTMLInputElement).value)}
-        />
+      </div>
+      <div class="muted qhint">{tr("questions.hint")}</div>
+      <input
+        class="filter qinput"
+        aria-label={tr("question.other")}
+        placeholder={tr("question.other")}
+        onInput={(e) => setChosen((e.target as HTMLInputElement).value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey && chosen.trim()) {
+            e.preventDefault();
+            p.onAnswer(q, chosen.trim());
+          }
+        }}
+      />
+      <div class="qopts qsave">
         <button
           type="button"
           class="btn pri"
@@ -127,6 +194,13 @@ function OpenCard(p: QuestionsProps & { q: Question }) {
         >
           {tr("question.answer")}
         </button>
+        <span class="muted qwrites">
+          {tr("questions.writes", {
+            answer: chosen.trim() || "…",
+            q: q.id,
+            reqs: q.blocks.join(", "),
+          })}
+        </span>
         <HelpButton
           label={tr("help.button", { feature: tr("question.answer") })}
           onOpen={() =>

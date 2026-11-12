@@ -8,12 +8,23 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { MOD, close, open, studio, termText, untilTerm, type Page } from "./support.js";
+import {
+  MOD,
+  close,
+  hidePanel,
+  open,
+  showPanel,
+  studio,
+  termText,
+  untilTerm,
+  type Page,
+} from "./support.js";
 
 const WIN = process.platform === "win32";
 
 /** Opens a terminal of the Developer's with "+", returns its id. */
 async function newTerminal(page: Page): Promise<string> {
+  await showPanel(page);
   const before = await page.$$eval(".term-tab", (els) => els.length);
   await page.click(".term-new");
   await page.waitForFunction((n) => document.querySelectorAll(".term-tab").length > n, before);
@@ -29,7 +40,7 @@ async function type(page: Page, id: string, line: string) {
 }
 
 async function ready(page: Page) {
-  await page.waitForSelector(".term-tabs");
+  await page.waitForSelector(".term-tabs", { state: "attached" });
 }
 
 const tick = WIN
@@ -92,9 +103,9 @@ test('REQ-053 SCN-155: the panel closed, Check pressed — the terminal opens wi
   const page = await open(s);
   try {
     await ready(page);
-    await page.keyboard.press(`${MOD}+J`);
+    await hidePanel(page);
     assert.equal(await page.$eval(".panel", (e) => (e as HTMLElement).hidden), true);
-    await page.click(".actions .btn.pri");
+    await page.click('.actions [data-act="check"]');
     await untilTerm(
       page,
       "specgate",
@@ -118,7 +129,7 @@ test("REQ-053 SCN-156: a terminal busy with a running command, Check pressed —
     const id = await newTerminal(page);
     await type(page, id, tick);
     await untilTerm(page, id, /^tick$/m);
-    await page.click(".actions .btn.pri");
+    await page.click('.actions [data-act="check"]');
     await untilTerm(page, "specgate", /specgate check[\s\S]*exit 0/);
     const before = ticks(await termText(page, id));
     await page.waitForTimeout(800);
@@ -136,7 +147,7 @@ test("REQ-054 SCN-158: typing `ls` into the studio's terminal runs nothing — a
   const page = await open(s);
   try {
     await ready(page);
-    await page.click(".actions .btn.pri");
+    await page.click('.actions [data-act="check"]');
     await untilTerm(page, "specgate", /exit 0/);
     const shown = await termText(page, "specgate");
     await type(page, "specgate", "ls");

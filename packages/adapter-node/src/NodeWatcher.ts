@@ -1,6 +1,6 @@
 import { watch as fsWatch, promises as fsp, type FSWatcher } from "node:fs";
 import * as path from "node:path";
-import { ANY_FILE, type Watch, type WatcherPort } from "@specgate-studio/core";
+import { ANY_FILE, GIT_STATE, type Watch, type WatcherPort } from "@specgate-studio/core";
 import { posix } from "./paths.js";
 
 /**
@@ -24,6 +24,8 @@ export class NodeWatcher implements WatcherPort {
       const p = posix(rel);
       if (p && !ignored(p)) onChange(p);
     };
+    // git's own state — a commit, a stage, a checkout — is told apart (draft-explorer-tree REQ-163).
+    const git = watchGit(root, () => onChange(GIT_STATE));
     if (this.platform !== "linux") {
       // No name: the system's buffer overflowed and the names are lost (Windows).
       const w = fsWatch(root, { recursive: true }, (_event, name) => {
@@ -32,9 +34,10 @@ export class NodeWatcher implements WatcherPort {
       });
       // A watch that fails — its folder deleted — is closed, never left to spin.
       w.on("error", () => w.close());
-      return { close: async () => w.close() };
+      return { close: async () => (w.close(), git?.close()) };
     }
-    return perFolder(root, ignored, tell, () => onChange(ANY_FILE));
+    const files = await perFolder(root, ignored, tell, () => onChange(ANY_FILE));
+    return { close: async () => (git?.close(), files.close()) };
   }
 }
 
@@ -89,4 +92,19 @@ async function perFolder(
       watchers.clear();
     },
   };
+}
+
+/** `.git/index` and `.git/HEAD` watched, not the rest of `.git`: a commit or a stage changes them. */
+function watchGit(root: string, changed: () => void): FSWatcher | null {
+  try {
+    const w = fsWatch(path.join(root, ".git"), (_event, name) => {
+      const n = name?.toString();
+      if (n === "index" || n === "HEAD") changed();
+    });
+    w.on("error", () => w.close());
+    return w;
+  } catch {
+    // Not a repository, or `.git` is a file (a worktree): nothing to watch.
+    return null;
+  }
 }

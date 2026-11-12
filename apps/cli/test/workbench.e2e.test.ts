@@ -6,7 +6,18 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { MOD, PERF, browser, close, open, studio, type Page } from "./support.js";
+import {
+  MOD,
+  PERF,
+  browser,
+  close,
+  hidePanel,
+  open,
+  showPanel,
+  studio,
+  type Page,
+  openFromExplorer,
+} from "./support.js";
 
 const activityLabels = (page: Page) =>
   page.$$eval(".activity .sga", (els) => els.map((e) => e.getAttribute("aria-label")));
@@ -70,6 +81,24 @@ test("REQ-031 SCN-092: Report opened in the browser — the same eleven views as
   }
 });
 
+test("REQ-031 SCN-092: Report counts the requirements Home counts — open changes' included", async () => {
+  // Found by the design audit: Report read `report --json`'s total, which
+  // leaves out the requirements of open changes, and said 1 where Home said 3.
+  const s = await studio({ rows: 3, sections: { report: { total: 1 } } });
+  const page = await open(s);
+  try {
+    await page.click('.sga[data-view="report"]');
+    await page.waitForSelector('[data-testid="report-total"]');
+    assert.equal(await page.textContent('[data-testid="report-total"]'), "3");
+    assert.match(
+      (await page.textContent('[data-testid="report-split"]')) ?? "",
+      /1 in the spec · 2 in open changes/,
+    );
+  } finally {
+    await close(s, page);
+  }
+});
+
 // ── REQ-032 ─────────────────────────────────────────────────────────────
 
 test("REQ-032 SCN-093: sprich on feat/mvp-fase-1 — the status bar shows the branch, no ticket, the gate, done of the total, the cost; the panel's five tabs", async () => {
@@ -120,10 +149,8 @@ test("REQ-032 SCN-094: brief.md open, then proposal.md from Explorer — two tab
   const s = await studio();
   const page = await open(s);
   try {
-    await page.click('.sga[data-view="explorer"]');
-    await page.click('.row[title="docs/brief.md"]');
-    await page.click('.sga[data-view="explorer"]');
-    await page.click('.row[title="docs/specs/changes/draft-workbench/proposal.md"]');
+    await openFromExplorer(page, "docs/brief.md");
+    await openFromExplorer(page, "docs/specs/changes/draft-workbench/proposal.md");
     assert.deepEqual(
       await page.$$eval(".tab", (els) => els.map((e) => e.firstChild?.textContent)),
       ["brief.md", "proposal.md"],
@@ -147,16 +174,14 @@ test("REQ-032 SCN-103: the panel hidden, two tabs — Mod+J shows the panel, Ctr
   const s = await studio();
   const page = await open(s);
   try {
-    await page.keyboard.press(`${MOD}+J`);
+    await hidePanel(page);
     assert.equal(
       await page.$eval(".panel", (e) => (e as HTMLElement).hidden),
       true,
       "hidden first",
     );
-    await page.click('.sga[data-view="explorer"]');
-    await page.click('.row[title="docs/brief.md"]');
-    await page.click('.sga[data-view="explorer"]');
-    await page.click('.row[title="docs/specs/changes/draft-workbench/proposal.md"]');
+    await openFromExplorer(page, "docs/brief.md");
+    await openFromExplorer(page, "docs/specs/changes/draft-workbench/proposal.md");
     await page.keyboard.press(`${MOD}+J`);
     await page.keyboard.press("Control+Shift+Tab");
     assert.equal(await page.$eval(".panel", (e) => (e as HTMLElement).hidden), false);
@@ -177,6 +202,7 @@ test("REQ-032: the essential shortcuts answer — Mod+, opens Settings, Mod+Shif
     assert.equal(await current(page), "Settings");
     await page.keyboard.press(`${MOD}+Shift+E`);
     assert.equal(await current(page), "Explorer");
+    await showPanel(page);
     await page.click('.ptab:has-text("Gate")');
     await page.keyboard.press("Control+Backquote");
     assert.equal(await page.$eval('.ptab[aria-selected="true"]', (e) => e.textContent), "Terminal");
