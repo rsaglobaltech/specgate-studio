@@ -13,7 +13,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { NodeFolders } from "@specgate-studio/adapter-node";
 import { serve } from "../src/index.js";
-import { browser, close, open, type Page } from "./support.js";
+import { MOD, browser, close, open, type Page } from "./support.js";
 import { sprich } from "./sprich.js";
 
 const texts = (page: Page, sel: string) =>
@@ -343,5 +343,378 @@ test("REQ-185: Clone without the GitHub CLI — git clone, echoed in the studio'
     assert.match(text, /Cloning into 'sprich'/);
   } finally {
     await s.close();
+  }
+});
+
+// ── REQ-188 · REQ-189 · REQ-192 ─────────────────────────────────────────
+
+const SPEC = "docs/specs/changes/draft-pedidos/specs/pedidos/spec.md";
+const FEATURE = "features/pedidos/REQ-031.feature";
+const EDITOR_DISK = {
+  [SPEC]:
+    "# Delta — pedidos\n\n### Requirement: REQ-031 — Cancel an order\n\nThe system SHALL let a customer cancel.\n",
+  [FEATURE]: "Feature: REQ-031\n",
+  "spec.md": "# spec\n",
+  "docs/brief.md": "# brief\n",
+};
+
+/** A file opened with Ctrl/Cmd+P, in the active group. */
+async function quickOpen(page: Page, file: string) {
+  await page.keyboard.press(`${MOD}+P`);
+  await page.keyboard.type(file);
+  await page.click(`.palette li >> text="${file}"`);
+  await page.waitForSelector(`.egroup[data-active] .tab[aria-selected="true"][title="${file}"]`);
+  await page.waitForSelector(".egroup[data-active] .monaco-editor .view-lines");
+}
+
+const groups = (page: Page) =>
+  page.$$eval(".egroup", (els) =>
+    els.map((e) => {
+      const r = e.getBoundingClientRect();
+      return {
+        id: e.getAttribute("data-group"),
+        active: e.hasAttribute("data-active"),
+        tabs: [...e.querySelectorAll(".tab")].map((t) => t.getAttribute("title")),
+        x: Math.round(r.x),
+        y: Math.round(r.y),
+        w: Math.round(r.width),
+        h: Math.round(r.height),
+      };
+    }),
+  );
+
+test("REQ-188 SCN-560: REQ-031.feature dragged to the right edge — the overlay over the right half, then a new right group", async () => {
+  const s = await sprich({ files: EDITOR_DISK });
+  const page = await open(s);
+  try {
+    await quickOpen(page, SPEC);
+    await quickOpen(page, FEATURE);
+    const body = (await page.$(".egroup .ebody"))!;
+    const box = (await body.boundingBox())!;
+    await page.hover(`.egroup .tab[title="${FEATURE}"]`);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width - 20, box.y + box.height / 2, { steps: 8 });
+    const overlay = await page.waitForSelector('.drop-overlay[data-zone="right"]');
+    const o = (await overlay.boundingBox())!;
+    assert.ok(Math.abs(o.width - box.width / 2) < 3, "over the right half");
+    assert.ok(Math.abs(o.x - (box.x + box.width / 2)) < 3);
+    await page.mouse.up();
+    await page.waitForFunction(() => document.querySelectorAll(".egroup").length === 2);
+    const [left, right] = await groups(page);
+    assert.deepEqual(left!.tabs, [SPEC]);
+    assert.deepEqual(right!.tabs, [FEATURE]);
+    assert.ok(right!.x > left!.x);
+    assert.equal(await page.$$eval(".egroup .tabs[role=tablist]", (e) => e.length), 2);
+  } finally {
+    await close(s, page);
+  }
+});
+
+test("REQ-188 SCN-561: Ctrl+\\, then Ctrl+K and Down — three groups: left, right, and one under the right, each with spec.md", async () => {
+  const s = await sprich({ files: EDITOR_DISK });
+  const page = await open(s);
+  try {
+    await quickOpen(page, "spec.md");
+    await page.keyboard.press(`${MOD}+Backslash`);
+    await page.waitForFunction(() => document.querySelectorAll(".egroup").length === 2);
+    await page.keyboard.press(`${MOD}+K`);
+    await page.keyboard.press("ArrowDown");
+    await page.waitForFunction(() => document.querySelectorAll(".egroup").length === 3);
+    const [a, b, c] = await groups(page);
+    for (const g of [a, b, c]) assert.deepEqual(g!.tabs, ["spec.md"]);
+    assert.ok(b!.x > a!.x && Math.abs(c!.x - b!.x) <= 1, "the second right, the third under it");
+    assert.ok(c!.y > b!.y && Math.abs(a!.h - (b!.h + c!.h)) < 8);
+    assert.ok(c!.active);
+  } finally {
+    await close(s, page);
+  }
+});
+
+test('REQ-188 SCN-562: "Split Up" in the tab\'s menu, then "Split Editor Left" in the palette', async () => {
+  const s = await sprich({ files: EDITOR_DISK });
+  const page = await open(s);
+  try {
+    await quickOpen(page, "docs/brief.md");
+    await page.click('.egroup .tab[title="docs/brief.md"]', { button: "right" });
+    await page.click('.ctx [data-act="split-up"]');
+    await page.waitForFunction(() => document.querySelectorAll(".egroup").length === 2);
+    const [top, first] = await groups(page);
+    assert.ok(top!.y < first!.y && top!.active, "a group above the first, active");
+    await page.keyboard.press(`${MOD}+Shift+P`);
+    await page.keyboard.type("Split Editor Left");
+    await page.keyboard.press("Enter");
+    await page.waitForFunction(() => document.querySelectorAll(".egroup").length === 3);
+    const all = await groups(page);
+    const active = all.find((g) => g.active)!;
+    const beside = all.find((g) => g.id === top!.id)!;
+    assert.ok(
+      active.x < beside.x && Math.abs(active.y - beside.y) <= 1,
+      "left of the one that was active",
+    );
+    for (const g of all) assert.deepEqual(g.tabs, ["docs/brief.md"]);
+  } finally {
+    await close(s, page);
+  }
+});
+
+test("REQ-189 SCN-563: REQ-031's spec in two groups — typed in the left, the same text in the right, both unsaved, one save writes once", async () => {
+  const s = await sprich({ files: EDITOR_DISK });
+  const page = await open(s);
+  try {
+    await quickOpen(page, SPEC);
+    await page.keyboard.press(`${MOD}+Backslash`);
+    await page.waitForFunction(
+      () => document.querySelectorAll(".egroup .monaco-editor").length === 2,
+    );
+    await page.click(".egroup >> nth=0 >> .monaco-editor .view-line >> nth=0");
+    await page.keyboard.press(`${MOD}+End`);
+    await page.keyboard.type("Hola");
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll(".egroup")].every((g) => g.textContent?.includes("Hola")),
+    );
+    assert.equal(await page.$$eval(".egroup .tab .dirty", (e) => e.length), 2);
+    await page.keyboard.press(`${MOD}+S`);
+    await page.waitForFunction(() => document.querySelectorAll(".egroup .tab .dirty").length === 0);
+    assert.deepEqual(
+      s.writes.filter((w) => w === SPEC),
+      [SPEC],
+    );
+    assert.match(s.disk[SPEC]!, /Hola/);
+  } finally {
+    await close(s, page);
+  }
+});
+
+test("REQ-189 SCN-564: the right group's only tab closed — one group fills the editor area", async () => {
+  const s = await sprich({ files: EDITOR_DISK });
+  const page = await open(s);
+  try {
+    await quickOpen(page, SPEC);
+    await quickOpen(page, FEATURE);
+    await page.click(`.egroup .tab[title="${FEATURE}"]`, { button: "right" });
+    await page.click('.ctx [data-act="split-right"]');
+    await page.waitForFunction(() => document.querySelectorAll(".egroup").length === 2);
+    // The left group keeps both; the right one holds only the feature.
+    await page.click(`.egroup >> nth=0 >> .tab[title="${FEATURE}"] >> .x`);
+    const area = (await page.$(".egrid"))!;
+    const width = (await area.boundingBox())!.width;
+    await page.click(`.egroup >> nth=1 >> .tab[title="${FEATURE}"] >> .x`);
+    await page.waitForFunction(() => document.querySelectorAll(".egroup").length === 1);
+    const [only] = await groups(page);
+    assert.ok(Math.abs(only!.w - width) < 2, "fills the editor area");
+    assert.deepEqual(only!.tabs, [SPEC]);
+  } finally {
+    await close(s, page);
+  }
+});
+
+const splitter = ".egrid .splitter";
+
+test("REQ-189 SCN-565: the left group 70 % wide; Ctrl/Cmd+2 makes the right active; a double-click on the splitter evens them", async () => {
+  const s = await sprich({ files: EDITOR_DISK });
+  const page = await open(s);
+  try {
+    await quickOpen(page, "spec.md");
+    await page.keyboard.press(`${MOD}+Backslash`);
+    await page.waitForFunction(() => document.querySelectorAll(".egroup").length === 2);
+    const area = (await (await page.$(".egrid"))!.boundingBox())!;
+    const bar = (await (await page.$(splitter))!.boundingBox())!;
+    await page.mouse.move(bar.x + bar.width / 2, bar.y + bar.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(area.x + area.width * 0.7, bar.y + bar.height / 2, { steps: 6 });
+    await page.mouse.up();
+    const seventy = Number(await page.getAttribute(splitter, "aria-valuenow"));
+    assert.ok(Math.abs(seventy - 70) <= 1, String(seventy));
+    await page.keyboard.press(`${MOD}+1`);
+    await page.keyboard.press(`${MOD}+2`);
+    const [, right] = await groups(page);
+    assert.ok(right!.active, "the right group active");
+    await page.dblclick(splitter);
+    const [l, r] = await groups(page);
+    assert.ok(Math.abs(l!.w - r!.w) <= 2, `${l!.w} and ${r!.w}`);
+    assert.equal(await page.getAttribute(splitter, "aria-valuenow"), "50");
+  } finally {
+    await close(s, page);
+  }
+});
+
+test("REQ-192 SCN-570: the Reviewer tabs to the splitter and presses Right three times — the left group three steps wider, a separator with its value", async () => {
+  const s = await sprich({ files: EDITOR_DISK });
+  const page = await open(s);
+  try {
+    await quickOpen(page, "spec.md");
+    await page.keyboard.press(`${MOD}+Backslash`);
+    await page.waitForFunction(() => document.querySelectorAll(".egroup").length === 2);
+    assert.equal(await page.getAttribute(splitter, "role"), "separator");
+    assert.equal(await page.getAttribute(splitter, "aria-orientation"), "vertical");
+    assert.equal(await page.getAttribute(splitter, "tabindex"), "0");
+    assert.equal(await page.getAttribute(splitter, "aria-valuemin"), "0");
+    assert.equal(await page.getAttribute(splitter, "aria-valuemax"), "100");
+    const [before] = await groups(page);
+    await page.focus(splitter);
+    for (let i = 0; i < 3; i++) await page.keyboard.press("ArrowRight");
+    const [after] = await groups(page);
+    assert.ok(Math.abs(after!.w - before!.w - 30) <= 2, `${before!.w} → ${after!.w}`);
+    const now = Number(await page.getAttribute(splitter, "aria-valuenow"));
+    assert.ok(now > 50, String(now));
+    assert.equal(await page.$eval(".egroup .tabs", (e) => e.getAttribute("role")), "tablist");
+    assert.equal(await page.$eval(".egroup", (e) => e.getAttribute("role")), "group");
+  } finally {
+    await close(s, page);
+  }
+});
+
+test('REQ-192 SCN-571: in Spanish, the "?" beside "Dividir el editor a la derecha" — under [ POR DEBAJO ], a new group on the right, no file written, no command', async () => {
+  const s = await sprich({ files: EDITOR_DISK });
+  const page = await open(s, { lang: "es" });
+  try {
+    await quickOpen(page, "spec.md");
+    await page.click('.egroup .tab[title="spec.md"]', { button: "right" });
+    assert.equal(
+      await page.innerText('.ctx [data-act="split-right"]'),
+      "Dividir el editor a la derecha",
+    );
+    await page.click('.ctx [data-act="split-right"] + .hq');
+    const help = page.locator('[role="dialog"]');
+    await help.locator('[data-action="editor-split"]').waitFor();
+    const text = await help.innerText();
+    assert.match(text, /\[ POR DEBAJO \]/);
+    assert.match(text, /grupo de editores nuevo a la derecha/);
+    assert.match(text, /No escribe ningún archivo y no ejecuta ningún comando/);
+    assert.equal(s.runs.length, 0, "nothing ran");
+  } finally {
+    await close(s, page);
+  }
+});
+
+// ── REQ-190 ─────────────────────────────────────────────────────────────
+
+const box = async (page: Page, sel: string) => {
+  const b = await (await page.$(sel))?.boundingBox();
+  return b ?? null;
+};
+
+test('REQ-190 SCN-566: "Panel Position: Right", then maximized over the editor area, then restored with the same button', async () => {
+  const s = await sprich({ files: EDITOR_DISK });
+  const page = await open(s);
+  try {
+    await quickOpen(page, "spec.md");
+    await page.keyboard.press(`${MOD}+Shift+P`);
+    await page.keyboard.type("Panel Position: Right");
+    await page.keyboard.press("Enter");
+    await page.waitForSelector('.panel[data-position="right"]');
+    const main = (await box(page, ".ecol > .main"))!;
+    let panel = (await box(page, ".panel"))!;
+    assert.ok(panel.x >= main.x + main.width - 1, "right of the editor groups");
+    assert.ok(Math.abs(panel.y - main.y) < 2);
+    await page.click('[data-testid="panel-maximize"]');
+    await page.waitForSelector(".panel[data-maximized]");
+    panel = (await box(page, ".panel"))!;
+    const mainNow = await box(page, ".ecol > .main");
+    assert.ok(!mainNow || mainNow.width < 2, "the editor area under the panel");
+    assert.ok(panel.width > main.width, "over the editor area");
+    await page.click('[data-testid="panel-maximize"]');
+    await page.waitForSelector(".panel:not([data-maximized])");
+    assert.ok(Math.abs((await box(page, ".ecol > .main"))!.width - main.width) < 2, "restored");
+  } finally {
+    await close(s, page);
+  }
+});
+
+test("REQ-190 SCN-567: the agent panel hidden, the side bar dragged to 400 px — the editor takes the agent panel's room", async () => {
+  const s = await sprich({ files: EDITOR_DISK });
+  const page = await open(s);
+  try {
+    await page.click('.sga[data-view="explorer"]');
+    await page.keyboard.press(`${MOD}+Alt+B`);
+    await page.waitForSelector('[data-testid="agent-panel"]');
+    const main = (await box(page, ".ecol > .main"))!;
+    const agent = (await box(page, '[data-testid="agent-panel"]'))!;
+    await page.click('[data-testid="agent-hide"]');
+    await page.waitForSelector('[data-testid="agent-panel"]', { state: "detached" });
+    const wider = (await box(page, ".ecol > .main"))!;
+    assert.ok(
+      Math.abs(wider.width - (main.width + agent.width)) < 3,
+      `the agent panel's room: ${main.width} + ${agent.width} → ${wider.width}`,
+    );
+    const side = (await box(page, ".side"))!;
+    const edge = (await box(page, '[data-testid="side-sash"]'))!;
+    await page.mouse.move(edge.x + edge.width / 2, edge.y + 100);
+    await page.mouse.down();
+    await page.mouse.move(side.x + 400, edge.y + 100, { steps: 6 });
+    await page.mouse.up();
+    assert.equal(Math.round((await box(page, ".side"))!.width), 400);
+  } finally {
+    await close(s, page);
+  }
+});
+
+// ── REQ-191 ─────────────────────────────────────────────────────────────
+
+test("REQ-191 SCN-568: sprich opened again — the same two groups, tabs and sizes, the panel on the right", async () => {
+  const s = await sprich({ files: EDITOR_DISK });
+  const page = await open(s);
+  try {
+    await quickOpen(page, SPEC);
+    await quickOpen(page, FEATURE);
+    await page.click(`.egroup .tab[title="${FEATURE}"]`, { button: "right" });
+    await page.click('.ctx [data-act="split-right"]');
+    await page.click(`.egroup >> nth=0 >> .tab[title="${FEATURE}"] >> .x`);
+    await page.focus(splitter);
+    for (let i = 0; i < 4; i++) await page.keyboard.press("ArrowRight");
+    await page.keyboard.press(`${MOD}+Shift+P`);
+    await page.keyboard.type("Panel Position: Right");
+    await page.keyboard.press("Enter");
+    await page.waitForSelector('.panel[data-position="right"]');
+    const before = await groups(page);
+    const value = await page.getAttribute(splitter, "aria-valuenow");
+    await page.waitForTimeout(600);
+    await page.reload();
+    await page.waitForSelector("body[data-ready] .activity .sga");
+    await page.waitForFunction(() => document.querySelectorAll(".egroup").length === 2);
+    await page.waitForSelector('.panel[data-position="right"]');
+    const after = await groups(page);
+    assert.deepEqual(
+      after.map((g) => g.tabs),
+      before.map((g) => g.tabs),
+    );
+    assert.deepEqual(
+      [[SPEC], [FEATURE]],
+      after.map((g) => g.tabs),
+    );
+    assert.equal(await page.getAttribute(splitter, "aria-valuenow"), value);
+  } finally {
+    await close(s, page);
+  }
+});
+
+test("REQ-191 SCN-569: narrowed to 800 px — one group with both files, the side bars collapsed; widened to 1440 px — all as it was", async () => {
+  const s = await sprich({ files: EDITOR_DISK });
+  const page = await open(s);
+  try {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.click('.sga[data-view="explorer"]');
+    await page.keyboard.press(`${MOD}+Alt+B`);
+    await quickOpen(page, SPEC);
+    await quickOpen(page, FEATURE);
+    await page.click(`.egroup .tab[title="${FEATURE}"]`, { button: "right" });
+    await page.click('.ctx [data-act="split-right"]');
+    await page.click(`.egroup >> nth=0 >> .tab[title="${FEATURE}"] >> .x`);
+    await page.waitForFunction(() => document.querySelectorAll(".egroup").length === 2);
+    await page.setViewportSize({ width: 800, height: 900 });
+    await page.waitForFunction(() => document.querySelectorAll(".egroup").length === 1);
+    const [one] = await groups(page);
+    assert.deepEqual(one!.tabs, [SPEC, FEATURE]);
+    assert.equal(await page.$(".side"), null, "the side bar collapsed to its bar");
+    assert.equal(await page.$('[data-testid="agent-panel"]'), null);
+    assert.ok(await page.$('[data-testid="agent-bar"]'), "the agent panel to its bar");
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.waitForFunction(() => document.querySelectorAll(".egroup").length === 2);
+    const [l, r] = await groups(page);
+    assert.deepEqual([l!.tabs, r!.tabs], [[SPEC], [FEATURE]]);
+    assert.ok(await page.$(".side"));
+    assert.ok(await page.$('[data-testid="agent-panel"]'));
+  } finally {
+    await close(s, page);
   }
 });

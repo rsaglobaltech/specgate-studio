@@ -156,7 +156,7 @@ The system SHALL show on each folder of the tree a coloured folder icon of its k
 
 ### Requirement: REQ-188 — Split the editor right, left, down or up, five ways
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL split the active editor group right, left, down or up — into as many groups as the Developer makes, nested in any grid — — opening the active file in the new group — from the tab's context menu, from the split button at the right of the tab strip, from the palette, with Ctrl/Cmd+\ (right) and Ctrl/Cmd+K then an arrow key (that direction), and by dragging a tab to an edge of an editor group, where an overlay shows the half the tab will take before it is dropped.
 
@@ -182,7 +182,7 @@ The system SHALL split the active editor group right, left, down or up — into 
 
 ### Requirement: REQ-189 — Editor groups: their own tabs, one file in sync, moved tabs, focus and splitters
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL give each editor group its own tabs; SHALL keep a file open in two groups as one document — an edit in one shows in the other, saved once; SHALL move a tab to another group when it is dragged onto that group's tab strip; SHALL close a group when its last tab closes; SHALL focus a group on a click or with Ctrl/Cmd+1, 2 or 3; and SHALL resize the groups by their splitters, a double-click on a splitter evening the groups beside it.
 
@@ -208,7 +208,7 @@ The system SHALL give each editor group its own tabs; SHALL keep a file open in 
 
 ### Requirement: REQ-190 — The panel at the bottom, right or left, maximized; the agent panel and the side bar hidden, shown and resized
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL place the bottom panel at the bottom, on the right or on the left, and SHALL maximize it over the editor and restore it; and SHALL hide, show and resize the side bar and the agent panel, the panel never hidden (REQ-184).
 
@@ -228,7 +228,7 @@ The system SHALL place the bottom panel at the bottom, on the right or on the le
 
 ### Requirement: REQ-191 — The layout saved per project and restored; small windows collapse it without losing it
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL save each project's layout — its editor groups and their sizes, the tabs open in each and the active one, the panel's position and size, the side bar's and the agent panel's widths and whether they show — and SHALL restore it when the project is opened again, in the desktop app and in the browser alike; a window too small for it SHALL collapse it — groups stacked into tabs, the side bar and the agent panel to their bars — without changing what is saved.
 
@@ -248,7 +248,7 @@ The system SHALL save each project's layout — its editor groups and their size
 
 ### Requirement: REQ-192 — Splitters by keyboard, the right roles, and a "?" with notices for every split
 
-<!-- specgate:trace actor=Reviewer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Reviewer kind=functional -->
 
 The system SHALL let each splitter take the keyboard focus and move by the arrow keys, give each tab strip the role of a tab list and each splitter the role of a separator with its value, and give each split action — split, move, close a group, panel position, maximize — its "?" and its notice in English and Spanish.
 

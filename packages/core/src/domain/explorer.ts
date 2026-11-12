@@ -92,6 +92,9 @@ export type OpenFolders = Record<string, string[]>;
 /** The store's key for the folders left open. */
 export const OPEN_FOLDERS_KEY = "explorer-open";
 
+/** The store's key for each project's layout (draft-workbench-v2 REQ-191, A24). */
+export const LAYOUTS_KEY = "workbench-layouts";
+
 /** How many open folders are kept per project, at most. */
 export const OPEN_FOLDERS_LIMIT = 500;
 

@@ -1,6 +1,7 @@
 import {
   LANGS,
   OPEN_FOLDERS_KEY,
+  LAYOUTS_KEY,
   childPath,
   cleanOpenFolders,
   fileNotice,
@@ -63,6 +64,18 @@ export function attachExplorer(
     else memory = all;
   };
 
+  // Each project's layout — editor groups, panel, side bars — kept in the
+  // Developer's own store, never in the project (draft-workbench-v2 REQ-191, A24).
+  let layouts: Record<string, unknown> = {};
+  const readLayouts = async (): Promise<Record<string, unknown>> =>
+    wiring.store
+      ? ((await wiring.store.read<Record<string, unknown>>(LAYOUTS_KEY)) ?? {})
+      : layouts;
+  const writeLayouts = async (all: Record<string, unknown>) => {
+    if (wiring.store) await wiring.store.write(LAYOUTS_KEY, all);
+    else layouts = all;
+  };
+
   const both = (action: ActionId, vars: HelpVars, outcome: FileOutcome) =>
     Object.fromEntries(LANGS.map((l) => [l, fileNotice(action, l, vars, outcome)])) as Record<
       Lang,
@@ -121,6 +134,14 @@ export function attachExplorer(
         if (letter) changes[file] = letter;
       }
       return { changes };
+    },
+    "layout.get": async () => ({ layout: (await readLayouts())[projectDir] ?? null }),
+    "layout.set": async (params) => {
+      const layout = (params as { layout?: unknown } | null)?.layout;
+      if (!layout || typeof layout !== "object" || JSON.stringify(layout).length > 65_536)
+        throw refuse("a layout of at most 64 KB");
+      await writeLayouts({ ...(await readLayouts()), [projectDir]: layout });
+      return {};
     },
     "explorer.open.get": async () => ({ open: cleanOpenFolders((await readOpen())[projectDir]) }),
     "explorer.open.set": async (params) => {

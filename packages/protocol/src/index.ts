@@ -125,6 +125,10 @@ export interface Requests {
   /** Git's letter of each changed file (REQ-163). */
   "files.status": { params: Record<string, never>; result: { changes: Record<string, GitLetter> } };
   /** The folders left open in this project, and keeping them (REQ-161). */
+  /** This project's layout as last saved, or null (draft-workbench-v2 REQ-191, A24). */
+  "layout.get": { params: Record<string, never>; result: { layout: unknown } };
+  /** Saves this project's layout in the Developer's store, never in the project (REQ-191). */
+  "layout.set": { params: { layout: unknown }; result: Record<string, never> };
   "explorer.open.get": { params: Record<string, never>; result: { open: string[] } };
   "explorer.open.set": { params: { open: string[] }; result: Record<string, never> };
   /** The tree's writes, through the host's file port, inside the project only (REQ-166). */

@@ -926,20 +926,26 @@ export const HELP: Catalog = {
   },
   "editor-split": {
     en: {
-      does: "Opens the file in a new editor group on the {side} of the active one, with its own tabs; the same file in both stays one document.",
+      does: "Opens the file in a new editor group {side} the active one, with its own tabs; the same file in both stays one document.",
       command: "None: the studio lays out its editors.",
       files: "None: it writes no file; the layout is kept for this project.",
       doesNot: "It writes no file and runs no command.",
       next: "Ctrl/Cmd+1, 2 or 3 focuses a group; drag a splitter to resize, double-click it to even them.",
-      notice: { ranOk: "Split the editor to the {side}", next: "Ctrl/Cmd+W closes the tab" },
+      notice: {
+        ranOk: "Split the editor: a new group {side} the active one",
+        next: "Ctrl/Cmd+W closes the tab",
+      },
     },
     es: {
-      does: "Abre el archivo en un grupo de editores nuevo a la {side} del activo, con sus propias pestañas; el mismo archivo en los dos sigue siendo un solo documento.",
+      does: "Abre el archivo en un grupo de editores nuevo {side} del activo, con sus propias pestañas; el mismo archivo en los dos sigue siendo un solo documento.",
       command: "Ninguno: el studio coloca sus editores.",
       files: "Ninguno: no escribe ningún archivo; la disposición se guarda para este proyecto.",
       doesNot: "No escribe ningún archivo y no ejecuta ningún comando.",
       next: "Ctrl/Cmd+1, 2 o 3 enfoca un grupo; arrastra un separador para cambiar el tamaño, doble clic para igualarlos.",
-      notice: { ranOk: "Dividido el editor a la {side}", next: "Ctrl/Cmd+W cierra la pestaña" },
+      notice: {
+        ranOk: "Dividido el editor: un grupo nuevo {side} del activo",
+        next: "Ctrl/Cmd+W cierra la pestaña",
+      },
     },
   },
   "editor-move": {
@@ -981,20 +987,20 @@ export const HELP: Catalog = {
   },
   "panel-position": {
     en: {
-      does: "Moves the bottom panel — its terminals, the gate, problems — to the {side} of the editor groups; it is never hidden.",
+      does: "Moves the bottom panel — its terminals, the gate, problems — below the editor groups, or to their right or left; it is never hidden.",
       command: "None: the studio lays out its panels.",
       files: "None: it writes no file; the position is kept for this project.",
       doesNot: "It closes no terminal, stops nothing running, and runs no command.",
       next: "Choose Panel Position again to move it back.",
-      notice: { ranOk: "The panel is on the {side}", next: "Panel Position: Bottom puts it back" },
+      notice: { ranOk: "Moved the panel", next: "Panel Position: Bottom puts it back" },
     },
     es: {
-      does: "Mueve el panel inferior — sus terminales, el gate, los problemas — a la {side} de los grupos de editores; nunca se oculta.",
+      does: "Mueve el panel inferior — sus terminales, el gate, los problemas — debajo de los grupos de editores, o a su derecha o su izquierda; nunca se oculta.",
       command: "Ninguno: el studio coloca sus paneles.",
       files: "Ninguno: no escribe ningún archivo; la posición se guarda para este proyecto.",
       doesNot: "No cierra ninguna terminal, no detiene nada en marcha y no ejecuta ningún comando.",
       next: "Elige de nuevo Posición del panel para devolverlo.",
-      notice: { ranOk: "El panel está a la {side}", next: "Posición del panel: abajo lo devuelve" },
+      notice: { ranOk: "Movido el panel", next: "Posición del panel: abajo lo devuelve" },
     },
   },
   "panel-maximize": {
@@ -1032,7 +1038,7 @@ const UNSET: Record<string, string> = {
   path: "<path>",
   to: "<new name>",
   repo: "<owner/name>",
-  side: "<side>",
+  side: "<beside>",
 };
 
 export type HelpVars = Partial<

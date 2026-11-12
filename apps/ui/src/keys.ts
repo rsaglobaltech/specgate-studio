@@ -12,7 +12,13 @@ export type Action =
   | "explorer"
   | "find"
   | "search"
-  | "settings";
+  | "settings"
+  | "splitRight"
+  | "chord"
+  | "focusGroup1"
+  | "focusGroup2"
+  | "focusGroup3"
+  | "toggleAgent";
 
 export interface KeyPress {
   key: string;
@@ -20,6 +26,8 @@ export interface KeyPress {
   metaKey: boolean;
   shiftKey: boolean;
   altKey: boolean;
+  /** The physical key, for keys whose character a layout or Alt changes (Option+B on macOS). */
+  code?: string;
 }
 
 /**
@@ -27,6 +35,10 @@ export interface KeyPress {
  * elsewhere; Ctrl+Tab and Ctrl+` are Ctrl on every system, as in VS Code.
  */
 export function shortcut(e: KeyPress, mac: boolean): Action | null {
+  const modDown = mac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey;
+  // Ctrl/Cmd+Alt+B: the agent panel (draft-workbench-v2 A22).
+  if (modDown && e.altKey && !e.shiftKey && (e.code === "KeyB" || e.key.toLowerCase() === "b"))
+    return "toggleAgent";
   if (e.altKey) return null;
   if (e.key === "F1" && !e.ctrlKey && !e.metaKey) return "palette";
   if (e.ctrlKey && !e.metaKey && e.key === "Tab") return e.shiftKey ? "previousTab" : "nextTab";
@@ -41,7 +53,14 @@ export function shortcut(e: KeyPress, mac: boolean): Action | null {
     if (k === "f") return "search";
     return null;
   }
+  // Editor groups (draft-workbench-v2 REQ-188, REQ-189, A18).
+  if (k === "\\" || e.code === "Backslash") return "splitRight";
+  if (k === "1") return "focusGroup1";
+  if (k === "2") return "focusGroup2";
+  if (k === "3") return "focusGroup3";
   switch (k) {
+    case "k":
+      return "chord";
     case "p":
       return "openFile";
     case "s":

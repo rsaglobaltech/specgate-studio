@@ -336,8 +336,9 @@ export async function startHost(given: HostOptions): Promise<Host> {
       const vars = Object.fromEntries(
         Object.entries((p.vars ?? {}) as Record<string, unknown>).filter(
           ([k, v]) =>
-            ["req", "change", "module", "key", "q", "agent", "path", "to"].includes(k) &&
-            typeof v === "string",
+            ["req", "change", "module", "key", "q", "agent", "path", "to", "repo", "side"].includes(
+              k,
+            ) && typeof v === "string",
         ),
       ) as HelpVars;
       return { labels: PART_LABELS[lang], explanation: explain(p.action as ActionId, lang, vars) };

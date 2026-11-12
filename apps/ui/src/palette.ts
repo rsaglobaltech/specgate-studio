@@ -12,7 +12,11 @@ export type Run =
   | { kind: "toggleSidebar" }
   | { kind: "openFile" }
   | { kind: "newTerminal" }
-  | { kind: "palette" };
+  | { kind: "palette" }
+  | { kind: "split"; side: "right" | "left" | "down" | "up" }
+  | { kind: "panelPosition"; position: "bottom" | "right" | "left" }
+  | { kind: "maximizePanel" }
+  | { kind: "toggleAgent" };
 
 export interface Feature {
   id: string;
@@ -166,7 +170,8 @@ export const FEATURES: readonly Feature[] = [
   {
     id: "layout.panel",
     area: "project",
-    title: { en: "Show or hide the bottom panel", es: "Mostrar u ocultar el panel inferior" },
+    // Always there (draft-workbench-v2 REQ-184): folded to its tabs, never hidden.
+    title: { en: "Fold or unfold the bottom panel", es: "Plegar o desplegar el panel inferior" },
     command: null,
     run: { kind: "togglePanel" },
   },
@@ -190,6 +195,51 @@ export const FEATURES: readonly Feature[] = [
     title: { en: "New terminal", es: "Nuevo terminal" },
     command: null,
     run: { kind: "newTerminal" },
+  },
+  // Editor splits, the panel's place and the agent panel (draft-workbench-v2 REQ-188, REQ-190, A18, A22).
+  ...(
+    [
+      ["right", "Split Editor Right", "Dividir el editor a la derecha"],
+      ["left", "Split Editor Left", "Dividir el editor a la izquierda"],
+      ["down", "Split Editor Down", "Dividir el editor abajo"],
+      ["up", "Split Editor Up", "Dividir el editor arriba"],
+    ] as const
+  ).map(([side, en, es]): Feature => ({
+    id: `editor.split.${side}`,
+    area: "project",
+    action: "editor-split",
+    title: { en, es },
+    command: null,
+    run: { kind: "split", side },
+  })),
+  ...(
+    [
+      ["bottom", "Panel Position: Bottom", "Posición del panel: abajo"],
+      ["right", "Panel Position: Right", "Posición del panel: derecha"],
+      ["left", "Panel Position: Left", "Posición del panel: izquierda"],
+    ] as const
+  ).map(([position, en, es]): Feature => ({
+    id: `panel.position.${position}`,
+    area: "project",
+    action: "panel-position",
+    title: { en, es },
+    command: null,
+    run: { kind: "panelPosition", position },
+  })),
+  {
+    id: "panel.maximize",
+    area: "project",
+    action: "panel-maximize",
+    title: { en: "Maximize Panel", es: "Maximizar el panel" },
+    command: null,
+    run: { kind: "maximizePanel" },
+  },
+  {
+    id: "layout.agent",
+    area: "project",
+    title: { en: "Show or hide the agent panel", es: "Mostrar u ocultar el panel del agente" },
+    command: null,
+    run: { kind: "toggleAgent" },
   },
   {
     id: "palette.open",
@@ -240,12 +290,19 @@ export const MENUS: ReadonlyArray<{ id: string; title: Record<Lang, string>; ite
   {
     id: "terminal",
     title: { en: "Terminal", es: "Terminal" },
-    items: ["terminal.new", "layout.panel"],
+    items: [
+      "terminal.new",
+      "layout.panel",
+      "panel.maximize",
+      "panel.position.bottom",
+      "panel.position.right",
+      "panel.position.left",
+    ],
   },
   {
     id: "help",
     title: { en: "Help", es: "Ayuda" },
-    items: ["view.help", "palette.open", "layout.sidebar"],
+    items: ["view.help", "palette.open", "layout.sidebar", "layout.agent"],
   },
 ];
 
