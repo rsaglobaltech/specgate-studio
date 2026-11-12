@@ -44,8 +44,13 @@ import type {
   ReqEstimate,
   WaitReason,
   WaitingItem,
+  LiveAttempt,
   LiveLine,
   LiveQuestion,
+  LiveStage,
+  LogLine,
+  StageId,
+  StageMark,
   LiveRequirement,
   LiveState,
   LiveStep,
@@ -115,8 +120,13 @@ export type {
   Uncommitted,
   WaitReason,
   WaitingItem,
+  LiveAttempt,
   LiveLine,
   LiveQuestion,
+  LiveStage,
+  LogLine,
+  StageId,
+  StageMark,
   LiveRequirement,
   LiveState,
   LiveStep,
@@ -259,7 +269,7 @@ export interface Requests {
     result: { adopted: boolean; byKind: boolean; areas: Area[] };
   };
   /** What is ready to build, its estimate and who codes; runs nothing (draft-build-live REQ-101). */
-  "build.get": { params: Record<string, never>; result: BuildList };
+  "build.get": { params: { named?: string | null }; result: BuildList };
   /** Build one requirement, or say why it waits; runs nothing while it waits (REQ-102). */
   "build.start": { params: { req: string }; result: BuildStart };
   /** What the Developer confirmed about the work Build waits on, then the build (REQ-102, A7). */

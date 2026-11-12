@@ -17,6 +17,8 @@ function rule(p: string): Section[] {
   if (p === "*") return [...SECTIONS];
   if (/^features\/.+\.feature$/.test(p)) return ["matrix"];
   if (p === "docs/brief.md") return ["home"];
+  // The harness's settings — its agent above all — feed Build through status (draft-live-polish REQ-203).
+  if (p === "harness.config.yaml") return ["home"];
   // The project's own questions: the agent's about a requirement of spec.md (draft-build-live REQ-104).
   if (p === "docs/specs/questions.md") return ["questions", "matrix"];
   if (p === "spec.md" || p === "docs/specs/traceability.md") return ["home", "matrix", "report"];

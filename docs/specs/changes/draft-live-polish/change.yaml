@@ -1,0 +1,11 @@
+specgate_change_version: 1
+schema: spec-driven
+created: 2026-11-12
+rigor: lite
+skip_specs: false
+retire_capabilities: false
+req_range: [REQ-201, REQ-210]
+scn_range: [SCN-601, SCN-630]
+brief: docs/briefs/live-polish.md
+based_on: [REQ-101@a649b4c9b8f4, REQ-102@06b3650c0d36, REQ-103@6afd2faaca91, REQ-105@87b51f357f9a]
+approved: 2026-11-12

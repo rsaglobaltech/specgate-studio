@@ -16,7 +16,7 @@ async function build(page: Page) {
   await page.waitForSelector(".breq");
 }
 
-test("REQ-101 SCN-301: Build on the desktop — REQ-030 with its estimate and `claude`, REQ-031 apart waiting for Q2", async () => {
+test("REQ-101: Build on the desktop — REQ-030 with its estimate and `claude`, REQ-031 apart waiting for Q2", async () => {
   const s = await studio({
     homeRequirements: SPRICH as never,
     specgate: buildAnswers("claude -p < {prompt_file}"),
@@ -57,7 +57,7 @@ test("REQ-101 SCN-301: Build on the desktop — REQ-030 with its estimate and `c
   }
 });
 
-test("REQ-101 SCN-302: Build in the browser with no agent set — REQ-030 with its estimate, no agent, and `specgate agents init --tool claude`", async () => {
+test("REQ-101: Build in the browser with no agent set — REQ-030 with its estimate, no agent, and `specgate agents init --tool claude`", async () => {
   const s = await studio({ homeRequirements: SPRICH as never, specgate: buildAnswers(null) });
   const page = await open(s, { lang: "es" });
   try {

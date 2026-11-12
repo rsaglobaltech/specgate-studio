@@ -24,6 +24,11 @@ const asking: LiveRequirement = {
   steps: [],
   question: ASKED,
   usage: null,
+  stages: [],
+  attempts: [],
+  maxAttempts: 3,
+  branch: "harness/REQ-030",
+  seconds: null,
 };
 const Q3 = {
   id: "Q3",
