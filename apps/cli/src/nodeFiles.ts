@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { IgnoreRules, type GitPort } from "@specgate-studio/core";
+import { EXCLUDED_NAMES, IgnoreRules, type GitPort } from "@specgate-studio/core";
 import type { ProjectFiles } from "@specgate-studio/host";
 import { systemTrash, type Trash } from "@specgate-studio/adapter-node";
 
@@ -95,6 +95,8 @@ export function nodeFiles(
       const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
       const out: Array<{ name: string; dir: boolean; rel: string; ignored: boolean }> = [];
       for (const e of entries) {
+        // `.git` is never shown (REQ-186, A11): VS Code's files.exclude default.
+        if (EXCLUDED_NAMES.has(e.name)) continue;
         const r = rel ? `${rel}/${e.name}` : e.name;
         let isDir = e.isDirectory();
         if (e.isSymbolicLink())

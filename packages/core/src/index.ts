@@ -218,6 +218,7 @@ export { Brief, type CommandRunner, type DraftResult } from "./application/Brief
 export {
   OPEN_FOLDERS_KEY,
   LAYOUTS_KEY,
+  EXCLUDED_NAMES,
   OPEN_FOLDERS_LIMIT,
   childPath,
   cleanOpenFolders,

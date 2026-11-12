@@ -418,6 +418,44 @@ export function Explorer(p: ExplorerProps) {
     if (at) p.openFile(at.path, at.line, { id, title });
   };
 
+  /**
+   * The spec explorer's and the modules' heights in whole rows, like VS Code's
+   * view panes (draft-workbench-v2 REQ-186): each scrolls, a sash resizes it.
+   */
+  const [paneRows, setPaneRows] = useState({ spec: 5, modules: 6 });
+  const sash = (pane: "spec" | "modules") => (
+    <div
+      class="vsash"
+      data-testid={`sash-${pane}`}
+      role="separator"
+      aria-orientation="horizontal"
+      aria-label={tr("tree.resize")}
+      aria-valuenow={paneRows[pane]}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        const by = e.key === "ArrowDown" ? 1 : e.key === "ArrowUp" ? -1 : 0;
+        if (!by) return;
+        e.preventDefault();
+        setPaneRows((r) => ({ ...r, [pane]: Math.min(Math.max(r[pane] + by, 1), 40) }));
+      }}
+      onPointerDown={(e) => {
+        const el = e.currentTarget as HTMLElement;
+        el.setPointerCapture(e.pointerId);
+        const from = e.clientY;
+        const start = paneRows[pane];
+        const move = (ev: PointerEvent) => {
+          const rows = Math.min(Math.max(start + Math.round((ev.clientY - from) / ROW), 1), 40);
+          setPaneRows((r) => ({ ...r, [pane]: rows }));
+        };
+        const up = () => {
+          el.removeEventListener("pointermove", move);
+          el.removeEventListener("pointerup", up);
+        };
+        el.addEventListener("pointermove", move);
+        el.addEventListener("pointerup", up);
+      }}
+    />
+  );
   const specRow = (
     key: string,
     label: string,
@@ -436,6 +474,7 @@ export function Explorer(p: ExplorerProps) {
       class="tr"
       key={key}
       data-key={key}
+      title={label.replace(/^[▾▸] /, "")}
       aria-current={opts.current ? "true" : undefined}
       style={{ paddingLeft: `${10 + (opts.depth ?? 0) * 14}px` }}
       onClick={opts.onClick}
@@ -461,7 +500,7 @@ export function Explorer(p: ExplorerProps) {
       <div class="shead sub">
         <span>{tr("tree.spec")}</span>
       </div>
-      <div class="ssec" data-section="spec">
+      <div class="ssec" data-section="spec" style={{ maxHeight: `${paneRows.spec * ROW}px` }}>
         <button
           type="button"
           class="tr root"
@@ -542,6 +581,7 @@ export function Explorer(p: ExplorerProps) {
           </>
         )}
       </div>
+      {sash("spec")}
 
       <div class="shead sub">
         <span>{tr("tree.modules")}</span>
@@ -549,7 +589,12 @@ export function Explorer(p: ExplorerProps) {
           {built}/{p.requirements.length}
         </span>
       </div>
-      <div class="ssec modules" data-section="modules" ref={modulesRef}>
+      <div
+        class="ssec modules"
+        data-section="modules"
+        ref={modulesRef}
+        style={{ maxHeight: `${paneRows.modules * ROW}px` }}
+      >
         {modules.map((m) => {
           const isOpen = shownModules.has(m.name);
           return (
@@ -558,6 +603,7 @@ export function Explorer(p: ExplorerProps) {
                 type="button"
                 class="tr"
                 aria-expanded={isOpen}
+                title={m.name}
                 onClick={() =>
                   setOpenModules(() => {
                     const next = new Set(shownModules);
@@ -582,6 +628,7 @@ export function Explorer(p: ExplorerProps) {
                     key={r.id}
                     data-req={r.id}
                     data-state={r.state}
+                    title={`${r.id} — ${r.title}`}
                     aria-current={(p.activeReq ?? currentReq) === r.id ? "true" : undefined}
 
                     style={{ paddingLeft: "24px" }}
@@ -600,6 +647,7 @@ export function Explorer(p: ExplorerProps) {
         })}
       </div>
 
+      {sash("modules")}
       <div class="shead sub">
         {/* The project's root, named after it (draft-workbench-v2 REQ-186). */}
         <span data-testid="tree-root">
@@ -880,3 +928,6 @@ function ContextMenu(props: {
     </div>
   );
 }
+
+/** A row of the spec explorer and the modules, in px (draft-explorer-tree REQ-162). */
+const ROW = 26;

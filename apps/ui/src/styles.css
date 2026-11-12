@@ -1215,18 +1215,37 @@ textarea.ask {
 .tr .right.warn {
   color: var(--amber);
 }
+/* Like VS Code's view panes (draft-workbench-v2 REQ-186): whole rows, each scrolls, a sash resizes. */
 .ssec {
-  flex: 0 1 auto;
+  flex: none;
   min-height: 0;
   overflow: auto;
-  padding: 0 0 6px;
+  padding: 0;
 }
 .side.explorer {
   overflow: hidden;
 }
-.ssec.modules {
-  max-height: 34%;
-  overflow: auto;
+.ssec .tr .name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ssec .tr .right {
+  flex: none;
+}
+.vsash {
+  flex: none;
+  height: 4px;
+  margin-top: -2px;
+  position: relative;
+  z-index: 2;
+  cursor: row-resize;
+}
+.vsash:hover,
+.vsash:focus-visible {
+  background: var(--accent);
+  outline: none;
 }
 .explorer .filter {
   flex: none;

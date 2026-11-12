@@ -69,7 +69,6 @@ test("REQ-161 REQ-167 REQ-186 SCN-498: one folder's entries — the ignored mark
         .map((e) => `${e.name}${e.dir ? "/" : ""}${e.ignored ? " (ignored)" : ""}`)
         .sort();
     assert.deepEqual(await names(""), [
-      ".git/ (ignored)",
       ".gitignore",
       ".idea/ (ignored)",
       "apps/",
@@ -79,6 +78,8 @@ test("REQ-161 REQ-167 REQ-186 SCN-498: one folder's entries — the ignored mark
       "spec.md",
     ]);
     assert.deepEqual(await names("apps/web"), ["dist/ (ignored)", "src/"]);
+    // .git is left out, as VS Code's files.exclude does by default (A11).
+    assert.ok(fs.existsSync(path.join(dir, ".git")), "a git repository");
     // Inside an ignored folder, everything is ignored too (REQ-186 SCN-553).
     assert.deepEqual(await names("node_modules"), ["x/ (ignored)"]);
     assert.ok(!(await files.list()).some((f) => /node_modules|dist|\.idea|debug\.log/.test(f)));

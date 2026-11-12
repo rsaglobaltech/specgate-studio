@@ -72,6 +72,7 @@ test('REQ-184 SCN-549: "+" opens a new terminal in the project\'s folder, its pr
 
 const SPRICH_DISK = {
   ".gitignore": ".idea/\n",
+  ".git/HEAD": "ref: refs/heads/main\n",
   ".claude/settings.json": "{}",
   ".github/workflows/ci.yml": "",
   ".idea/workspace.xml": "",
@@ -110,6 +111,8 @@ test("REQ-186 SCN-552: sprich's root under the spec explorer and the modules —
         top.some(([q]) => q === p),
         p,
       );
+    // .git hidden, as VS Code's files.exclude does by default (A11).
+    assert.ok(!top.some(([q]) => q === ".git"), ".git hidden");
     const dim = top.filter(([, i]) => i === "1").map(([q]) => q);
     assert.deepEqual(dim, [".idea", "node_modules"]);
   } finally {
@@ -714,6 +717,55 @@ test("REQ-191 SCN-569: narrowed to 800 px — one group with both files, the sid
     assert.deepEqual([l!.tabs, r!.tabs], [[SPEC], [FEATURE]]);
     assert.ok(await page.$(".side"));
     assert.ok(await page.$('[data-testid="agent-panel"]'));
+  } finally {
+    await close(s, page);
+  }
+});
+
+test("REQ-186: the Explorer's sections stack like VS Code's panes — whole rows, no overlap, long names cut with their tooltip, a sash to resize", async () => {
+  const many = Array.from({ length: 9 }, (_, i) => ({
+    id: i === 0 ? "kan-13-register-vehicle-entry-with-a-very-long-name" : `draft-mod${i}`,
+  }));
+  const s = await sprich({ files: SPRICH_DISK, sections: { changes: { changes: many } } });
+  const page = await open(s);
+  try {
+    await explorer(page);
+    const panes = () =>
+      page.$$eval(".explorer .ssec", (els) =>
+        els.map((e) => {
+          const r = e.getBoundingClientRect();
+          let next = e.nextElementSibling;
+          while (next && !next.classList.contains("shead")) next = next.nextElementSibling;
+          return {
+            h: e.clientHeight,
+            bottom: Math.round(r.bottom),
+            nextTop: Math.round(next!.getBoundingClientRect().top),
+          };
+        }),
+      );
+    for (const pane of await panes()) {
+      assert.equal(pane.h % 26, 0, `whole rows: ${pane.h}`);
+      assert.ok(pane.bottom <= pane.nextTop, "no overlap with the next header");
+    }
+    const long = page.locator(
+      '.explorer [data-key="change:kan-13-register-vehicle-entry-with-a-very-long-name"]',
+    );
+    assert.equal(
+      await long.getAttribute("title"),
+      "kan-13-register-vehicle-entry-with-a-very-long-name",
+    );
+    assert.equal(
+      await long.locator(".name").evaluate((e) => getComputedStyle(e).textOverflow),
+      "ellipsis",
+    );
+    const before = (await panes())[0]!.h;
+    const sash = (await (await page.$('[data-testid="sash-spec"]'))!.boundingBox())!;
+    await page.mouse.move(sash.x + 40, sash.y + sash.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(sash.x + 40, sash.y + sash.height / 2 + 52, { steps: 5 });
+    await page.mouse.up();
+    assert.equal((await panes())[0]!.h, before + 52, "two rows taller");
+    assert.equal(await page.getAttribute('[data-testid="sash-spec"]', "role"), "separator");
   } finally {
     await close(s, page);
   }

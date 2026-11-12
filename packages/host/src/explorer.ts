@@ -2,6 +2,7 @@ import {
   LANGS,
   OPEN_FOLDERS_KEY,
   LAYOUTS_KEY,
+  EXCLUDED_NAMES,
   childPath,
   cleanOpenFolders,
   fileNotice,
@@ -117,12 +118,14 @@ export function attachExplorer(
       if (!files.children) return { entries: [] };
       const dir = p as string;
       const entries: TreeEntry[] = sortEntries(
-        (await files.children(dir)).map((e) => ({
-          name: e.name,
-          dir: e.dir,
-          path: childPath(dir, e.name),
-          ...(e.ignored ? { ignored: true as const } : {}),
-        })),
+        (await files.children(dir))
+          .filter((e) => !EXCLUDED_NAMES.has(e.name))
+          .map((e) => ({
+            name: e.name,
+            dir: e.dir,
+            path: childPath(dir, e.name),
+            ...(e.ignored ? { ignored: true as const } : {}),
+          })),
       );
       return { entries };
     },

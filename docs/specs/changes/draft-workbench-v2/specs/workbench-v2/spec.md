@@ -118,7 +118,7 @@ The system SHALL show, when no folder is open, in the Explorer's side panel "No 
 
 <!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
-The system SHALL show, when a folder is open, the whole project as a tree under a root named after the project, below the spec explorer and the modules; folders and files whose name starts with a dot SHALL be shown, and what `.gitignore` or the studio's ignore rules name SHALL be shown dimmed — never hidden — and read only when opened.
+The system SHALL show, when a folder is open, the whole project as a tree under a root named after the project, below the spec explorer and the modules; folders and files whose name starts with a dot SHALL be shown — `.git` excepted, hidden as VS Code's `files.exclude` default hides it — and what `.gitignore` or the studio's ignore rules name SHALL be shown dimmed — never hidden — and read only when opened.
 
 > Brief: "When a folder is open, the Explorer shows the whole project under a root named after it, dot folders included, and what is ignored dimmed, never hidden, below the spec explorer and the modules."
 
