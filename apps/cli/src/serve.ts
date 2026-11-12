@@ -30,6 +30,7 @@ import {
   NodeGit,
   NodeScratch,
   NodePrograms,
+  NodeUserSettings,
   caseInsensitivePaths,
 } from "@specgate-studio/adapter-node";
 import { nodeFiles } from "./nodeFiles.js";
@@ -105,6 +106,8 @@ export async function serve(options: ServeOptions): Promise<Host> {
         },
       },
       runner: { run: async () => 127 },
+      // With no folder open the user's settings are still theirs to change (draft-settings REQ-141).
+      userSettings: options.userSettings ?? new NodeUserSettings(options.home),
       terminals: { ...terminals, home },
       port,
       ui,
