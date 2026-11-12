@@ -39,7 +39,14 @@ import type {
 import { Rpc } from "./rpc.js";
 import { t, type Lang } from "./i18n.js";
 import { shortcut, type Action } from "./keys.js";
-import { AREAS, FEATURES, MENUS, filterFeatures, type Feature } from "./palette.js";
+import {
+  AREAS,
+  FEATURES,
+  MENUS,
+  filterFeatures,
+  requirementFeatures,
+  type Feature,
+} from "./palette.js";
 import {
   closeTab,
   closeTabs,
@@ -50,7 +57,7 @@ import {
   type Tabs,
 } from "./tabs.js";
 import { BOTTOM_VIEWS, PANEL_TABS, TOP_VIEWS, type PanelTab, type ViewId } from "./views.js";
-import { Logo, ViewIcon } from "./icons.js";
+import { AgentIcon, Logo, ViewIcon } from "./icons.js";
 import { VirtualList } from "./VirtualList.js";
 import { HelpButton, HelpDialog, NoticeToast, type HelpRequest } from "./Help.js";
 import { Changes } from "./views/Changes.js";
@@ -588,6 +595,7 @@ export function App({ rpc }: { rpc: Rpc }) {
         }));
       else if (r.kind === "maximizePanel") setFrame((f) => ({ ...f, panelMax: !f.panelMax }));
       else if (r.kind === "toggleAgent") setFrame((f) => ({ ...f, agent: !f.agent }));
+      else if (r.kind === "buildReq") (setBuildReq(r.req), show("build"));
       else setSidebar((s) => !s);
     },
     [rpc, show, runCommand, lang],
@@ -974,6 +982,20 @@ export function App({ rpc }: { rpc: Rpc }) {
             />
           ))}
           <div class="grow" />
+          {/* The agent panel, reopened from a button always there (draft-live-polish REQ-204). */}
+          {folderOpen && (
+            <button
+              type="button"
+              class="sgp"
+              data-panel="agent"
+              aria-label={tr("agent.toggle")}
+              title={tr("agent.toggleTitle", { keys: isMac ? "⌘⌥B" : "Ctrl+Alt+B" })}
+              aria-pressed={frame.agent}
+              onClick={() => setFrame((f) => ({ ...f, agent: !f.agent }))}
+            >
+              <AgentIcon />
+            </button>
+          )}
           {BOTTOM_VIEWS.map((v) => (
             <ActivityButton
               key={v}
@@ -1297,6 +1319,7 @@ export function App({ rpc }: { rpc: Rpc }) {
                           }
                           announce={announce}
                           onLive={() => show("live")}
+                          run={runCommand}
                         />
                       }
                       liveView={
@@ -1518,7 +1541,19 @@ export function App({ rpc }: { rpc: Rpc }) {
         <span data-testid="status-gate">{tr(`status.gate.${gate}`)}</span>
         <span data-testid="status-progress">{tr("status.progress", { done, total })}</span>
         {viewStatus && <span data-testid="status-view">{viewStatus}</span>}
-        <span class="end" data-testid="status-cost">
+        {folderOpen && (
+          <button
+            type="button"
+            class="sbtn end"
+            data-testid="status-agent"
+            aria-pressed={frame.agent}
+            title={tr("agent.toggleTitle", { keys: isMac ? "⌘⌥B" : "Ctrl+Alt+B" })}
+            onClick={() => setFrame((f) => ({ ...f, agent: !f.agent }))}
+          >
+            {tr("agent.toggle")}
+          </button>
+        )}
+        <span class={folderOpen ? undefined : "end"} data-testid="status-cost">
           {tr("status.cost")} $0.00
         </span>
         <span>{lang.toUpperCase()}</span>
@@ -1939,7 +1974,9 @@ function Palette(props: {
     help: null | (() => void);
   };
   const found =
-    props.mode === "features" ? filterFeatures(FEATURES, query, props.lang) : ([] as Feature[]);
+    props.mode === "features"
+      ? [...requirementFeatures(query), ...filterFeatures(FEATURES, query, props.lang)]
+      : ([] as Feature[]);
   // By area, as the boards group them (draft-design-conformance REQ-176, A15).
   const items: Item[] =
     props.mode === "features"

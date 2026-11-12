@@ -389,18 +389,25 @@ test("REQ-175 SCN-522: Live in three columns — modules and queue left, REQ-012
     await page.click('.sga[data-view="live"]');
     await page.waitForSelector(".live3");
     const box = (sel: string) => page.$eval(sel, (e) => e.getBoundingClientRect().left);
-    const left = await box(".live3 > .side:first-child");
-    const middle = await box(".live3 > .lmid");
-    const right = await box(".live3 > .side.right");
+    // Under the board's header (draft-live-polish REQ-103), the three columns.
+    const left = await box(".live3 .lcols > .side:first-child");
+    const middle = await box(".live3 .lcols > .lmid");
+    const right = await box(".live3 .lcols > .side.right");
     assert.ok(left < middle && middle < right, `${left} < ${middle} < ${right}`);
-    assert.match(await page.innerText(".live3 > .side:first-child"), /BY MODULE[\s\S]*QUEUE/);
+    assert.match(
+      await page.innerText(".live3 .lcols > .side:first-child"),
+      /BY MODULE[\s\S]*QUEUE/,
+    );
     assert.equal(await page.locator('.live3 .ltile-group[data-module="pedidos"]').count(), 1);
     assert.deepEqual(
       await page.$$eval(".ltabs [data-tab]", (els) => els.map((e) => e.textContent)),
       ["Steps", "Requirement", "Tests and files", "Attempts", "Agent"],
     );
     assert.ok(await page.locator('[data-testid="live-output"]').count());
-    assert.match(await page.innerText(".live3 > .side.right"), /NEEDS ATTENTION[\s\S]*FINISHED/);
+    assert.match(
+      await page.innerText(".live3 .lcols > .side.right"),
+      /NEEDS ATTENTION[\s\S]*FINISHED/,
+    );
   } finally {
     await close(s, page);
   }

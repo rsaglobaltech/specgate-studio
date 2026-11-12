@@ -16,6 +16,26 @@ const PATHS: Record<ViewId, string[]> = {
   settings: ["M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"],
 };
 
+/** The agent panel's button (draft-live-polish REQ-204, A15): a chat bubble with a spark, as the activity bar draws its icons. */
+export function AgentIcon() {
+  return (
+    <svg
+      width="21"
+      height="21"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.8"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M20 13.5a7 7 0 0 1-10.2 6.2L5 21l1.2-4.4A7 7 0 1 1 20 13.5z" />
+      <path d="M17.5 2.5v4M15.5 4.5h4" />
+    </svg>
+  );
+}
+
 export function ViewIcon({ view }: { view: ViewId }) {
   return (
     <svg

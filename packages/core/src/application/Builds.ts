@@ -95,10 +95,15 @@ export class Builds {
   private stream: string[] = [];
   private partial = "";
   private telling: ReturnType<typeof setTimeout> | null = null;
+  /** When the studio started each requirement, epoch seconds: "Rama creada" counts from it (A3). */
+  private readonly startedAt: Record<string, number> = {};
+  /** Each requirement's estimate, minutes, as Build last listed it (A5). */
+  private estimates: Record<string, number | null> = {};
 
   constructor(private readonly options: BuildsOptions) {}
 
-  async list(): Promise<BuildList> {
+  /** What Build lists (REQ-101); REQ-000 among it only when `named` names it (A10). */
+  async list(named: string | null = null): Promise<BuildList> {
     const [status, changes, questions] = await Promise.all([
       this.options.sections.section("home"),
       this.options.sections.section("changes"),
@@ -123,6 +128,8 @@ export class Builds {
       if (config && config.approved == null) review.add(id);
     }
     const settings = (config as { config?: Record<string, unknown> } | null)?.config ?? {};
+    const own = estimatesOf(plan);
+    this.estimates = Object.fromEntries(Object.entries(own).map(([r, e]) => [r, e.minutes]));
     return buildList(
       status,
       review,
@@ -131,7 +138,8 @@ export class Builds {
         Object.entries(settings).filter((e): e is [string, string] => typeof e[1] === "string"),
       ),
       questions,
-      estimatesOf(plan),
+      own,
+      named,
     );
   }
 
@@ -194,6 +202,9 @@ export class Builds {
       queue: this.queue,
       stopping: this.stopping,
       stopped: this.stopped,
+      startedAt: this.startedAt,
+      estimates: this.estimates,
+      ...(this.maxAttempts() !== null ? { maxAttempts: this.maxAttempts()! } : {}),
     });
     // What the agent asked, as specgate recorded it and answered it (REQ-104).
     if (view.requirements.some((r) => r.question)) {
@@ -242,6 +253,20 @@ export class Builds {
       return { exitCode: 0, action: "build-stop-now", vars };
     });
     return { ok: true, req, now, queued };
+  }
+
+  /** The attempts the run allows, from its `run-start` line (REQ-496); null before it came. */
+  private maxAttempts(): number | null {
+    for (const line of this.stream) {
+      if (!line.includes('"run-start"')) continue;
+      try {
+        const n = (JSON.parse(line) as { maxAttempts?: unknown }).maxAttempts;
+        if (typeof n === "number" && n > 0) return n;
+      } catch {
+        /* not whole */
+      }
+    }
+    return null;
   }
 
   /** Resolves once the build running now has ended, and the queue was dealt with. */
@@ -324,7 +349,8 @@ export class Builds {
   }
 
   private async refusal(req: string): Promise<BuildStart | null> {
-    const list = await this.list();
+    // Pressing Build on a requirement names it (A10).
+    const list = await this.list(req);
     if (!REQ_ID.test(req) || !list.ready.some((r) => r.id === req)) {
       const waiting = list.waiting.find((w) => w.id === req);
       return {
@@ -423,6 +449,7 @@ export class Builds {
       done: Promise.resolve(),
     };
     this.current = me;
+    this.startedAt[req] = this.now() / 1000;
     // Live is read while it builds: the agent writes its events as it works (A9).
     if (this.options.onLive && !this.poll) {
       this.poll = setInterval(() => void this.tell(), this.options.pollMs ?? 250);

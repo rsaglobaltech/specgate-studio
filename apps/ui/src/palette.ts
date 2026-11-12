@@ -16,7 +16,8 @@ export type Run =
   | { kind: "split"; side: "right" | "left" | "down" | "up" }
   | { kind: "panelPosition"; position: "bottom" | "right" | "left" }
   | { kind: "maximizePanel" }
-  | { kind: "toggleAgent" };
+  | { kind: "toggleAgent" }
+  | { kind: "buildReq"; req: string };
 
 export interface Feature {
   id: string;
@@ -237,7 +238,7 @@ export const FEATURES: readonly Feature[] = [
   {
     id: "layout.agent",
     area: "project",
-    title: { en: "Show or hide the agent panel", es: "Mostrar u ocultar el panel del agente" },
+    title: { en: "View: Toggle Agent Panel", es: "Ver: Mostrar u ocultar el agente" },
     command: null,
     run: { kind: "toggleAgent" },
   },
@@ -305,6 +306,27 @@ export const MENUS: ReadonlyArray<{ id: string; title: Record<Lang, string>; ite
     items: ["view.help", "palette.open", "layout.sidebar", "layout.agent"],
   },
 ];
+
+/**
+ * "Build REQ-000" when the typed text names a requirement (draft-live-polish
+ * REQ-101, A10): Build opened on it, the one way to name the adoption
+ * baseline, and a short way to any other.
+ */
+export function requirementFeatures(query: string): Feature[] {
+  const id = /\bREQ-(\d+)\b/i.exec(query)?.[1];
+  if (id === undefined) return [];
+  const req = `REQ-${id}`;
+  return [
+    {
+      id: `requirement.build.${req}`,
+      area: "build",
+      action: "build",
+      title: { en: `Build ${req}`, es: `Construir ${req}` },
+      command: `specgate harness run --req ${req}`,
+      run: { kind: "buildReq", req },
+    },
+  ];
+}
 
 /**
  * The features whose title — in the chosen language or in English — or

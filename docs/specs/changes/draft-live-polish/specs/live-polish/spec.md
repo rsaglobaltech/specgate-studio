@@ -16,11 +16,11 @@ The system SHALL show in Live's SALIDA DEL AGENTE, while the agent works, one li
 - WHEN the agent reads `features/auth/REQ-012.feature`, edits `packages/core/test/auth/SignOut.test.ts` adding 42 lines, runs `pnpm test SignOut` with 1 failing, then runs it again with 3 passing
 - THEN the Developer sees four lines under SALIDA DEL AGENTE, each with its time: `read features/auth/REQ-012.feature`, `edit packages/core/test/auth/SignOut.test.ts +42`, `run pnpm test SignOut ✗ 1 failing`, `run pnpm test SignOut ✓ 3 passing`, and no raw shell command on its own row
 
-#### Scenario: SCN-616 — specgate 0.34.0 gives no counts, on the desktop
+#### Scenario: SCN-616 — specgate 0.34.0 counts the lines, not the tests, on the desktop
 
-- GIVEN the desktop app building REQ-141 with specgate 0.34.0, whose events give no lines added and no test counts
-- WHEN the agent edits `packages/core/src/domain/settings.ts` and runs `npm test`
-- THEN the Developer sees `edit packages/core/src/domain/settings.ts` with no "+N" and `run npm test ✓` with no "passing" count, and the gate's own "Gate: tests" with its 4 passing
+- GIVEN the desktop app building REQ-141 with specgate 0.34.0, whose events give the lines an edit added but no test counts
+- WHEN the agent edits `packages/core/src/domain/help.ts` adding 24 lines, then runs `npm test`, which fails
+- THEN the Developer sees `edit packages/core/src/domain/help.ts +24` and `run npm test ✗` with no failing count, and the gate's own "Gate: tests" with its 4 passing
 
 #### Scenario: SCN-602 — Scrolled up, the log pauses, in the browser
 

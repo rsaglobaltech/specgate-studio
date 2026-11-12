@@ -1,9 +1,11 @@
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import type {
   BuildItem,
   BuildList,
   BuildStart,
   Estimate,
+  RunResult,
+  SpecgateCommand,
   Uncommitted,
   WaitingItem,
 } from "@specgate-studio/protocol";
@@ -25,6 +27,8 @@ export interface BuildProps {
   announce: (label: string) => void;
   /** Opens Live. */
   onLive: () => void;
+  /** Runs a specgate command for a button, in the terminal (REQ-053): "Configurar agente". */
+  run: (label: string, command: SpecgateCommand) => Promise<RunResult>;
 }
 
 type Waits = Extract<BuildStart, { code: "build_waits" }>;
@@ -46,17 +50,24 @@ export function Build(p: BuildProps) {
   const [refused, setRefused] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [chosen, setChosen] = useState<ReadonlySet<string>>(new Set());
+  const [setUp, setSetUp] = useState(false);
 
   useEffect(() => {
     let live = true;
-    p.rpc.ask("build.get", {}).then(
+    // REQ-000 is listed only once named: Build opened on it (draft-live-polish REQ-101, A10).
+    p.rpc.ask("build.get", { named: p.focus }).then(
       (l) => live && (setList(l), setUnreadable(false)),
       () => live && setUnreadable(true),
     );
     return () => {
       live = false;
     };
-  }, [p.rpc, ...p.stamp]);
+  }, [p.rpc, p.focus, ...p.stamp]);
+
+  // Opened on a requirement, it is the one chosen (SCN-609).
+  useEffect(() => {
+    if (p.focus) (setChosen(new Set([p.focus])), setSelected(p.focus));
+  }, [p.focus]);
 
   if (unreadable) return <p class="muted">{t("build.unreadable")}</p>;
   if (!list) return null;
@@ -124,16 +135,31 @@ export function Build(p: BuildProps) {
           ) : (
             <div class="noagent">
               <p style="margin:4px 0">{t("build.noAgent")}</p>
-              <span class="muted">{t("build.setAgent")} </span>
-              <code class="mono" data-testid="set-agent">
-                {list.setAgent}
-              </code>
-              <HelpButton
-                label={`? ${list.setAgent}`}
-                onOpen={() =>
-                  p.onHelp(list.setAgent, [{ action: "agents-init", feature: list.setAgent }])
-                }
-              />
+              {/* A button that runs it, after a confirmation (draft-live-polish REQ-203, A13). */}
+              <div class="actions">
+                <button
+                  type="button"
+                  class="btn pri"
+                  data-act="set-up-agent"
+                  onClick={() => setSetUp(true)}
+                >
+                  {t("build.setUp")}
+                </button>
+                <HelpButton
+                  label={`? ${t("build.setUp")}`}
+                  onOpen={() =>
+                    p.onHelp(t("build.setUp"), [
+                      { action: "agents-init", feature: t("build.setUp") },
+                    ])
+                  }
+                />
+              </div>
+              <p class="muted bset">
+                {t("build.setAgent")}{" "}
+                <code class="mono" data-testid="set-agent">
+                  {list.setAgent}
+                </code>
+              </p>
             </div>
           )}
         </div>
@@ -221,6 +247,39 @@ export function Build(p: BuildProps) {
               p.onHelp(feature, [{ action, feature, vars: { req: waits.req } }])
             }
           />
+        )}
+        {setUp && (
+          <div class="scrim" onClick={() => setSetUp(false)}>
+            <div
+              class="help"
+              role="dialog"
+              aria-label={t("build.setUp.title")}
+              data-confirm="set-up-agent"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2>{t("build.setUp.title")}</h2>
+              <p class="muted">{t("build.setUp.body")}</p>
+              <p>
+                <code class="mono">{list.setAgent}</code>
+              </p>
+              <div class="actions">
+                <button
+                  type="button"
+                  class="btn pri"
+                  data-act="confirm"
+                  onClick={() => {
+                    setSetUp(false);
+                    void p.run(t("build.setUp"), { name: "agents-init", tool: "claude" });
+                  }}
+                >
+                  {t("build.setUp.confirm")}
+                </button>
+                <button type="button" class="btn" data-act="cancel" onClick={() => setSetUp(false)}>
+                  {t("build.cancel")}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
         {waits && confirm && (
           <Confirm
@@ -321,7 +380,7 @@ function ReadyRow(props: {
   const minutes = own ? own.minutes : props.estimate?.minutes;
   return (
     <li
-      class="tr breq"
+      class="tr breq bready"
       data-req={r.id}
       data-focus={props.focus ? "1" : undefined}
       aria-current={props.current ? "true" : undefined}
@@ -338,28 +397,37 @@ function ReadyRow(props: {
         <span class="sr">REQ-</span>
         {r.id.replace(/^REQ-/, "")}
       </span>
-      <span class="name">{r.title}</span>
-      <span
-        class="right best"
-        data-own={own ? own.basis : undefined}
-        title={own ? t("build.estimateOwn", { basis: own.basis, n: own.samples }) : undefined}
-      >
-        {minutes != null ? (
-          <>
-            <span aria-hidden="true">~{minutes} min</span>
-            <span class="sr">
-              {own ? (
-                t("build.estimateEach", { minutes })
-              ) : (
-                <EstimateText estimate={props.estimate} t={t} />
-              )}
-            </span>
-          </>
-        ) : own ? (
-          t("build.noEstimateOwn")
-        ) : (
-          <EstimateText estimate={props.estimate} t={t} />
-        )}
+      {/* The title on the row's width, its estimate below it (draft-live-polish REQ-101, A11). */}
+      <span class="bmain">
+        <span class="name" title={r.title ?? ""}>
+          {r.title}
+        </span>
+        <span
+          class="best"
+          data-own={own ? own.basis : undefined}
+          title={
+            own
+              ? t("build.estimateOwn", { basis: own.basis, n: own.samples })
+              : minutes == null
+                ? t("build.noEstimate")
+                : undefined
+          }
+        >
+          {minutes != null ? (
+            <>
+              <span aria-hidden="true">~{minutes} min</span>
+              <span class="sr">
+                {own ? (
+                  t("build.estimateEach", { minutes })
+                ) : (
+                  <EstimateText estimate={props.estimate} t={t} />
+                )}
+              </span>
+            </>
+          ) : (
+            t("build.noEstimateOwn")
+          )}
+        </span>
       </span>
       <span class="bagent mono" data-agent={props.agent ?? ""} hidden>
         {props.agent ?? "—"}
@@ -390,7 +458,7 @@ function WaitingRow(props: { w: WaitingItem; t: T; current: boolean; onSelect: (
         : t("build.why.scenario");
   return (
     <li
-      class="tr breq"
+      class="tr breq bready"
       data-req={w.id}
       data-why={w.why}
       data-question={w.question ?? undefined}
@@ -403,9 +471,13 @@ function WaitingRow(props: { w: WaitingItem; t: T; current: boolean; onSelect: (
         <span class="sr">REQ-</span>
         {w.id.replace(/^REQ-/, "")}
       </span>
-      <span class="name">{w.title}</span>
-      <span class="right">
-        {w.why === "question" ? (w.question ?? "?") : t(`build.short.${w.why}`)}
+      <span class="bmain">
+        <span class="name" title={w.title ?? ""}>
+          {w.title}
+        </span>
+        <span class="best">
+          {w.why === "question" ? (w.question ?? "?") : t(`build.short.${w.why}`)}
+        </span>
       </span>
       <span class="sr">{why}</span>
     </li>
@@ -499,6 +571,10 @@ function Confirm(props: {
 }) {
   const { kind, waits, t } = props;
   const [message, setMessage] = useState("");
+  const empty = kind === "commit" && !message.trim();
+  const field = useRef<HTMLTextAreaElement>(null);
+  // The message is what is asked: the cursor is in it (A12).
+  useEffect(() => field.current?.focus(), []);
   const title = t(`build.confirm.${kind}`, { n: waits.waits.total });
   return (
     <div class="scrim" onClick={props.onCancel}>
@@ -511,26 +587,39 @@ function Confirm(props: {
       >
         <h2>{title}</h2>
         <p class="muted">{t(`build.confirm.${kind}Body`, { req: waits.req })}</p>
-        <Groups files={waits.waits} t={t} />
+        {/* The message first, labelled, in view (draft-live-polish REQ-102, A12); the files below it scroll. */}
         {kind === "commit" && (
-          <textarea
-            class="ask"
-            aria-label={t("build.message")}
-            placeholder={t("build.message")}
-            value={message}
-            onInput={(e) => setMessage((e.target as HTMLTextAreaElement).value)}
-          />
+          <div class="bmessage">
+            <label for="build-commit-message">{t("build.message")}</label>
+            <textarea
+              id="build-commit-message"
+              class="ask"
+              rows={2}
+              value={message}
+              ref={field}
+              onInput={(e) => setMessage((e.target as HTMLTextAreaElement).value)}
+            />
+          </div>
         )}
+        <div class="bconfirm-files">
+          <Groups files={waits.waits} t={t} />
+        </div>
         <div class="actions">
           <button
             type="button"
             class="btn pri"
             data-act="confirm"
-            disabled={kind === "commit" && !message.trim()}
+            disabled={empty}
+            aria-describedby={empty ? "build-confirm-why" : undefined}
             onClick={() => props.onConfirm(message.trim())}
           >
             {t("build.confirm")}
           </button>
+          {empty && (
+            <span class="muted bwhy" id="build-confirm-why" data-testid="confirm-why">
+              {t("build.needMessage")}
+            </span>
+          )}
           <button type="button" class="btn" data-act="cancel" onClick={props.onCancel}>
             {t("build.cancel")}
           </button>

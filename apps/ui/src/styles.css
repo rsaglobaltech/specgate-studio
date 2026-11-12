@@ -261,7 +261,8 @@ button {
 .activity .grow {
   flex-grow: 1;
 }
-.sga {
+.sga,
+.sgp {
   width: 44px;
   height: 40px;
   border: 0;
@@ -274,7 +275,8 @@ button {
   color: var(--muted);
   padding: 0;
 }
-.sga:hover {
+.sga:hover,
+.sgp:hover {
   color: var(--text);
 }
 .sga[aria-current="page"] {
@@ -3272,4 +3274,481 @@ ul.notes > li:first-child {
 }
 .brief-client .btn {
   flex: 1 1 auto;
+}
+
+/* Live as the "En vivo" board (draft-live-polish REQ-103, REQ-105, REQ-201). */
+.live3.lboard {
+  flex-direction: column;
+  overflow: hidden;
+}
+.lbar {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  min-height: 40px;
+  padding: 4px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-bar);
+  font-size: 13px;
+}
+.lbar .ok {
+  color: var(--ok-text);
+}
+.lbar .run {
+  color: var(--accent-soft);
+}
+.lbar .bad {
+  color: var(--bad);
+}
+.lbar-num {
+  color: var(--muted);
+  font-size: 12px;
+}
+.lbar .lstop {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.lcols {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+  container-type: inline-size;
+}
+.lcols > .side {
+  flex: 0 1 240px;
+  min-width: 170px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.lcols > .side.right {
+  flex: 0 1 280px;
+  min-width: 190px;
+  border-right: 0;
+  border-left: 1px solid var(--line);
+}
+.lcols > .detail {
+  flex: 1 1 360px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 12px 20px 0;
+}
+.lboard .lhead {
+  flex: none;
+  display: block;
+}
+.lboard .lhead .v {
+  font-size: 17px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.lboard .lhead .lreqid {
+  font-size: 17px;
+}
+.lsub {
+  margin-top: 2px;
+  font-size: 12px;
+}
+.lboard .ltabs {
+  flex: none;
+  flex-wrap: wrap;
+}
+.lboard .lqueue {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 8px;
+}
+.lboard .q {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 12px;
+  font-size: 13px;
+  color: var(--row-text);
+}
+.lboard .q .name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.lboard .q .right {
+  flex: none;
+  font-size: 12px;
+}
+.lboard .q .mark {
+  flex: none;
+  width: 12px;
+}
+.lboard .q .mark.run {
+  color: var(--accent);
+}
+.lfinished {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.lfinished .ok {
+  color: var(--ok-text);
+}
+.lfinished .bad {
+  color: var(--bad);
+}
+.lboard .lreq {
+  flex: none;
+  margin: 0;
+}
+.lstages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.lboard .lstep {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-height: 24px;
+  padding: 2px 0;
+  font-size: 13px;
+}
+.lmark {
+  flex: none;
+  width: 14px;
+  text-align: center;
+}
+.lmark.done {
+  color: var(--ok-text);
+}
+.lmark.running {
+  color: var(--accent);
+}
+.lmark.waiting,
+.lmark.skipped {
+  color: var(--faint);
+}
+.lmark.failed {
+  color: var(--bad);
+}
+.lname {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.lstep[data-result="running"] .lstage {
+  font-weight: 600;
+}
+.lstep[data-result="waiting"] .lstage {
+  color: var(--muted);
+}
+.lboard .ltime {
+  flex: none;
+  color: var(--muted);
+  font-size: 12px;
+}
+.lboard .ltime.running {
+  color: var(--accent-soft);
+}
+.lboard .ltime.failed {
+  color: var(--bad);
+}
+.lattempts {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  font-size: 12px;
+}
+.lattempts.compact {
+  padding-left: 24px;
+  color: var(--muted);
+}
+.lattempts .ok {
+  color: var(--ok-text);
+}
+.lattempts .bad {
+  color: var(--bad);
+}
+.lattempts .run {
+  color: var(--accent-soft);
+}
+.lother {
+  font-size: 12px;
+  color: var(--muted);
+}
+.lsay {
+  flex: none;
+  max-height: 40%;
+  overflow: auto;
+  list-style: none;
+  margin: 0;
+  font-size: 13px;
+}
+.llog {
+  flex: 1 1 auto;
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  margin: 0 -20px;
+  border-top: 1px solid var(--line);
+}
+.llog-h {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 0 20px 0 8px;
+  font-size: 12px;
+}
+.lboard .lout {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 2px 20px 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  list-style: none;
+  font-size: 12px;
+  line-height: 20px;
+}
+.lboard .lout li {
+  cursor: pointer;
+}
+.lrow {
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+  white-space: nowrap;
+}
+.lrow .lt {
+  flex: none;
+}
+.lverb {
+  flex: none;
+}
+.lverb.read,
+.lverb.search {
+  color: var(--blue);
+}
+.lverb.edit,
+.lverb.write {
+  color: var(--ok-text);
+}
+.lverb.run {
+  color: var(--accent-soft);
+}
+.lverb.ask {
+  color: var(--amber);
+}
+.ltarget {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--row-text);
+}
+.ladd {
+  flex: none;
+  color: var(--ok-text);
+}
+.lres {
+  flex: none;
+}
+.lres.ok {
+  color: var(--ok-text);
+}
+.lres.bad {
+  color: var(--bad);
+}
+.lfull {
+  margin: 2px 0 6px 74px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: var(--bg-input);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  color: var(--row-text);
+}
+.lboard .lquestion {
+  margin: 0 12px 12px;
+  border-color: var(--amber);
+}
+.lq-h {
+  color: var(--amber);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+@container (max-width: 880px) {
+  .lcols > .side {
+    flex-basis: 190px;
+  }
+  .lcols > .side.right {
+    flex-basis: 210px;
+  }
+}
+
+/* Build's list (draft-live-polish REQ-101, A11): the title on the row's width,
+   wrapped to two lines, its estimate below; never a sideways scroll. */
+.split > .side {
+  overflow-x: hidden;
+}
+.side .tr.bready {
+  align-items: flex-start;
+  min-height: 0;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  white-space: normal;
+}
+.bready > input,
+.bready > .rid,
+.bready > .dot,
+.bready > .play,
+.bready > .hq {
+  flex: none;
+  margin-top: 2px;
+}
+.bready > .dot {
+  margin-top: 7px;
+}
+.bmain {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.bmain .name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 18px;
+}
+.bmain .best {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.noagent .actions {
+  margin: 6px 0;
+}
+.bset {
+  margin: 4px 0 0;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+/* The commit's dialog (draft-live-polish REQ-102, A12): the message labelled and in view. */
+.bmessage {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0;
+}
+.bmessage label {
+  font-size: 12px;
+  font-weight: 600;
+}
+.bmessage textarea {
+  min-height: 52px;
+}
+.bconfirm-files {
+  max-height: 30vh;
+  overflow: auto;
+}
+.bwhy {
+  font-size: 12px;
+}
+.sgp[aria-pressed="true"] {
+  color: var(--text);
+}
+.status .sbtn {
+  border: 0;
+  padding: 0 6px;
+  height: 100%;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.status .sbtn:hover {
+  background: rgb(255 255 255 / 12%);
+}
+.status .sbtn[aria-pressed="true"] {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+/* Live's board at 1280×800 beside the agent panel: one-line header, title and tabs (REQ-202). */
+.lbar {
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+.lbar > * {
+  flex: none;
+}
+.lbar > .lbar-num {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lbar .btn {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+.lbar .grow {
+  flex: 1 1 0;
+}
+.lboard .lhead .v {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lboard .ltabs {
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+.lboard .ltabs .ptab {
+  flex: none;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+@container (max-width: 880px) {
+  .lboard .ltabs .ptab {
+    padding-left: 5px;
+    padding-right: 5px;
+    font-size: 10.5px;
+  }
+}
+/* The module map scrolls inside its column; the queue below it stays in view (REQ-202 SCN-604). */
+.lcols > .side:first-child {
+  overflow: hidden;
+}
+.lboard .ltiles {
+  flex: 0 1 auto;
+  min-height: 60px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.lboard .lqueue {
+  flex: none;
+  max-height: 40%;
+  overflow-y: auto;
 }
