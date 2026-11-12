@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-181 — The agent panel on the right: a plan before anything is written
 
-<!-- specgate:trace actor=Developer kind=functional status="Needs Clarification" -->
+<!-- specgate:trace actor=Developer kind=functional -->
 
 The system SHALL show, on the right of the workbench as the board "IDE · Banco de trabajo" draws it, the agent panel — its header "AGENTE" with the agent and its mode and a "?" — and SHALL show for each request, before anything is written, a card "[ PLAN · NADA ESCRITO AÚN ]" naming each file the agent will change, marked M for changed and + for new, and the specgate command it will run after.
 
@@ -24,7 +24,7 @@ The system SHALL show, on the right of the workbench as the board "IDE · Banco 
 
 ### Requirement: REQ-182 — The plan applied only after its diff and a confirmation; discarded; the diff kept in Changes
 
-<!-- specgate:trace actor=Developer kind=business-rule status="Needs Clarification" -->
+<!-- specgate:trace actor=Developer kind=business-rule -->
 
 The system SHALL apply an agent's plan only after the Developer presses "Ver el diff y aplicar", sees the diff of every file, and confirms; "Descartar" SHALL drop the plan and write nothing; an applied plan's diff SHALL stay in Changes under its change; and the panel SHALL say, for every plan, what the agent read and the tokens it used.
 
@@ -50,9 +50,9 @@ The system SHALL apply an agent's plan only after the Developer presses "Ver el 
 
 ### Requirement: REQ-183 — Ask the project's agent, @ naming a requirement or a file
 
-<!-- specgate:trace actor=Reviewer kind=functional status="Needs Clarification" -->
+<!-- specgate:trace actor=Reviewer kind=functional -->
 
-The system SHALL take a request from an input labelled "Pide algo sobre la spec; @ nombra un requisito o un archivo", offer the requirements and files of the project when "@" is typed, and send the request to the project's agent through specgate, its command shown in the terminal as every command the studio runs.
+The system SHALL take a request from an input labelled "Pide algo sobre la spec; @ nombra un requisito o un archivo", offer the requirements and files of the project when "@" is typed, and send the request to the project's agent through `specgate agent ask "<request>" --plan --json`, its command shown in the terminal as every command the studio runs; the studio SHALL only show the plan and its diff and confirm it — specgate writes it with `specgate agent apply <plan-id> --json` and checks it.
 
 > Brief: "The Developer and the Reviewer ask the agent from an input that reads "Pide algo sobre la spec; @ nombra un requisito o un archivo"; the agent is the project's, run through specgate."
 
@@ -90,9 +90,9 @@ The system SHALL show the bottom panel on every view, always, with the tabs TERM
 
 ### Requirement: REQ-185 — No folder open: "No folder opened", "Open Folder" and "Clone Repository"
 
-<!-- specgate:trace actor=Developer kind=functional status="Needs Clarification" -->
+<!-- specgate:trace actor=Developer kind=functional -->
 
-The system SHALL show, when no folder is open, in the Explorer's side panel "No folder opened", a line that explains it, and the buttons "Open Folder" and "Clone Repository", each with its "?"; "Open Folder" SHALL open the chosen folder as the project, and "Clone Repository" SHALL clone a repository into a chosen folder and open it.
+The system SHALL show, when no folder is open, in the Explorer's side panel "No folder opened", a line that explains it, and the buttons "Open Folder" and "Clone Repository", each with its "?"; "Open Folder" SHALL open the chosen folder as the project, and "Clone Repository" SHALL clone a repository into a folder the Developer chooses — with `gh repo clone` when the GitHub CLI is signed in, `git clone` otherwise, the command shown in the terminal — and open it.
 
 > Brief: "When no folder is open, the Explorer says "No folder opened" with "Open Folder" and "Clone Repository" and a line that explains them."
 
@@ -107,6 +107,12 @@ The system SHALL show, when no folder is open, in the Explorer's side panel "No 
 - GIVEN the studio in the browser with no folder open
 - WHEN the Developer presses "Open Folder" and chooses `~/mvp/sprich-platform/sprich`
 - THEN the Developer sees sprich's Explorer with its root "sprich" and sprich's Home
+
+#### Scenario: SCN-572 — Clone Repository with the GitHub CLI, on the desktop
+
+- GIVEN the desktop app with no folder open and the GitHub CLI signed in
+- WHEN the Developer presses "Clone Repository", gives `rsaglobaltech/sprich` and chooses `~/mvp`
+- THEN the Developer sees `gh repo clone rsaglobaltech/sprich` run in the terminal into `~/mvp/sprich`, then sprich opened
 
 ### Requirement: REQ-186 — The whole project under its root: dot folders included, ignored ones dimmed
 
@@ -130,9 +136,9 @@ The system SHALL show, when a folder is open, the whole project as a tree under 
 
 ### Requirement: REQ-187 — An icon for each kind of folder and file, as an icon theme
 
-<!-- specgate:trace actor=Developer kind=functional status="Needs Clarification" -->
+<!-- specgate:trace actor=Developer kind=functional -->
 
-The system SHALL show on each folder of the tree a coloured folder icon of its kind — docs, src, test, features, .github, node_modules, scripts, dist and bin among them — opened or closed as the folder is, and on each file the icon of its kind — .gitignore, LICENSE, package.json, CHANGELOG.md, AGENTS.md, YAML and ESLint configuration among them — and a plain icon for a kind it does not know.
+The system SHALL show on each folder of the tree a coloured folder icon of its kind — docs, src, test, features, .github, node_modules, scripts, dist and bin among them — opened or closed as the folder is, and on each file the icon of its kind — .gitignore, LICENSE, package.json, CHANGELOG.md, AGENTS.md, YAML and ESLint configuration among them — and a generic folder or file icon for a kind it does not know; the icons SHALL be the studio's own, drawn as the activity bar's (strokes of 1.8, round caps) with each kind's accent colour from the design tokens, shipped inline as SVG with no network.
 
 > Brief: "Each folder and file shows the icon of its kind, as an icon theme does."
 
@@ -146,13 +152,13 @@ The system SHALL show on each folder of the tree a coloured folder icon of its k
 
 - GIVEN sprich in the browser with a file `notes.xyz`
 - WHEN the Developer opens its folder
-- THEN the Developer sees `notes.xyz` with the plain file icon
+- THEN the Developer sees `notes.xyz` with the generic file icon
 
 ### Requirement: REQ-188 — Split the editor right, left, down or up, five ways
 
-<!-- specgate:trace actor=Developer kind=functional status="Needs Clarification" -->
+<!-- specgate:trace actor=Developer kind=functional -->
 
-The system SHALL split the active editor group right, left, down or up — opening the active file in the new group — from the tab's context menu, from the split button at the right of the tab strip, from the palette, with Ctrl/Cmd+\ (right) and Ctrl/Cmd+K then an arrow key (that direction), and by dragging a tab to an edge of an editor group, where an overlay shows the half the tab will take before it is dropped.
+The system SHALL split the active editor group right, left, down or up — into as many groups as the Developer makes, nested in any grid — — opening the active file in the new group — from the tab's context menu, from the split button at the right of the tab strip, from the palette, with Ctrl/Cmd+\ (right) and Ctrl/Cmd+K then an arrow key (that direction), and by dragging a tab to an edge of an editor group, where an overlay shows the half the tab will take before it is dropped.
 
 > Brief: "The editor splits right, left, down and up from a tab's menu, the split button in the tab strip, the palette, Ctrl/Cmd+\ and Ctrl/Cmd+K then an arrow, or by dragging a tab to an edge of a group, where an overlay shows where it lands."
 
@@ -176,7 +182,7 @@ The system SHALL split the active editor group right, left, down or up — openi
 
 ### Requirement: REQ-189 — Editor groups: their own tabs, one file in sync, moved tabs, focus and splitters
 
-<!-- specgate:trace actor=Developer kind=functional status="Needs Clarification" -->
+<!-- specgate:trace actor=Developer kind=functional -->
 
 The system SHALL give each editor group its own tabs; SHALL keep a file open in two groups as one document — an edit in one shows in the other, saved once; SHALL move a tab to another group when it is dragged onto that group's tab strip; SHALL close a group when its last tab closes; SHALL focus a group on a click or with Ctrl/Cmd+1, 2 or 3; and SHALL resize the groups by their splitters, a double-click on a splitter evening the groups beside it.
 
@@ -259,3 +265,4 @@ The system SHALL let each splitter take the keyboard focus and move by the arrow
 - GIVEN the Reviewer in sprich in the browser in Spanish
 - WHEN the Reviewer presses the "?" beside "Dividir el editor a la derecha" in the tab's menu
 - THEN the Reviewer sees under "[ POR DEBAJO ]" that it opens the file in a new group on the right, writes no file and runs no command
+
