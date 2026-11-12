@@ -165,6 +165,19 @@ and `screens/design/` (the boards).
 | New project | `design/nuevo.png` | `after/nuevo.png` | The five questions as cards on Home, "Already have code?", recent projects (REQ-174) |
 | Help | — | `after/help.png` | The catalogue of every "?", searchable, in English and Spanish (REQ-179) |
 
+Second pass on the editor and the side panels (shell board):
+
+- Editor: a named theme from the tokens (`studio-dark`, `studio-light`) on a
+  `specmd` language — `### Requirement:` in orange, its title bold `#ECE7DE`,
+  SHALL blue `#6CB6FF`, GIVEN/WHEN/THEN/AND/BUT as the board's keywords
+  (`#B48EFF`), the trace comment dim `#6B8F71`, text `#C9C3B9`, 13 px / 22 px.
+- The actions above a requirement: ▶ Build · ✓ Check · ⧉ Trace (1 scenario, 0 tests) · ✎ Ask for a change · "?".
+- The inline question: "Q2 open · blocks REQ-031", "questions.md · draft-pedidos", the options, "Another answer…", "?", and the footnote.
+- MODULES · REQUIREMENTS: the requirement under the cursor highlighted and in view, its module opened first.
+- The spec explorer's root is the project, with "open changes", "capabilities (N)" and "features (N)" each collapsible.
+- Tabs: a 7 px dot while unsaved; REQ orange, FT green, TS and MD blue.
+- Questions: chips, a full-width answer with "Enter saves", Answer with what it writes. Changes: the draft's line under its title.
+
 Still different, on purpose or for lack of data:
 
 - The agent panel of the shell board is a draft of its own (design-conformance Q1).
@@ -172,3 +185,8 @@ Still different, on purpose or for lack of data:
 - The empty folder asks the architecture, as REQ-111 does, not the board's quality level (A10).
 - Traceability, Report and Settings wait for phase 3's drafts.
 - Cards keep 4 px corners as REQ-171 says; the boards draw some at 6 px.
+- GIVEN/WHEN/THEN are purple (`#B48EFF`) as the board draws them, not blue; SHALL is blue.
+- Changes: the draft's review (requested changes, before/after, "Draft again", "Approve…") is draft-changes REQ-082/083, not built here.
+- Questions: the board's "From the brief: «…». The draft assumed 60 €" needs the question's source text, which `specgate questions --json` does not give.
+- Live: seen idle only — no running build in the fake; the header counts sit at the top of Live, not in the app header.
+- The trace count's tests come from `report --json` (`testExists`: 0 or 1), not a count of every test naming it.

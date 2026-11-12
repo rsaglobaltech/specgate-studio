@@ -829,3 +829,103 @@ test("REQ-179 SCN-532: Help in Spanish — grouped by area, each under [ POR DEB
     await close(s, page);
   }
 });
+
+// ── The editor as the shell board draws it (REQ-171, REQ-177, REQ-169) ──
+
+const SPEC_WITH_Q = [
+  "# Delta — pedidos",
+  "",
+  "### Requirement: REQ-031 — Cancel an order",
+  "",
+  "The system SHALL let a customer cancel an order until it is shipped.",
+  "",
+  "#### Scenario: SCN-031a — Cancelled before it ships",
+  "",
+  "- GIVEN a paid order not yet shipped",
+  "- WHEN the customer cancels it",
+  "",
+  "<!-- specgate:trace status=Needs Clarification -->",
+  "",
+].join("\n");
+
+const color = (page: Page, text: string) =>
+  page.evaluate((t) => {
+    const span = [...document.querySelectorAll(".monaco-editor .view-line span span")].find((s) =>
+      s.textContent
+        ?.replace(/\u00a0/g, " ")
+        .trim()
+        .startsWith(t),
+    );
+    if (!span) return null;
+    const c = getComputedStyle(span);
+    return [c.color, c.fontWeight];
+  }, text);
+
+test("REQ-171 SCN-511: the editor's theme — titles bold near-white, the marker orange, SHALL blue, GIVEN a keyword, the trace dim", async () => {
+  const s = await sprich({ files: { [DELTA]: SPEC_WITH_Q, "spec.md": "# spec\n" } });
+  const page = await open(s);
+  try {
+    await page.keyboard.press(`${MOD}+P`);
+    await page.keyboard.type("pedidos/spec.md");
+    await page.keyboard.press("Enter");
+    await page.waitForSelector(".monaco-editor .view-line");
+    // Tokenized: the requirement's title painted in its own colour.
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll(".monaco-editor .view-line span span")].some(
+        (x) => x.textContent?.replace(/\u00a0/g, " ").trim() === "### Requirement:",
+      ),
+    );
+    assert.deepEqual(await color(page, "REQ-031 — Cancel an order"), ["rgb(236, 231, 222)", "700"]);
+    assert.equal((await color(page, "###"))?.[0], "rgb(255, 138, 92)");
+    assert.equal((await color(page, "SHALL"))?.[0], "rgb(108, 182, 255)");
+    assert.equal((await color(page, "GIVEN"))?.[0], "rgb(180, 142, 255)");
+    assert.equal((await color(page, "<!--"))?.[0], "rgb(107, 143, 113)");
+  } finally {
+    await close(s, page);
+  }
+});
+
+test('REQ-169 REQ-177: the lens reads Build, Check, Trace with its count, Ask for a change and "?"; the inline question has its header, Another answer… and the footnote', async () => {
+  const s = await sprich({
+    files: { [DELTA]: SPEC_WITH_Q, "spec.md": "# spec\n" },
+    questions: { open: [{ ...Q2, blocks: ["REQ-031"] }], answered: [] },
+  });
+  const page = await open(s);
+  try {
+    await page.click('.sga[data-view="explorer"]');
+    await page.click('.explorer [data-module="pedidos"] [aria-expanded]');
+    await page.click('.explorer [data-req="REQ-031"]');
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll(".codelens-decoration")].some((e) =>
+        e.textContent?.includes("scenario"),
+      ),
+    );
+    const lens = await page.evaluate(
+      () =>
+        [...document.querySelectorAll(".codelens-decoration")]
+          .map((e) => e.textContent?.replace(/\u00a0/g, " "))
+          .find((t) => t?.includes("scenario")) ?? "",
+    );
+    assert.match(lens, /Trace[\s|]*\(1 scenario, 0 tests\)/);
+    const zone = '.qzone[data-question="Q2"]';
+    await page.waitForSelector(zone);
+    assert.equal(await page.textContent(`${zone} .qbox-open`), "Q2 open · blocks REQ-031");
+    assert.equal(await page.textContent(`${zone} .qbox-src`), "questions.md · draft-pedidos");
+    assert.equal(await page.textContent(`${zone} [data-act="other"]`), "Another answer…");
+    assert.match(
+      (await page.textContent(`${zone} .qbox-foot`)) ?? "",
+      /Answer writes it in questions\.md \(specgate answer Q2\); then confirm the spec says it\./,
+    );
+    // The requirement in the editor, highlighted in its module; the spec explorer's root is sprich.
+    assert.equal(await page.getAttribute('.explorer [data-req="REQ-031"]', "aria-current"), "true");
+    assert.match(await page.innerText('.explorer [data-key="root"]'), /sprich/);
+    // An unsaved tab shows its dot.
+    await page.click(".monaco-editor .view-line >> nth=0");
+    await page.keyboard.press("End");
+    await page.keyboard.type(" x");
+    await page.waitForSelector(".tab .dirty");
+    assert.equal(await css(page, '.tab[data-type="REQ"] .dirty', "width"), "7px");
+  } finally {
+    await close(s, page);
+  }
+});

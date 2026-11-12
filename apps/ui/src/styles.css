@@ -2224,3 +2224,173 @@ textarea.ask {
   direction: rtl;
   text-align: left;
 }
+
+/* The editor as the shell board draws it (draft-design-conformance REQ-171). */
+.monaco-editor .codelens-decoration {
+  color: transparent !important;
+}
+.monaco-editor .codelens-decoration > a,
+.monaco-editor .codelens-decoration > span {
+  color: var(--muted) !important;
+}
+.monaco-editor .codelens-decoration > a:hover {
+  color: var(--accent-soft) !important;
+  text-decoration: underline;
+}
+.monaco-editor .codelens-decoration > a:nth-of-type(1)::before {
+  content: "▶ ";
+}
+.monaco-editor .codelens-decoration > a:nth-of-type(2)::before {
+  content: "✓ ";
+}
+.monaco-editor .codelens-decoration > a:nth-of-type(3)::before {
+  content: "⧉ ";
+}
+.monaco-editor .codelens-decoration > a:nth-of-type(4)::before {
+  content: "✎ ";
+}
+/* Monaco's " | " between lenses: a dim "·", as the board; none between Trace and its count. */
+.monaco-editor .codelens-decoration > span:nth-child(even) {
+  font-size: 0 !important;
+  margin: 0 8px;
+}
+.monaco-editor .codelens-decoration > span:nth-child(even)::after {
+  content: "·";
+  font-size: 12px;
+  color: var(--faint);
+}
+.monaco-editor .codelens-decoration > span:nth-child(6) {
+  margin: 0 2px;
+}
+.monaco-editor .codelens-decoration > span:nth-child(6)::after {
+  content: "";
+}
+.monaco-editor .codelens-decoration > a:last-of-type {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid #6b665e;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--row-text) !important;
+}
+.qbox {
+  margin: 4px 0 4px 0;
+  padding: 0;
+  border: 1px solid #5c4a1f;
+  border-radius: 4px;
+  background: #1e1b14;
+}
+:root[data-theme="light"] .qbox {
+  border-color: #e4c98a;
+  background: #fff8e8;
+}
+.qbox-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #3a3220;
+}
+.qbox-open {
+  color: var(--amber);
+  font-weight: 600;
+}
+.qbox-src {
+  color: var(--muted);
+  font-size: 12px;
+}
+.qbox-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px;
+}
+.qbox-text {
+  color: var(--text);
+}
+.qbox .qopts {
+  margin-top: 0;
+  gap: 8px;
+}
+.qbox .btn.qopt {
+  height: 30px;
+  padding: 0 12px;
+  border-color: #4a4438;
+  background: #24211a;
+  color: var(--text);
+}
+:root[data-theme="light"] .qbox .btn.qopt {
+  border-color: #d8c9a6;
+  background: #fffdf6;
+}
+.qbox .btn.qopt[aria-pressed="true"] {
+  border-color: var(--accent);
+}
+.qbox-foot {
+  color: var(--muted);
+  font-size: 12px;
+}
+/* Tabs: the type's colour, and a dot while unsaved (as the shell board). */
+.tab[data-type="FT"]::before {
+  color: var(--ok);
+}
+.tab[data-type="TS"]::before,
+.tab[data-type="MD"]::before,
+.tab[data-type="JS"]::before {
+  color: var(--blue);
+}
+.tab[data-type="REQ"]::before {
+  color: var(--accent-soft);
+}
+.tab .dirty {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--text);
+  color: transparent;
+  font-size: 0;
+  overflow: hidden;
+}
+.tr.root .name {
+  font-weight: 600;
+  color: var(--text);
+}
+.qchips {
+  margin-top: 0;
+}
+.btn.chip {
+  height: 32px;
+  border-color: #4a4438;
+  background: #24211a;
+}
+:root[data-theme="light"] .btn.chip {
+  border-color: #d8c9a6;
+  background: #fffdf6;
+}
+.btn.chip[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.qhint {
+  margin: 12px 0 6px;
+  font-size: 12px;
+}
+.qinput {
+  width: 100%;
+  height: 38px;
+  margin: 0;
+}
+.qsave {
+  margin-top: 14px;
+}
+.qwrites {
+  font-size: 12px;
+}
+.monaco-editor .codelens-decoration > a:nth-of-type(-n + 4)::before {
+  margin-right: 4px;
+}

@@ -156,12 +156,12 @@ function OpenCard(p: QuestionsProps & { q: Question }) {
         <span class="sr">{q.id} </span>
         {q.text}
       </h2>
-      <div class="qopts">
-        {(q.options ?? []).length > 0 && <span class="muted">{tr("question.options")}</span>}
+      {/* As IDE-Preguntas.dc.html draws it: chips, a full-width answer, Save with what it writes. */}
+      <div class="qopts qchips">
         {(q.options ?? []).map((o) => (
           <button
             type="button"
-            class="btn"
+            class="btn chip"
             key={o}
             data-option={o}
             aria-pressed={chosen === o}
@@ -170,12 +170,21 @@ function OpenCard(p: QuestionsProps & { q: Question }) {
             {o}
           </button>
         ))}
-        <input
-          class="filter"
-          aria-label={tr("question.other")}
-          placeholder={tr("question.other")}
-          onInput={(e) => setChosen((e.target as HTMLInputElement).value)}
-        />
+      </div>
+      <div class="muted qhint">{tr("questions.hint")}</div>
+      <input
+        class="filter qinput"
+        aria-label={tr("question.other")}
+        placeholder={tr("question.other")}
+        onInput={(e) => setChosen((e.target as HTMLInputElement).value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey && chosen.trim()) {
+            e.preventDefault();
+            p.onAnswer(q, chosen.trim());
+          }
+        }}
+      />
+      <div class="qopts qsave">
         <button
           type="button"
           class="btn pri"
@@ -185,6 +194,13 @@ function OpenCard(p: QuestionsProps & { q: Question }) {
         >
           {tr("question.answer")}
         </button>
+        <span class="muted qwrites">
+          {tr("questions.writes", {
+            answer: chosen.trim() || "…",
+            q: q.id,
+            reqs: q.blocks.join(", "),
+          })}
+        </span>
         <HelpButton
           label={tr("help.button", { feature: tr("question.answer") })}
           onOpen={() =>

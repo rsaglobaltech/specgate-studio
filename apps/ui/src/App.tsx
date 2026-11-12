@@ -159,6 +159,17 @@ export function App({ rpc }: { rpc: Rpc }) {
       answer: t(lang, "question.answer"),
       other: t(lang, "question.other"),
       options: t(lang, "question.options"),
+      traceCount: (scenarios: number, tests: number) =>
+        t(lang, "lens.traceCount", {
+          scenarios: t(lang, scenarios === 1 ? "lens.scenario" : "lens.scenarios", {
+            n: scenarios,
+          }),
+          tests: t(lang, tests === 1 ? "lens.test" : "lens.tests", { n: tests }),
+        }),
+      qOpen: (q: string, req: string) => t(lang, "question.open", { q, req }),
+      qSource: (change: string) => t(lang, "question.source", { change }),
+      qFoot: (q: string) => t(lang, "question.foot", { q }),
+      qHelp: t(lang, "question.help"),
     }),
     [lang],
   );
@@ -517,6 +528,15 @@ export function App({ rpc }: { rpc: Rpc }) {
     (sections.changes as { changes?: Array<{ id: string }> } | undefined)?.changes ?? [];
   const questionsSection = sections.questions as QuestionsSection | undefined;
   const questions = questionsSection?.questions?.open ?? [];
+  // How many tests name each requirement, as `report --json` says: Trace's count (REQ-171).
+  const testsOf = useMemo(() => {
+    const tested = new Map<string, number>();
+    const rows = (sections.report as { requirements?: unknown[] } | undefined)?.requirements ?? [];
+    for (const r of rows as Array<{ requirement?: unknown; testExists?: unknown }>)
+      if (typeof r.requirement === "string")
+        tested.set(r.requirement, r.testExists === true ? 1 : 0);
+    return (req: string) => tested.get(req) ?? 0;
+  }, [sections.report]);
   const titles = useMemo(
     () => new Map(requirements.map((r) => [r.id, r.title ?? ""])),
     [requirements],
@@ -635,6 +655,8 @@ export function App({ rpc }: { rpc: Rpc }) {
             onReview={onReview}
             building={building}
             activeFile={activeFile}
+            activeReq={crumbReq}
+            project={project}
             workspaceStamp={workspace}
             filterRef={filterRef}
             openFile={openFile}
@@ -729,6 +751,19 @@ export function App({ rpc }: { rpc: Rpc }) {
                   register={(api) => (editorApi.current = api)}
                   reveal={reveal}
                   focus={focusEditor}
+                  testsOf={testsOf}
+                  onQuestionHelp={(q) =>
+                    setHelp({
+                      title: tr("help.title", { feature: lensLabels.answer }),
+                      requests: [
+                        {
+                          action: "answer",
+                          feature: lensLabels.answer,
+                          vars: { q: q.id, change: q.change },
+                        },
+                      ],
+                    })
+                  }
                   onCursor={(path, line) => setCursor({ path, line })}
                   onEdit={(path, value) => {
                     setUnsaved((u) => {

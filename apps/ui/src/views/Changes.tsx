@@ -226,7 +226,19 @@ export function Changes(p: ChangesProps) {
           <>
             <div class="detail-head">
               <h2 class="syne">{shown.id}</h2>
-              <span class="muted">{t(`side.${shown.group}`)}</span>
+              <span class="muted">
+                {shown.draft
+                  ? t("side.draftOf", {
+                      module: shown.id.replace(/^draft-/, ""),
+                      n: shown.requirements.length,
+                    })
+                  : t("side.applied", {
+                      applied: shown.requirements.filter((r) => r.applied).length,
+                      n: shown.requirements.length,
+                    })}
+                {" · "}
+                {t(`side.${shown.group}`)}
+              </span>
             </div>
             {card(shown)}
           </>

@@ -335,6 +335,19 @@ const en = {
   "state.openLine": "Open line {n}",
   "state.openFile": "Open the file",
   "notice.retry": "Retry",
+  "lens.traceCount": "({scenarios}, {tests})",
+  "lens.scenario": "1 scenario",
+  "lens.scenarios": "{n} scenarios",
+  "lens.test": "1 test",
+  "lens.tests": "{n} tests",
+  "question.open": "{q} open · blocks {req}",
+  "question.source": "questions.md · {change}",
+  "question.foot":
+    "Answer writes it in questions.md (specgate answer {q}); then confirm the spec says it.",
+  "question.help": "What answering does",
+  "questions.hint": "Or write your answer · Enter saves",
+  "questions.writes":
+    "Writes «{answer}» in {q}'s row of questions.md (specgate answer {q}). {reqs} stays as it is until you confirm the spec says it.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -681,6 +694,19 @@ const es: Record<MessageKey, string> = {
   "state.openLine": "Abrir la línea {n}",
   "state.openFile": "Abrir el archivo",
   "notice.retry": "Reintentar",
+  "lens.traceCount": "({scenarios}, {tests})",
+  "lens.scenario": "1 escenario",
+  "lens.scenarios": "{n} escenarios",
+  "lens.test": "1 prueba",
+  "lens.tests": "{n} pruebas",
+  "question.open": "{q} abierta · bloquea {req}",
+  "question.source": "questions.md · {change}",
+  "question.foot":
+    "Responder escribe la respuesta en questions.md (specgate answer {q}); luego confirma que la spec lo dice.",
+  "question.help": "Qué pasa al responder",
+  "questions.hint": "O escribe tu respuesta · Enter guarda",
+  "questions.writes":
+    "Escribe «{answer}» en la fila de {q} de questions.md (specgate answer {q}). {reqs} sigue igual hasta que confirmes que la spec lo dice.",
 };
 
 export const MESSAGES: Record<Lang, Record<MessageKey, string>> = { en, es };

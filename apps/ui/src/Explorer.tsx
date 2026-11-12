@@ -46,6 +46,10 @@ export interface ExplorerProps {
   building: string | null;
   /** The active editor tab: revealed in the tree (REQ-164). */
   activeFile: string | null;
+  /** The requirement under the editor's cursor: highlighted in its module, opened first (REQ-169). */
+  activeReq?: string | null;
+  /** The project's name: the root of the spec explorer, as the board draws it. */
+  project?: string;
   /** Bumped when the workspace changed: git's letters are read again (REQ-163). */
   workspaceStamp: unknown;
   filterRef: { current: HTMLInputElement | null };
@@ -78,6 +82,7 @@ export function Explorer(p: ExplorerProps) {
   const [loaded, setLoaded] = useState(false);
   const [children, setChildren] = useState<Map<string, TreeEntry[]>>(new Map());
   const [selected, setSelected] = useState<string | null>(null);
+
   /** The requirement last opened from its module (REQ-169). */
   const [currentReq, setCurrentReq] = useState<string | null>(null);
   const [changes, setChanges] = useState<Record<string, GitLetter>>({});
@@ -87,8 +92,28 @@ export function Explorer(p: ExplorerProps) {
   const [renaming, setRenaming] = useState<string | null>(null);
   const [creating, setCreating] = useState<Creating>(null);
   const [show, setShow] = useState<{ index: number; n: number } | null>(null);
-  const [sections, setSections] = useState({ spec: true, modules: true, changes: true });
+  const [sections, setSections] = useState({
+    spec: true,
+    modules: true,
+    changes: true,
+    capabilities: false,
+    features: false,
+  });
   const [openModules, setOpenModules] = useState<Set<string> | null>(null);
+  const modulesRef = useRef<HTMLDivElement>(null);
+  // The requirement in the editor, in view in its module (REQ-169).
+  useEffect(() => {
+    if (!p.activeReq) return;
+    const t = window.setTimeout(() => {
+      const row = modulesRef.current?.querySelector<HTMLElement>(`[data-req="${p.activeReq}"]`);
+      const box = modulesRef.current;
+      if (!row || !box) return;
+      const top = row.offsetTop - box.offsetTop;
+      if (top < box.scrollTop || top + row.offsetHeight > box.scrollTop + box.clientHeight)
+        box.scrollTop = Math.max(0, top - box.clientHeight / 2);
+    }, 50);
+    return () => window.clearTimeout(t);
+  }, [p.activeReq, openModules]);
   const treeRef = useRef<HTMLDivElement>(null);
   const reading = useRef(new Set<string>());
 
@@ -344,21 +369,40 @@ export function Explorer(p: ExplorerProps) {
   // The spec's sections above the tree (REQ-169, A26).
   const questionsOf = (change: string) =>
     (p.questions?.questions?.open ?? []).filter((q) => q.change === change).length;
-  const capabilities = useMemo(
+  const capabilityNames = useMemo(
     () =>
-      new Set(
-        p.files
-          .map((f) => /^docs\/specs\/capabilities\/([^/]+)\//.exec(f)?.[1])
-          .filter((x): x is string => !!x),
-      ).size,
+      [
+        ...new Set(
+          p.files
+            .map((f) => /^docs\/specs\/capabilities\/([^/]+)\//.exec(f)?.[1])
+            .filter((x): x is string => !!x),
+        ),
+      ].sort(),
     [p.files],
   );
-  const features = useMemo(() => p.files.filter((f) => f.endsWith(".feature")).length, [p.files]);
+  const capabilities = capabilityNames.length;
+  const featureFolders = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const f of p.files)
+      if (f.startsWith("features/") && f.endsWith(".feature")) {
+        const folder = f.split("/").slice(0, -1).join("/");
+        m.set(folder, (m.get(folder) ?? 0) + 1);
+      }
+    return [...m].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [p.files]);
+  const features = featureFolders.reduce((n, [, c]) => n + c, 0);
   const modules = useMemo(
     () => modulesOf(p.requirements, p.report, { building: p.building, unapproved: p.unapproved }),
     [p.requirements, p.report, p.building, p.unapproved],
   );
-  const shownModules = openModules ?? new Set(modules.slice(0, 1).map((m) => m.name));
+  // The module of the requirement in the editor opens first, then the first one (REQ-169).
+  const activeModule = p.activeReq
+    ? modules.find((m) => m.requirements.some((r) => r.id === p.activeReq))?.name
+    : undefined;
+  const shownModules = new Set([
+    ...(openModules ?? modules.slice(0, 1).map((m) => m.name)),
+    ...(activeModule ? [activeModule] : []),
+  ]);
   const built = p.requirements.filter((r) => r.category === "DONE").length;
   const reveal = (folder: string) => {
     const all = [...foldersAbove(`${folder}/x`)];
@@ -417,38 +461,85 @@ export function Explorer(p: ExplorerProps) {
         <span>{tr("tree.spec")}</span>
       </div>
       <div class="ssec" data-section="spec">
-        {specRow("spec.md", "spec.md", {
-          badge: "MD",
-          onClick: () => p.openFile("spec.md"),
-          current: p.activeFile === "spec.md",
-          letter: changes["spec.md"],
-        })}
-        {specRow("docs/brief.md", "docs/brief.md", {
-          badge: "MD",
-          onClick: () => p.openFile("docs/brief.md"),
-          current: p.activeFile === "docs/brief.md",
-          letter: changes["docs/brief.md"],
-        })}
-        {specRow("changes", `${sections.changes ? "▾" : "▸"} ${tr("tree.openChanges")}`, {
-          onClick: () => setSections((s) => ({ ...s, changes: !s.changes })),
-        })}
-        {sections.changes &&
-          p.changes.map((c) => {
-            const n = questionsOf(c.id);
-            const ticket = /^([a-z]+-\d+)(-|$)/i.exec(c.id)?.[1]?.toUpperCase();
-            return specRow(`change:${c.id}`, c.id, {
+        <button
+          type="button"
+          class="tr root"
+          aria-expanded={sections.spec}
+          data-key="root"
+          onClick={() => setSections((s) => ({ ...s, spec: !s.spec }))}
+        >
+          <span class="name">
+            {sections.spec ? "▾" : "▸"} {p.project || tr("tree.spec")}
+          </span>
+        </button>
+        {sections.spec && (
+          <>
+            {specRow("spec.md", "spec.md", {
               depth: 1,
-              right: n ? tr(n === 1 ? "tree.question" : "tree.questions", { n }) : (ticket ?? ""),
-              rightTone: n ? "warn" : "",
-              onClick: () => reveal(`docs/specs/changes/${c.id}`),
-            });
-          })}
-        {specRow("capabilities", `▸ ${tr("tree.capabilities", { n: capabilities })}`, {
-          onClick: () => reveal("docs/specs/capabilities"),
-        })}
-        {specRow("features", `▸ ${tr("tree.features", { n: features })}`, {
-          onClick: () => reveal("features"),
-        })}
+              badge: "MD",
+              onClick: () => p.openFile("spec.md"),
+              current: p.activeFile === "spec.md",
+              letter: changes["spec.md"],
+            })}
+            {specRow("docs/brief.md", "docs/brief.md", {
+              depth: 1,
+              badge: "MD",
+              onClick: () => p.openFile("docs/brief.md"),
+              current: p.activeFile === "docs/brief.md",
+              letter: changes["docs/brief.md"],
+            })}
+            {specRow("changes", `${sections.changes ? "▾" : "▸"} ${tr("tree.openChanges")}`, {
+              depth: 1,
+              onClick: () => setSections((s) => ({ ...s, changes: !s.changes })),
+            })}
+            {sections.changes &&
+              p.changes.map((c) => {
+                const n = questionsOf(c.id);
+                const ticket = /^([a-z]+-\d+)(-|$)/i.exec(c.id)?.[1]?.toUpperCase();
+                return specRow(`change:${c.id}`, c.id, {
+                  depth: 2,
+                  right: n
+                    ? tr(n === 1 ? "tree.question" : "tree.questions", { n })
+                    : (ticket ?? ""),
+                  rightTone: n ? "warn" : "",
+                  onClick: () => reveal(`docs/specs/changes/${c.id}`),
+                });
+              })}
+            {specRow(
+              "capabilities",
+              `${sections.capabilities ? "▾" : "▸"} ${tr("tree.capabilities", { n: capabilities })}`,
+              {
+                depth: 1,
+                onClick: () => setSections((s) => ({ ...s, capabilities: !s.capabilities })),
+              },
+            )}
+            {sections.capabilities &&
+              capabilityNames.map((c) =>
+                specRow(`capability:${c}`, c, {
+                  depth: 2,
+                  badge: "MD",
+                  onClick: () => p.openFile(`docs/specs/capabilities/${c}/spec.md`),
+                  current: p.activeFile === `docs/specs/capabilities/${c}/spec.md`,
+                }),
+              )}
+            {specRow(
+              "features",
+              `${sections.features ? "▾" : "▸"} ${tr("tree.features", { n: features })}`,
+              {
+                depth: 1,
+                onClick: () => setSections((s) => ({ ...s, features: !s.features })),
+              },
+            )}
+            {sections.features &&
+              featureFolders.map(([folder, n]) =>
+                specRow(`features:${folder}`, folder.replace(/^features\//, "") || folder, {
+                  depth: 2,
+                  right: String(n),
+                  onClick: () => reveal(folder),
+                }),
+              )}
+          </>
+        )}
       </div>
 
       <div class="shead sub">
@@ -457,7 +548,7 @@ export function Explorer(p: ExplorerProps) {
           {built}/{p.requirements.length}
         </span>
       </div>
-      <div class="ssec modules" data-section="modules">
+      <div class="ssec modules" data-section="modules" ref={modulesRef}>
         {modules.map((m) => {
           const isOpen = shownModules.has(m.name);
           return (
@@ -490,7 +581,8 @@ export function Explorer(p: ExplorerProps) {
                     key={r.id}
                     data-req={r.id}
                     data-state={r.state}
-                    aria-current={currentReq === r.id ? "true" : undefined}
+                    aria-current={(p.activeReq ?? currentReq) === r.id ? "true" : undefined}
+
                     style={{ paddingLeft: "24px" }}
                     onClick={() => void openRequirement(r.id)}
                   >
