@@ -109,7 +109,8 @@ test("REQ-032 SCN-093: sprich on feat/mvp-fase-1 — the status bar shows the br
       () => document.querySelector('[data-testid="status-progress"]')?.textContent === "13 of 14",
     );
     assert.equal(await page.textContent('[data-testid="status-gate"]'), "Gate not run");
-    assert.match((await page.textContent('[data-testid="status-cost"]')) ?? "", /Cost \$0\.00/);
+    // What the agent spent, as usage: nothing built yet (demo-findings REQ-211).
+    assert.equal(await page.textContent('[data-testid="status-cost"]'), "Usage —");
     await page.waitForFunction(
       () =>
         document.querySelector('[data-testid="status-branch"]')?.textContent ===

@@ -154,7 +154,8 @@ test("REQ-173 SCN-515: sprich's Home — the next step as a sentence, four count
       ["Built", "15"],
       ["Proven", "12"],
     ]);
-    assert.deepEqual(cards[3]![0], "Agent's cost");
+    // What the agent spent, as usage (demo-findings REQ-211).
+    assert.deepEqual(cards[3]![0], "Agent's usage");
     await page.waitForSelector('.step[data-step="answered"][data-state="current"]');
     assert.match(
       await page.innerText('.step[data-step="answered"]'),
