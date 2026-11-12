@@ -50,7 +50,7 @@ The system SHALL filter Traceability's rows by three filters — gaps, without a
 
 ### Requirement: REQ-123 — "Fix" opens the scenario and proposes the missing test, written only on confirmation
 
-<!-- specgate:trace actor=Developer kind=business-rule -->
+<!-- specgate:trace status=Implemented actor=Developer kind=business-rule -->
 
 The system SHALL offer "Fix" on a row without a test; pressing it SHALL open the scenario in the editor and propose the missing test as a skeleton the studio writes from the scenario's GIVEN/WHEN/THEN — the file it would write and its content, naming the requirement and the scenario — with no agent and no cost; beside it, "Ask the agent" SHALL have the project's agent complete the skeleton and show the result as a diff with its cost. The system SHALL write nothing until the Developer confirms; when it ends, its notice SHALL name the file written, or say that nothing was written, and the next step.
 
