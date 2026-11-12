@@ -2,6 +2,7 @@ import { render } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { Annotations } from "@specgate-studio/protocol";
 import { SPEC_LANGUAGE, monaco } from "./monaco.js";
+import { currentPrefs, onPrefs, type Prefs } from "./prefs.js";
 
 /** The last focus request an editor took: each is taken once (see `focus`). */
 let focusTaken = 0;
@@ -120,11 +121,16 @@ export default function EditorPane(p: EditorPaneProps) {
   props.current = p;
 
   useEffect(() => {
+    // The user's editor settings (draft-settings REQ-143): font size, tab size, word wrap.
+    const opts = (q: Prefs) => ({
+      wordWrap: q["editor.wordWrap"],
+      fontSize: q["editor.fontSize"],
+      tabSize: q["editor.tabSize"],
+    });
     const ed = monaco.editor.create(box.current!, {
       automaticLayout: true,
       minimap: { enabled: false },
-      wordWrap: "on",
-      fontSize: 13,
+      ...opts(currentPrefs()),
       lineHeight: 22,
       codeLensFontFamily: "'IBM Plex Sans', system-ui, sans-serif",
       codeLensFontSize: 12,
@@ -147,7 +153,14 @@ export default function EditorPane(p: EditorPaneProps) {
       },
     });
     (window as unknown as { __studio: Record<string, unknown> }).__studio.monaco = monaco;
-    return () => ed.dispose();
+    const stop = onPrefs((q) => {
+      ed.updateOptions(opts(q));
+      ed.getModel()?.updateOptions({ tabSize: q["editor.tabSize"] });
+    });
+    return () => {
+      stop();
+      ed.dispose();
+    };
   }, []);
 
   // The file: its model, created once from the text read.

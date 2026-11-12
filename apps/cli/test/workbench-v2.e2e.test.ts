@@ -211,6 +211,8 @@ async function noFolder(opts: { gh?: boolean } = {}) {
   const host = await serve({
     projectDir: home,
     noFolder: true,
+    // The studio's own folder inside the test's home: the Developer's real settings are not read.
+    home: path.join(home, ".specgate-studio"),
     port: 0,
     folders: {
       folders: new NodeFolders(home),

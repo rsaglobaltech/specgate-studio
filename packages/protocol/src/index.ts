@@ -89,6 +89,21 @@ import type {
   TraceView,
   TraceWriteResult,
   FixResult,
+  NewGroup,
+  Setting,
+  SettingScope,
+  SettingSection,
+  SettingsView,
+  UserSettingResult,
+  Figure,
+  GateStage,
+  GateView,
+  ReportCost,
+  ReportMissing,
+  ReportModule,
+  ReportUsage,
+  ReportView,
+  StageResult,
 } from "@specgate-studio/core";
 
 export type { CommandEvent, RunResult, Section, SectionData, SpecgateCommand };
@@ -170,6 +185,20 @@ export type {
 };
 /** The brief as a form, and the client's text proposing one (draft-brief REQ-071, REQ-074). */
 export type { BriefForm, BriefFormActor, BriefFormModule, BriefFormResult, BriefFormView };
+/** The settings editor: two scopes and its search (draft-settings REQ-141). */
+export type { NewGroup, Setting, SettingScope, SettingSection, SettingsView, UserSettingResult };
+/** Report's figures, for the project and each module (draft-report REQ-131). */
+export type {
+  Figure,
+  GateStage,
+  GateView,
+  ReportCost,
+  ReportMissing,
+  ReportModule,
+  ReportUsage,
+  ReportView,
+  StageResult,
+};
 
 /** What the UI may ask, and what it gets back. */
 export interface Requests {
@@ -186,6 +215,13 @@ export interface Requests {
   "files.list": { params: Record<string, never>; result: string[] };
   /** Home's next step, route, agent's cost and activity (draft-design-conformance REQ-173). */
   "home.get": { params: Record<string, never>; result: HomeView };
+  /** Report's figures for the project, or one module (draft-report REQ-131). */
+  "report.get": { params: { module: string | null }; result: ReportView };
+  /** The notice of a report saved as one page by the UI: it names the file (draft-report REQ-133). */
+  "report.saved": {
+    params: { file: string; module: string | null };
+    result: { notice: Record<Lang, Notice> };
+  };
   /** One folder's entries, folders first, nothing ignored (draft-explorer-tree REQ-161). */
   "files.children": { params: { path: string }; result: { entries: TreeEntry[] } };
   /** Git's letter of each changed file (REQ-163). */
@@ -356,6 +392,12 @@ export interface Requests {
     params: { plan: number; requirement: string; scenario: string; path: string };
     result: TraceWriteResult;
   };
+  /** The settings of both scopes a search keeps, in the studio's language (draft-settings REQ-141). */
+  "settings.get": { params: { query: string; lang: Lang }; result: SettingsView };
+  /** The user settings the Developer's own file sets: what the studio opens with (REQ-141). */
+  "settings.user.get": { params: Record<string, never>; result: Record<string, string> };
+  /** A user setting, written to the Developer's own file, never the project's (REQ-141). */
+  "settings.user.set": { params: { key: string; value: string }; result: UserSettingResult };
 }
 
 /** What the host tells every connected UI, unasked. */

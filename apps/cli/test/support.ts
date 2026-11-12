@@ -13,6 +13,7 @@ import {
   InMemoryHarnessEvents,
   InMemoryFileSystem,
   InMemoryGit,
+  InMemoryUserSettings,
   InMemoryWatcher,
   IgnoreRules,
   type Finding,
@@ -101,6 +102,8 @@ export interface StudioOptions {
    * `/scratch/<name>`, so specgate's answers can be recorded for them.
    */
   scratch?: Map<string, string>;
+  /** What the Developer's own settings file holds; nothing by default (draft-settings REQ-141). */
+  user?: Record<string, unknown>;
 }
 
 export async function studio(opts: StudioOptions = {}) {
@@ -290,9 +293,15 @@ export async function studio(opts: StudioOptions = {}) {
       return structuredClone(typeof a === "function" ? await a(data, disk) : a);
     },
   };
+  // The Developer's own settings file, outside sprich (draft-settings A2).
+  const userSettings = new InMemoryUserSettings(
+    path.join(dir, "home", ".config", "specgate-studio", "settings.json"),
+    opts.user ?? {},
+  );
   const host = await serve({
     projectDir,
     port: opts.port ?? 0,
+    userSettings,
     reader,
     runner,
     files,
@@ -324,6 +333,7 @@ export async function studio(opts: StudioOptions = {}) {
     harness,
     events,
     scratch: scratchFiles,
+    userSettings,
     projectDir,
     url: host.url.replace(/^ws/, "http"),
     newPage: () => browser.newPage({ locale: "en-US" }),

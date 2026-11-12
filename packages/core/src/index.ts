@@ -339,3 +339,46 @@ export {
   type TraceWriteResult,
   type TraceabilityOptions,
 } from "./application/Traceability.js";
+/** The settings editor: two scopes, nine sections, its search; specgate's catalog (draft-settings REQ-141 … REQ-143). */
+export {
+  SCOPES,
+  SETTING_SECTIONS,
+  SECTION_NAMES,
+  SECTION_SCOPE,
+  SHORTCUTS,
+  USER_SETTINGS,
+  catalogOf,
+  configSetLine,
+  configValue,
+  projectSettings,
+  searchSettings,
+  sectionOfKey,
+  settingValue,
+  shortcutSettings,
+  userSetting,
+  type CatalogKey,
+  type NewGroup,
+  type Setting,
+  type SettingScope,
+  type SettingSection,
+  type SettingsView,
+} from "./domain/settings.js";
+/** Report: its figures for the project and each module, and the last gate by stage (draft-report REQ-131, REQ-132). */
+export {
+  MEASURE_COMMAND,
+  gateOf,
+  reportOf,
+  type Figure,
+  type GateStage,
+  type GateView,
+  type ReportCost,
+  type ReportInput,
+  type ReportMissing,
+  type ReportModule,
+  type ReportView,
+  type StageResult,
+  type Usage as ReportUsage,
+} from "./domain/report.js";
+export type { UserSettingsPort } from "./ports/UserSettingsPort.js";
+export { InMemoryUserSettings } from "./fakes/InMemoryUserSettings.js";
+export { Settings, type SettingsOptions, type UserSettingResult } from "./application/Settings.js";

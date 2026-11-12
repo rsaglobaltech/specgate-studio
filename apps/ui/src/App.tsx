@@ -75,6 +75,9 @@ import { bt } from "./views/briefText.js";
 import { Explorer } from "./Explorer.js";
 import { Home } from "./views/Home.js";
 import { HelpView } from "./views/HelpView.js";
+import { SettingsEditor } from "./views/Settings.js";
+import { applyPrefs } from "./prefs.js";
+import { Report } from "./views/Report.js";
 import { fileType, modulesOf } from "./tree.js";
 
 type Sections = Partial<
@@ -302,6 +305,36 @@ export function App({ rpc }: { rpc: Rpc }) {
     document.documentElement.lang = lang;
     saveSettings({ lang, theme, perUse });
   }, [lang, theme, perUse]);
+
+  // The user settings apply to every project: the Developer's own file wins over this page's memory (REQ-141).
+  useEffect(() => {
+    void rpc.ask("settings.user.get", {}).then(
+      (u) => {
+        if (u.lang === "en" || u.lang === "es") setLang(u.lang);
+        if (u.theme === "dark" || u.theme === "light") setTheme(u.theme);
+        applyPrefs(u);
+      },
+      () => undefined,
+    );
+  }, [rpc]);
+  /** A user setting: applied now, and saved by the host in the Developer's own file (REQ-141, REQ-143). */
+  const saveUser = useCallback(
+    (key: string, value: string, quiet = false) => {
+      if (key === "lang" && (value === "en" || value === "es")) setLang(value);
+      else if (key === "theme" && (value === "dark" || value === "light")) setTheme(value);
+      else if (/^(editor|terminal)\./.test(key)) applyPrefs({ [key]: value });
+      else return;
+      void rpc.ask("settings.user.set", { key, value }).then(
+        (r) => {
+          if (quiet) return;
+          if (r.ok) setEnded(r.notice);
+          else setNotice(r.message);
+        },
+        () => undefined,
+      );
+    },
+    [rpc],
+  );
 
   const openProject = useCallback(
     () =>
@@ -604,8 +637,8 @@ export function App({ rpc }: { rpc: Rpc }) {
         if (r.panel === "fromTicket") setTicketPanel(true);
       } else if (r.kind === "check") {
         void runCommand(label ?? f.title[lang], { name: "check" });
-      } else if (r.kind === "language") setLang((l) => (l === "en" ? "es" : "en"));
-      else if (r.kind === "theme") setTheme((th) => (th === "dark" ? "light" : "dark"));
+      } else if (r.kind === "language") saveUser("lang", lang === "en" ? "es" : "en", true);
+      else if (r.kind === "theme") saveUser("theme", theme === "dark" ? "light" : "dark", true);
       else if (r.kind === "billing") {
         // How the agent's dollars read; nothing runs, nothing is written in the project (REQ-211).
         const now = !perUse;
@@ -642,7 +675,7 @@ export function App({ rpc }: { rpc: Rpc }) {
       else if (r.kind === "buildReq") (setBuildReq(r.req), show("build"));
       else setSidebar((s) => !s);
     },
-    [rpc, show, runCommand, lang, perUse],
+    [rpc, show, runCommand, lang, theme, saveUser, perUse],
   );
 
   const act = useCallback(
@@ -1240,8 +1273,7 @@ export function App({ rpc }: { rpc: Rpc }) {
                       tr={tr}
                       lang={lang}
                       theme={theme}
-                      setLang={setLang}
-                      setTheme={setTheme}
+                      saveUser={saveUser}
                       project={project}
                       total={total}
                       done={done}
@@ -1256,6 +1288,7 @@ export function App({ rpc }: { rpc: Rpc }) {
                       areas={areas}
                       run={runCommand}
                       announce={announce}
+                      onNotice={setEnded}
                       requirements={requirements}
                       changes={changes}
                       questionsSection={questionsSection}
@@ -1306,6 +1339,7 @@ export function App({ rpc }: { rpc: Rpc }) {
                         />
                       }
                       reportTotal={(sections.report as { total?: number } | undefined)?.total}
+                      checking={gate === "running"}
                       onCheck={() =>
                         runFeature(
                           FEATURES.find((f) => f.id === "gate.check")!,
@@ -1840,11 +1874,13 @@ interface ViewProps {
   areas: Requests["setup.areas"]["result"] | null;
   run: (label: string, command: SpecgateCommand) => Promise<RunResult>;
   announce: (label: string) => void;
+  /** A notice in both languages, as a command's end has it (draft-report REQ-133). */
+  onNotice: (n: Record<NoticeLang, Notice>) => void;
   tr: (k: string, v?: Record<string, string | number>) => string;
   lang: Lang;
   theme: Theme;
-  setLang: (l: Lang) => void;
-  setTheme: (t: Theme) => void;
+  /** A user setting chosen in Settings: applied, and saved in the Developer's file (REQ-141). */
+  saveUser: (key: string, value: string) => void;
   project: string;
   total: number;
   done: number;
@@ -1864,6 +1900,8 @@ interface ViewProps {
   briefView: JSX.Element;
   reportTotal: number | undefined;
   onCheck: () => void;
+  /** A gate running (draft-report REQ-132). */
+  checking: boolean;
   onHelp: (r: HelpRequest) => void;
   /** Home as the boards draw it (draft-design-conformance REQ-173). */
   homeView: JSX.Element;
@@ -1960,55 +1998,36 @@ function View(p: ViewProps) {
       // Trace from the editor: the requirement's own rows first (REQ-042).
       return p.traceView;
     case "report":
+      // What was built, how it was proven, what it cost, the gate by stage (draft-report REQ-131, REQ-132).
       return (
-        <>
-          {title}
-          <div class="card">
-            <div class="k">{p.tr("home.requirements")}</div>
-            {/* The same count as Home: `report --json`'s total leaves out open changes. */}
-            <div class="v" data-testid="report-total">
-              {p.total}
-            </div>
-            {p.reportTotal !== undefined && (
-              <div class="muted" data-testid="report-split">
-                {p.tr("report.split", {
-                  spec: String(p.reportTotal),
-                  changes: String(Math.max(0, p.total - p.reportTotal)),
-                })}
-              </div>
-            )}
-          </div>
-        </>
+        <Report
+          rpc={p.rpc}
+          lang={p.lang}
+          tr={p.tr}
+          project={p.project}
+          total={p.total}
+          reportTotal={p.reportTotal}
+          onCheck={p.onCheck}
+          checking={p.checking}
+          onHelp={p.onHelp}
+          onNotice={p.onNotice}
+        />
       );
     case "help":
       return <HelpView rpc={p.rpc} lang={p.lang} tr={p.tr} />;
     case "settings":
+      // A search, two scopes and nine sections; saved through specgate (draft-settings REQ-141 … REQ-143).
       return (
-        <div class="settings">
-          {title}
-          <label>
-            {p.tr("settings.language")}
-            <select
-              value={p.lang}
-              onChange={(e) => p.setLang((e.target as HTMLSelectElement).value as Lang)}
-              aria-label={p.tr("settings.language")}
-            >
-              <option value="en">English</option>
-              <option value="es">Español</option>
-            </select>
-          </label>
-          <label>
-            {p.tr("settings.theme")}
-            <select
-              value={p.theme}
-              onChange={(e) => p.setTheme((e.target as HTMLSelectElement).value as Theme)}
-              aria-label={p.tr("settings.theme")}
-            >
-              <option value="dark">{p.tr("settings.dark")}</option>
-              <option value="light">{p.tr("settings.light")}</option>
-            </select>
-          </label>
-        </div>
+        <SettingsEditor
+          rpc={p.rpc}
+          lang={p.lang}
+          theme={p.theme}
+          project={p.project}
+          tr={p.tr}
+          onUser={p.saveUser}
+          run={p.run}
+          onHelp={p.onHelp}
+        />
       );
     default:
       return (
@@ -2283,7 +2302,14 @@ function AskDialog(props: {
 }
 
 /** The views drawn as a side panel beside their detail, edge to edge (REQ-175). */
-const SPLIT_VIEWS = new Set<ViewId>(["traceability", "changes", "questions", "build", "live"]);
+const SPLIT_VIEWS = new Set<ViewId>([
+  "traceability",
+  "changes",
+  "questions",
+  "build",
+  "live",
+  "settings",
+]);
 
 /** The desktop app: the operating system draws the menu (REQ-172, A5). */
 const DESKTOP =

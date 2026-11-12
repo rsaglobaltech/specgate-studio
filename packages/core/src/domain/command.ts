@@ -18,6 +18,8 @@ export type SpecgateCommand =
   | { name: "apply"; req: string }
   | { name: "archive"; change: string }
   | { name: "config-set"; key: string; value: string }
+  // Settings' Save (draft-settings REQ-142): `config set` with --json, its file and refusal in the answer.
+  | { name: "settings-save"; key: string; value: string }
   | { name: "answer"; q: string; answer: string; change: string }
   | { name: "answer-reviewed"; q: string; change: string }
   | { name: "change-note"; change: string; text: string; req?: string }
@@ -56,6 +58,9 @@ export type SpecgateCommand =
   | { name: "agent-apply"; id: string }
   | { name: "agent-discard"; id: string }
   | { name: "agent-plans" };
+
+/** A key of specgate's catalog, a profile's or a check's included: `test_cmd`, `profiles.claude-opus.agent`. */
+const CONFIG_KEY = /^[a-z][a-z0-9_]*(\.[A-Za-z0-9][A-Za-z0-9_-]*)*$/;
 
 export interface CommandLine {
   args: string[];
@@ -114,6 +119,13 @@ export function commandLine(c: SpecgateCommand): CommandLine | null {
       return { args: ["archive", c.change], write: true, json: true };
     case "config-set":
       return { args: ["config", "set", c.key, c.value], write: true };
+    case "settings-save":
+      return typeof c.key === "string" &&
+        CONFIG_KEY.test(c.key) &&
+        typeof c.value === "string" &&
+        !c.value.includes("\0")
+        ? { args: ["config", "set", c.key, c.value], write: true, json: true }
+        : null;
     case "answer":
       return { args: ["answer", c.q, c.answer, "--change", c.change], write: true };
     // "The spec says it" (draft-questions REQ-093).

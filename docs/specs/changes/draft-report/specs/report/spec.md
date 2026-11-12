@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-131 — Built of the total, scenarios proven, coverage, mutation score, cost and time
 
-<!-- specgate:trace actor=Reviewer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Reviewer kind=functional -->
 
 The system SHALL show in Report, for the whole project and for each module, the requirements built of the total, the scenarios proven of the total, the coverage, the mutation score, the cost and the time spent building — each read from specgate's JSON, and each one specgate has not measured shown as not measured with the command that measures it, never as 0. Coverage SHALL be shown as two labelled figures: the diff coverage the harness measured per requirement, and the project's line coverage when it exists. Cost SHALL be the cost measured from the agent's tokens when it exists, labelled measured, and otherwise the estimate declared per agent profile, labelled estimated.
 
@@ -30,7 +30,7 @@ The system SHALL show in Report, for the whole project and for each module, the 
 
 ### Requirement: REQ-132 — The gate by stage, with the fix of what fails
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL show in Report the last gate run on the project, as specgate records it, stage by stage — specification, architecture, tests and each quality check — each passed, failed, not configured or not run, with when it ran, and for a stage that failed its finding code and specgate's fix; when specgate has no gate recorded for the project, it SHALL say so and name `specgate check`.
 
@@ -56,7 +56,7 @@ The system SHALL show in Report the last gate run on the project, as specgate re
 
 ### Requirement: REQ-133 — Download as one HTML page; print to PDF
 
-<!-- specgate:trace actor=Reviewer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Reviewer kind=functional -->
 
 The system SHALL download the report as one self-contained HTML page — its styles inside it, no script and no request to any address — and SHALL print it with a print layout through the system's print dialog, from which it can be saved as PDF; the download's notice SHALL name the file written.
 
