@@ -227,7 +227,10 @@ test("REQ-103 SCN-613: in the browser, REQ-141 passed in 9 min for ≈ 0,57 $ un
     f({ t: t + 8, attempt: 1, type: "attempt", state: "end", result: "fail", stage: "gate" });
     f({ t: t + 9, attempt: 2, type: "attempt", state: "start" });
     await page.waitForSelector('.lreq[data-req="REQ-142"][data-attempt="2"]');
-    assert.match(await text(page, '[data-finished="REQ-141"]'), /✓\s*REQ-141 · 9 min · 2 tokens · ≈ 0,57 \$/);
+    assert.match(
+      await text(page, '[data-finished="REQ-141"]'),
+      /✓\s*REQ-141 · 9 min · 2 tokens · ≈ 0,57 \$/,
+    );
     assert.match(await text(page, '[data-testid="live-cost"]'), /✓ 1 pasados/);
     assert.match(
       await text(page, '.lreq[data-req="REQ-142"] .lattempts [data-attempt="1"]'),

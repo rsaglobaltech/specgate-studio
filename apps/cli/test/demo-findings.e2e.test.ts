@@ -72,7 +72,16 @@ test('REQ-101 SCN-631: on the desktop after REQ-141\'s run, REQ-142 and REQ-143 
 test('REQ-101 SCN-632: in the browser, "Aplicar" on REQ-142 — its "?" names `specgate apply REQ-142`, then the echo "Aplicar REQ-142" and its notice', async () => {
   const s = await studio({
     homeRequirements: AFTER_141 as never,
-    specgate: { ...buildAnswers("claude -p < {prompt_file}"), plan: PLAN },
+    specgate: {
+      ...buildAnswers("claude -p < {prompt_file}"),
+      plan: PLAN,
+      // The gate passes: REQ-142 is DONE in the next status, as specgate's would be.
+      "apply REQ-142": (data) => {
+        const home = data.home as { requirements: Array<{ id: string; category: string }> };
+        for (const r of home.requirements) if (r.id === "REQ-142") r.category = "DONE";
+        return { data: { requirement: { id: "REQ-142" } }, findings: [], exitCode: 0 };
+      },
+    },
   });
   const page = await open(s, { lang: "es" });
   try {
@@ -82,14 +91,19 @@ test('REQ-101 SCN-632: in the browser, "Aplicar" on REQ-142 — its "?" names `s
     await page.waitForSelector('.help [data-part="next"]');
     const p = await parts(page);
     assert.equal(p[1]![1], "specgate apply REQ-142");
-    assert.deepEqual(s.runs, [], "the ? runs nothing");
+    const applied = () => s.calls.filter((c) => c[0] === "apply");
+    assert.deepEqual(applied(), [], "the ? runs nothing");
     await page.keyboard.press("Escape");
     await page.waitForSelector(".help", { state: "detached" });
     await page.click(`${closeRow("REQ-142")} [data-act="apply"]`);
     await untilTerm(page, "specgate", /▶ "Aplicar REQ-142" · specgate apply REQ-142/);
     await page.waitForSelector('.notice[data-tone="ok"]');
     assert.match(await text(page, ".notice"), /pasó el gate y marcó REQ-142 como Implementado/);
-    assert.deepEqual(s.runs, [["apply", "REQ-142"]]);
+    assert.deepEqual(applied(), [["apply", "REQ-142"]]);
+    // specgate wrote its status: REQ-142 leaves the group; REQ-143 is still there.
+    s.watcher.emit(s.projectDir, "docs/specs/traceability.md");
+    await page.waitForSelector(closeRow("REQ-142"), { state: "detached" });
+    assert.ok(await page.$(closeRow("REQ-143")));
   } finally {
     await close(s, page);
   }
@@ -226,7 +240,13 @@ async function built(lang: "en" | "es") {
   const t = Date.now() / 1000 - 600;
   s.events.append("REQ-141", { t, attempt: 1, type: "attempt", state: "start" });
   s.events.append("REQ-141", { ...BUILT, t: t + 500 });
-  s.events.append("REQ-141", { t: t + 540, attempt: 1, type: "attempt", state: "end", result: "pass" });
+  s.events.append("REQ-141", {
+    t: t + 540,
+    attempt: 1,
+    type: "attempt",
+    state: "end",
+    result: "pass",
+  });
   const page = await open(s, { lang });
   return { s, page };
 }
@@ -274,7 +294,9 @@ test('REQ-211 SCN-636: in the browser in English, "Billing: pay per use of the A
     );
     await page.keyboard.press(`${MOD}+Shift+P`);
     await page.keyboard.type("pay per use");
-    await page.click('.palette li .hq[aria-label="What does “Billing: pay per use of the API” do?"]');
+    await page.click(
+      '.palette li .hq[aria-label="What does “Billing: pay per use of the API” do?"]',
+    );
     await page.waitForSelector('.help [data-part="next"]');
     const p = await parts(page);
     assert.match(p[0]![1]!, /label/i);

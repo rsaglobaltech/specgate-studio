@@ -1,6 +1,7 @@
 import {
   activityOf,
   agentCostOf,
+  agentUsageOf,
   briefModuleNames,
   groupChanges,
   nextStep,
@@ -86,6 +87,7 @@ export function attachHome(
           pending,
         }),
         cost: agentCostOf(report),
+        usage: agentUsageOf(report),
         activity: activityOf(commits ?? []),
       };
     },

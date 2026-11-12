@@ -274,6 +274,8 @@ export {
   ROUTE,
   activityOf,
   agentCostOf,
+  agentUsageOf,
+  type AgentUsage,
   briefModuleNames,
   nextStep,
   routeOf,

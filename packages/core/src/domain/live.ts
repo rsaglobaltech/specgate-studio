@@ -15,8 +15,10 @@ export interface Usage {
   output: number;
   cacheRead: number;
   cacheWrite: number;
-  /** Dollars, when the agent reports them. */
+  /** Dollars, when the agent reports them: on a subscription, what it would cost at API prices (REQ-211). */
   cost: number | null;
+  /** The agent's turns, when its final usage counts them (REQ-211). */
+  turns: number | null;
 }
 
 export type StepResult = "ok" | "error" | "pass" | "fail" | "running";
@@ -205,12 +207,14 @@ export function foldUsage(events: readonly HarnessEvent[]): Usage | null {
   const live = usages.filter((e) => e.final !== true);
   const sum = (k: string) => finals.reduce((a, e) => a + num(e[k]), 0);
   const costs = finals.filter((e) => typeof e.cost === "number");
+  const turns = finals.filter((e) => typeof e.turns === "number");
   return {
     input: sum("input"),
     output: finals.length ? sum("output") : num(live[live.length - 1]?.output),
     cacheRead: sum("cacheRead"),
     cacheWrite: sum("cacheWrite"),
     cost: costs.length ? costs.reduce((a, e) => a + num(e.cost), 0) : null,
+    turns: turns.length ? turns.reduce((a, e) => a + num(e.turns), 0) : null,
   };
 }
 
@@ -329,8 +333,10 @@ const stage = (id: StageId, label = ""): LiveStage => ({
 
 /**
  * The harness's stages of one requirement (REQ-103, A3), from its events:
- * "Rama creada" from its turn to its first event (specgate writes none for
- * the worktree); the setup's gate stage; the agent from its attempt's start
+ * "Rama creada" running from its turn, done at its first event, timed only
+ * by an event of specgate's that gives the branch its time (`branch` or
+ * `worktree` with `ms`; specgate 0.34.0 writes none), never by the wait
+ * before the first event (demo-findings A3); the setup's gate stage; the agent from its attempt's start
  * to its end or the gate's first stage; the gate's stages; apply once it passed.
  */
 export function foldStages(
@@ -343,11 +349,13 @@ export function foldStages(
   const branch = stage("branch");
   if (all.length === 0) Object.assign(branch, { mark: running ? "running" : "failed", since });
   else {
-    const first = num(all[0]!.t);
+    const made = all.find(
+      (e) => (e.type === "branch" || e.type === "worktree") && typeof e.ms === "number",
+    );
     Object.assign(branch, {
       mark: "done",
       since,
-      seconds: since !== null ? round(Math.max(0, first - since)) : null,
+      seconds: made ? round(num(made.ms) / 1000) : null,
     });
   }
   const out: LiveStage[] = [branch];
@@ -645,7 +653,14 @@ export function foldLive(
   const output: LiveLine[] = [];
   const log: LogLine[] = [];
   let ended = 0;
-  const totals: Usage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: null };
+  const totals: Usage = {
+    input: 0,
+    output: 0,
+    cacheRead: 0,
+    cacheWrite: 0,
+    cost: null,
+    turns: null,
+  };
   for (const [req, jsonl] of Object.entries(files)) {
     const events = parseEvents(jsonl).filter((e) => num(e.t) >= since);
     if (events.length === 0) continue;
@@ -656,6 +671,7 @@ export function foldLive(
       totals.cacheRead += usage.cacheRead;
       totals.cacheWrite += usage.cacheWrite;
       if (usage.cost !== null) totals.cost = (totals.cost ?? 0) + usage.cost;
+      if (usage.turns !== null) totals.turns = (totals.turns ?? 0) + usage.turns;
     }
     const folded = foldRequirement(req, events, studio);
     if (folded) requirements.push({ ...folded, updated: num(events[events.length - 1]!.t) });

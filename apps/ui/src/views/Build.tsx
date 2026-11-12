@@ -25,6 +25,11 @@ export interface BuildProps {
   onHelp: (feature: string, requests: HelpRequest[]) => void;
   /** Names the button whose command runs next, in the terminal's echo (REQ-053). */
   announce: (label: string) => void;
+  /**
+   * Names the button that builds `req`, kept until its run starts — a queued
+   * one's echo names its own (demo-findings REQ-103); `null` forgets it.
+   */
+  announceBuild: (req: string, label: string | null) => void;
   /** Opens Live. */
   onLive: () => void;
   /** Runs a specgate command for a button, in the terminal (REQ-053): "Configurar agente". */
@@ -81,13 +86,23 @@ export function Build(p: BuildProps) {
     } else if (r.code === "build_waits") {
       setWaits(r);
       setRefused(null);
-    } else setRefused(r.message);
+    } else {
+      // Refused: its button names no later run.
+      p.announceBuild(r.req, null);
+      setRefused(r.message);
+    }
   };
   const start = (req: string) => {
     setStarted(null);
-    p.announce(t("build.req", { req }));
-    p.rpc.ask("build.start", { req }).then(answered, (e: Error) => setRefused(e.message));
+    p.announceBuild(req, t("build.req", { req }));
+    p.rpc.ask("build.start", { req }).then(answered, (e: Error) => {
+      p.announceBuild(req, null);
+      setRefused(e.message);
+    });
   };
+  /** "Aplicar": `specgate apply <REQ>` for a requirement whose test is in place (demo-findings REQ-101). */
+  const apply = (r: BuildItem) =>
+    void p.run(t("build.apply.req", { req: r.id }), { name: "apply", req: r.id });
   const resolve = (choice: "commit" | "stash" | "ignore", message: string) => {
     if (!waits) return;
     p.announce(t(`build.${choice}`));
@@ -202,6 +217,32 @@ export function Build(p: BuildProps) {
             />
           ))}
         </ul>
+        {list.toClose.length > 0 && (
+          <>
+            <div class="sgroup" data-testid="build-close-group">
+              {t("build.closeGroup")}
+            </div>
+            <ul class="breqs" data-group="close">
+              {list.toClose.map((r) => (
+                <CloseRow
+                  key={r.id}
+                  r={r}
+                  t={t}
+                  onApply={() => apply(r)}
+                  onHelp={() =>
+                    p.onHelp(t("build.apply.req", { req: r.id }), [
+                      {
+                        action: "apply",
+                        feature: t("build.apply.req", { req: r.id }),
+                        vars: { req: r.id, ...(r.change ? { change: r.change } : {}) },
+                      },
+                    ])
+                  }
+                />
+              ))}
+            </ul>
+          </>
+        )}
         <div class="grow" />
         <div class="bfoot">
           <button
@@ -444,6 +485,35 @@ function ReadyRow(props: {
         ▶
       </button>
       <HelpButton label={`? ${t("build.req", { req: r.id })}`} onOpen={props.onHelp} />
+    </li>
+  );
+}
+
+/** A requirement whose test is in place, ready to close with "Aplicar" (demo-findings REQ-101). */
+function CloseRow(props: { r: BuildItem; t: T; onApply: () => void; onHelp: () => void }) {
+  const { r, t } = props;
+  return (
+    <li class="tr breq bclose" data-req={r.id}>
+      <span class="rid">
+        <span class="sr">REQ-</span>
+        {r.id.replace(/^REQ-/, "")}
+      </span>
+      <span class="bmain">
+        <span class="name" title={r.title ?? ""}>
+          {r.title}
+        </span>
+        <span class="best">{t("build.closeWhy")}</span>
+      </span>
+      <button
+        type="button"
+        class="btn"
+        data-act="apply"
+        title={t("build.apply.req", { req: r.id })}
+        onClick={props.onApply}
+      >
+        {t("build.apply")}
+      </button>
+      <HelpButton label={`? ${t("build.apply.req", { req: r.id })}`} onOpen={props.onHelp} />
     </li>
   );
 }

@@ -4,6 +4,8 @@ import type { Rpc } from "../rpc.js";
 import { HelpButton, type HelpRequest } from "../Help.js";
 import { modulesOf, type StatusRequirement } from "../tree.js";
 import type { ViewId } from "../views.js";
+import type { Lang } from "../i18n.js";
+import { price, tokens } from "../usage.js";
 
 export interface HomeProps {
   rpc: Rpc;
@@ -30,6 +32,9 @@ export interface HomeProps {
   onFromTicket: () => void;
   onOpenTerminal: () => void;
   onHelp: (r: HelpRequest) => void;
+  lang: Lang;
+  /** The Developer pays per use: the dollars read as cost, not "≈ precio de API" (demo-findings REQ-211). */
+  perUse: boolean;
 }
 
 /** Which "?" explains the next step's button. */
@@ -154,12 +159,18 @@ export function Home(p: HomeProps) {
           <div class="v">{proven}</div>
           <div class="sub">{tr("home.ofBuilt", { n: p.done })}</div>
         </div>
-        <div class="card">
-          <div class="k">{tr("home.cost")}</div>
-          <div class="v">{view?.cost ? `$${view.cost.total.toFixed(2)}` : "—"}</div>
+        {/* What the agent spent, as usage: its dollars at API prices unless paid per use (REQ-211). */}
+        <div class="card" data-testid="home-usage">
+          <div class="k">{tr("home.usage")}</div>
+          <div class="v">{view?.usage ? tokens(p.lang, view.usage.tokens) : "—"}</div>
           <div class="sub">
-            {view?.cost
-              ? tr("home.costSub", { minutes: view.cost.minutes, runs: view.cost.runs })
+            {view?.usage
+              ? [
+                  view.usage.dollars !== null ? price(p.lang, view.usage.dollars, p.perUse) : null,
+                  tr("home.costSub", { minutes: view.usage.minutes, runs: view.usage.runs }),
+                ]
+                  .filter(Boolean)
+                  .join(" · ")
               : tr("home.noCost")}
           </div>
         </div>
