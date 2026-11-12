@@ -1294,6 +1294,7 @@ export function App({ rpc }: { rpc: Rpc }) {
                         />
                       }
                       reportTotal={(sections.report as { total?: number } | undefined)?.total}
+                      checking={gate === "running"}
                       onCheck={() =>
                         runFeature(
                           FEATURES.find((f) => f.id === "gate.check")!,
@@ -1802,6 +1803,8 @@ interface ViewProps {
   briefView: JSX.Element;
   reportTotal: number | undefined;
   onCheck: () => void;
+  /** A gate running (draft-report REQ-132). */
+  checking: boolean;
   onHelp: (r: HelpRequest) => void;
   /** Home as the boards draw it (draft-design-conformance REQ-173). */
   homeView: JSX.Element;
@@ -1923,9 +1926,19 @@ function View(p: ViewProps) {
       );
     }
     case "report":
-      // Built of the total, scenarios, coverage, mutation, cost and time (draft-report REQ-131).
+      // What was built, how it was proven, what it cost, the gate by stage (draft-report REQ-131, REQ-132).
       return (
-        <Report rpc={p.rpc} lang={p.lang} tr={p.tr} total={p.total} reportTotal={p.reportTotal} />
+        <Report
+          rpc={p.rpc}
+          lang={p.lang}
+          tr={p.tr}
+          project={p.project}
+          total={p.total}
+          reportTotal={p.reportTotal}
+          onCheck={p.onCheck}
+          checking={p.checking}
+          onHelp={p.onHelp}
+        />
       );
     case "help":
       return <HelpView rpc={p.rpc} lang={p.lang} tr={p.tr} />;

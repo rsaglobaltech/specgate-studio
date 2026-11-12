@@ -87,8 +87,14 @@ import type {
   SettingsView,
   UserSettingResult,
   Figure,
+  GateStage,
+  GateView,
   ReportCost,
+  ReportMissing,
+  ReportModule,
+  ReportUsage,
   ReportView,
+  StageResult,
 } from "@specgate-studio/core";
 
 export type { CommandEvent, RunResult, Section, SectionData, SpecgateCommand };
@@ -161,7 +167,17 @@ export type { BriefForm, BriefFormActor, BriefFormModule, BriefFormResult, Brief
 /** The settings editor: two scopes and its search (draft-settings REQ-141). */
 export type { NewGroup, Setting, SettingScope, SettingSection, SettingsView, UserSettingResult };
 /** Report's figures, for the project and each module (draft-report REQ-131). */
-export type { Figure, ReportCost, ReportView };
+export type {
+  Figure,
+  GateStage,
+  GateView,
+  ReportCost,
+  ReportMissing,
+  ReportModule,
+  ReportUsage,
+  ReportView,
+  StageResult,
+};
 
 /** What the UI may ask, and what it gets back. */
 export interface Requests {

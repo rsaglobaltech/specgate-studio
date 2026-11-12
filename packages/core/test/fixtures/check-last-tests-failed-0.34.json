@@ -1,0 +1,81 @@
+{
+  "lastCheck": {
+    "schemaVersion": 1,
+    "ranAt": "2026-11-12T19:34:45.010Z",
+    "commit": "4699670de2e647bd2b81abde7143d75aa25d3c91",
+    "branch": "main",
+    "dirty": true,
+    "passed": false,
+    "ci": false,
+    "stages": [
+      {
+        "stage": "ids",
+        "command": null,
+        "result": "skipped",
+        "ms": 47,
+        "findings": [
+          {
+            "severity": "info",
+            "code": "ids_not_compared",
+            "message": "Requirement ids were not compared with a base: no base branch (pass --base <branch>).",
+            "fix": "specgate check --base <branch>"
+          }
+        ]
+      },
+      {
+        "stage": "changes",
+        "command": null,
+        "result": "skipped",
+        "ms": 1,
+        "findings": []
+      },
+      {
+        "stage": "validate",
+        "command": "specgate validate --strict",
+        "result": "passed",
+        "ms": 185,
+        "findings": []
+      },
+      {
+        "stage": "architecture",
+        "command": null,
+        "result": "skipped",
+        "ms": null,
+        "findings": []
+      },
+      {
+        "stage": "tests",
+        "command": "npm test",
+        "result": "failed",
+        "ms": 9,
+        "findings": [
+          {
+            "severity": "error",
+            "code": "check_tests_failed",
+            "message": "The gate failed: `npm test`.",
+            "fix": "Make `npm test` pass, then run `specgate check` again."
+          }
+        ]
+      },
+      {
+        "stage": "quality",
+        "name": "lint",
+        "gate": true,
+        "command": "npx eslint .",
+        "result": "not run",
+        "ms": null,
+        "findings": []
+      }
+    ],
+    "selection": {
+      "mode": "full",
+      "reason": "the whole suite, as always: `specgate check --affected` runs only what the change touches",
+      "base": null,
+      "changed": [],
+      "requirements": [],
+      "tests": [],
+      "cached": [],
+      "command": "npm test"
+    }
+  }
+}

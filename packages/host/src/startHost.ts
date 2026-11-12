@@ -117,7 +117,8 @@ export async function startHost(given: HostOptions): Promise<Host> {
   // anything changes: each is asked once (draft-design-conformance REQ-173).
   const reads = new Map<string, Promise<SpecgateAnswer>>();
   const forget = () => reads.clear();
-  const READ_ONLY = /^(change show \S+|harness report( --capability \S+)?|config (list|keys))$/;
+  const READ_ONLY =
+    /^(change show \S+|harness report( --capability \S+)?|config (list|keys)|report|check --last)$/;
   const memo = <P extends Pick<SpecgatePort, "call">>(port: P): P => {
     const wrapped = Object.create(port) as P;
     wrapped.call = (args: readonly string[]) => {
@@ -353,6 +354,8 @@ export async function startHost(given: HostOptions): Promise<Host> {
           message: 'A module is drafted with "Draft the modules", with the project\'s agent.',
         };
       const result = await commands.run(params as SpecgateCommand);
+      // A gate run is kept by specgate: Report reads it again (draft-report REQ-132).
+      if ((params as SpecgateCommand).name === "check") forget();
       // What it wrote feeds sections: read them again now, not when the watcher says.
       if (result.ok)
         for (const f of result.written) await state.fileChanged(f).catch(() => undefined);

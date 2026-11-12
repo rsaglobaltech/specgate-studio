@@ -30,7 +30,7 @@ The system SHALL show in Report, for the whole project and for each module, the 
 
 ### Requirement: REQ-132 — The gate by stage, with the fix of what fails
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL show in Report the last gate run on the project, as specgate records it, stage by stage — specification, architecture, tests and each quality check — each passed, failed, not configured or not run, with when it ran, and for a stage that failed its finding code and specgate's fix; when specgate has no gate recorded for the project, it SHALL say so and name `specgate check`.
 

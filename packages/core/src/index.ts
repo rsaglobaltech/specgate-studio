@@ -328,14 +328,21 @@ export {
   type SettingSection,
   type SettingsView,
 } from "./domain/settings.js";
-/** Report's figures, for the project and each module (draft-report REQ-131). */
+/** Report: its figures for the project and each module, and the last gate by stage (draft-report REQ-131, REQ-132). */
 export {
   MEASURE_COMMAND,
+  gateOf,
   reportOf,
   type Figure,
+  type GateStage,
+  type GateView,
   type ReportCost,
   type ReportInput,
+  type ReportMissing,
+  type ReportModule,
   type ReportView,
+  type StageResult,
+  type Usage as ReportUsage,
 } from "./domain/report.js";
 export type { UserSettingsPort } from "./ports/UserSettingsPort.js";
 export { InMemoryUserSettings } from "./fakes/InMemoryUserSettings.js";
