@@ -556,6 +556,15 @@ test("REQ-192 SCN-570: the Reviewer tabs to the splitter and presses Right three
     const [before] = await groups(page);
     await page.focus(splitter);
     for (let i = 0; i < 3; i++) await page.keyboard.press("ArrowRight");
+    // Drawn once the three steps are in: a render may come after the last key.
+    await page
+      .waitForFunction(
+        (w) =>
+          Math.abs(document.querySelector(".egroup")!.getBoundingClientRect().width - w - 30) <= 2,
+        before!.w,
+        { timeout: 3000 },
+      )
+      .catch(() => undefined);
     const [after] = await groups(page);
     assert.ok(Math.abs(after!.w - before!.w - 30) <= 2, `${before!.w} → ${after!.w}`);
     const now = Number(await page.getAttribute(splitter, "aria-valuenow"));
