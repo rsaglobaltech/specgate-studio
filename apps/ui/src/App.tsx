@@ -726,16 +726,21 @@ export function App({ rpc }: { rpc: Rpc }) {
 
   // The layout saved for this project comes back once the files are known (REQ-191).
   const restored = useRef(false);
+  const lastSaved = useRef<string | null>(null);
   useEffect(() => {
     if (restored.current || !folderOpen || files.length === 0) return;
     restored.current = true;
     void rpc.ask("layout.get", {}).then(
       ({ layout }) => {
         const l = (layout ?? {}) as { editors?: unknown; frame?: unknown };
-        setFrame(frameOf(l.frame));
+        const f = frameOf(l.frame);
+        setFrame(f);
         const known = new Set(files);
         const e = restore(l.editors, (p) => known.has(p));
-        if (e && groupOrder(e).some((g) => e.groups[g]!.open.length > 0)) {
+        const back = e && groupOrder(e).some((g) => e.groups[g]!.open.length > 0) ? e : null;
+        // What came back is what is saved: nothing is written until it changes.
+        lastSaved.current = JSON.stringify({ editors: saved(back ?? editors), frame: f });
+        if (back && e) {
           setEditors(e);
           setViewOver(false);
           if (!EditorPane)
@@ -748,13 +753,13 @@ export function App({ rpc }: { rpc: Rpc }) {
   // Saved a moment after it changes: groups, sizes, tabs, panel and side bars (REQ-191).
   useEffect(() => {
     if (!restored.current) return;
-    const t = window.setTimeout(
-      () =>
-        void rpc
-          .ask("layout.set", { layout: { editors: saved(editors), frame } })
-          .catch(() => undefined),
-      250,
-    );
+    const layout = { editors: saved(editors), frame };
+    const json = JSON.stringify(layout);
+    if (json === lastSaved.current) return;
+    const t = window.setTimeout(() => {
+      lastSaved.current = json;
+      void rpc.ask("layout.set", { layout }).catch(() => undefined);
+    }, 250);
     return () => window.clearTimeout(t);
   }, [rpc, editors, frame]);
   // Every open tab's text read, the restored ones too (REQ-191).
