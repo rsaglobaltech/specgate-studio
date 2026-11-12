@@ -775,6 +775,15 @@ test("REQ-171 SCN-511: the editor's theme — titles bold near-white, the marker
         (x) => x.textContent?.replace(/\u00a0/g, " ").trim() === "### Requirement:",
       ),
     );
+    // Every line the test reads drawn first: the inline question may push them down a moment later.
+    await page.waitForFunction(() => {
+      const spans = [...document.querySelectorAll(".monaco-editor .view-line span span")].map(
+        (x) => x.textContent?.replace(/\u00a0/g, " ").trim() ?? "",
+      );
+      return ["REQ-031 — Cancel an order", "SHALL", "GIVEN", "<!--"].every((t) =>
+        spans.some((x) => x.startsWith(t)),
+      );
+    });
     assert.deepEqual(await color(page, "REQ-031 — Cancel an order"), ["rgb(236, 231, 222)", "700"]);
     assert.equal((await color(page, "###"))?.[0], "rgb(255, 138, 92)");
     assert.equal((await color(page, "SHALL"))?.[0], "rgb(108, 182, 255)");

@@ -824,7 +824,7 @@ export function App({ rpc }: { rpc: Rpc }) {
             commands={LENS_COMMANDS}
             register={(api) => (editorApi.current = api)}
             reveal={reveal}
-            focus={group === editors.active ? focusEditor : 0}
+            focus={group === editors.active && !palette ? focusEditor : 0}
             testsOf={testsOf}
             onQuestionHelp={(q) =>
               setHelp({
