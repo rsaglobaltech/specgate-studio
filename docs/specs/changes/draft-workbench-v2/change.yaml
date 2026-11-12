@@ -7,3 +7,4 @@ retire_capabilities: false
 req_range: [REQ-181, REQ-200]
 scn_range: [SCN-541, SCN-600]
 brief: docs/briefs/workbench-v2.md
+approved: 2026-11-12
