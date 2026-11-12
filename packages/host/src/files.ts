@@ -5,10 +5,11 @@ export interface ProjectFiles {
   /** Only when the person saves (draft-editor REQ-045). */
   write?(path: string, text: string): Promise<void>;
   /**
-   * One folder's entries (`""` is the root), what is ignored left out
-   * (draft-explorer-tree REQ-161, REQ-167): only that folder is read.
+   * One folder's entries (`""` is the root), what is ignored marked — never
+   * left out (draft-explorer-tree REQ-161, draft-workbench-v2 REQ-186): only
+   * that folder is read. `list()` leaves the ignored out (REQ-167).
    */
-  children?(dir: string): Promise<Array<{ name: string; dir: boolean }>>;
+  children?(dir: string): Promise<Array<{ name: string; dir: boolean; ignored?: boolean }>>;
   /**
    * The tree's writes (REQ-166): each refuses — writing nothing — a path whose
    * real location, links resolved, is outside the project (`OutsideProject`),

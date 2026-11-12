@@ -1261,6 +1261,21 @@ textarea.ask {
 .ft.plain {
   color: var(--faint);
 }
+/* The studio's own icons (draft-workbench-v2 REQ-187), in each kind's token. */
+.ficon {
+  display: inline-flex;
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+.tree .ft {
+  min-width: 16px;
+  display: inline-flex;
+}
+/* What .gitignore or the studio's rules name: dimmed, never hidden (REQ-186). */
+.explorer .row[data-ignored] {
+  opacity: 0.5;
+}
 .spec-mark {
   flex: none;
   width: 6px;

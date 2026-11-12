@@ -116,7 +116,7 @@ The system SHALL show, when no folder is open, in the Explorer's side panel "No 
 
 ### Requirement: REQ-186 — The whole project under its root: dot folders included, ignored ones dimmed
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL show, when a folder is open, the whole project as a tree under a root named after the project, below the spec explorer and the modules; folders and files whose name starts with a dot SHALL be shown, and what `.gitignore` or the studio's ignore rules name SHALL be shown dimmed — never hidden — and read only when opened.
 
@@ -136,7 +136,7 @@ The system SHALL show, when a folder is open, the whole project as a tree under 
 
 ### Requirement: REQ-187 — An icon for each kind of folder and file, as an icon theme
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL show on each folder of the tree a coloured folder icon of its kind — docs, src, test, features, .github, node_modules, scripts, dist and bin among them — opened or closed as the folder is, and on each file the icon of its kind — .gitignore, LICENSE, package.json, CHANGELOG.md, AGENTS.md, YAML and ESLint configuration among them — and a generic folder or file icon for a kind it does not know; the icons SHALL be the studio's own, drawn as the activity bar's (strokes of 1.8, round caps) with each kind's accent colour from the design tokens, shipped inline as SVG with no network.
 

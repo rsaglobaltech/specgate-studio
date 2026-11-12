@@ -193,13 +193,18 @@ export async function studio(opts: StudioOptions = {}) {
       const prefix = dir ? `${dir}/` : "";
       const out = new Map<string, boolean>();
       for (const p of [...Object.keys(disk), ...folders, ...links]) {
-        if (!p.startsWith(prefix) || p === dir || ignored(p)) continue;
+        if (!p.startsWith(prefix) || p === dir) continue;
         const rest = p.slice(prefix.length);
         const at = rest.indexOf("/");
         if (at < 0) out.set(rest, out.get(rest) ?? (folders.has(p) || links.has(p)));
         else out.set(rest.slice(0, at), true);
       }
-      return [...out].map(([name, isDir]) => ({ name, dir: isDir }));
+      // What is ignored is marked, never left out (draft-workbench-v2 REQ-186).
+      return [...out].map(([name, isDir]) => ({
+        name,
+        dir: isDir,
+        ...(ignored(prefix + name) ? { ignored: true } : {}),
+      }));
     },
     create: async (p, dir) => {
       if (throughLink(p)) throw refusal("outside", "not inside the project");

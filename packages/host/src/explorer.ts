@@ -108,6 +108,7 @@ export function attachExplorer(
           name: e.name,
           dir: e.dir,
           path: childPath(dir, e.name),
+          ...(e.ignored ? { ignored: true as const } : {}),
         })),
       );
       return { entries };

@@ -1,3 +1,4 @@
+import { iconOf } from "./fileIcons.js";
 import type { ViewId } from "./views.js";
 
 /** The activity bar's icons, as drawn on the canvas "Studio IDE" (A3). */
@@ -72,5 +73,34 @@ export function Logo() {
       <path d="M4 7h16M4 12h10M4 17h6" />
       <path d="M16 15l2 2 4-4" />
     </svg>
+  );
+}
+
+/** A folder's or file's icon of the studio's own theme (draft-workbench-v2 REQ-187). */
+export function FileIconView(props: { name: string; dir: boolean; open?: boolean }) {
+  const icon = iconOf(props.name, props.dir, props.open ?? false);
+  return (
+    <span
+      class="ficon"
+      data-kind={icon.kind}
+      data-open={props.dir && props.open ? "1" : undefined}
+      style={{ color: `var(${icon.token})` }}
+    >
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        {icon.paths.map((d) => (
+          <path key={d} d={d} />
+        ))}
+      </svg>
+    </span>
   );
 }

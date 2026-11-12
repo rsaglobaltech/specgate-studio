@@ -12,6 +12,8 @@ export interface TreeEntry {
   name: string;
   path: string;
   dir: boolean;
+  /** Named by `.gitignore` or the studio's ignore rules: shown dimmed, never hidden (draft-workbench-v2 REQ-186). */
+  ignored?: true;
 }
 
 /** Git's letter on a changed file (REQ-163, A8): modified, untracked, added. */

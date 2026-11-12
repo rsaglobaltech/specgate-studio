@@ -12,6 +12,7 @@ import type { Rpc } from "./rpc.js";
 import { t } from "./i18n.js";
 import { HelpButton, type HelpRequest } from "./Help.js";
 import { VirtualList } from "./VirtualList.js";
+import { FileIconView } from "./icons.js";
 import {
   changedFolders,
   fileType,
@@ -600,7 +601,10 @@ export function Explorer(p: ExplorerProps) {
       </div>
 
       <div class="shead sub">
-        <span>{tr("tree.files")}</span>
+        {/* The project's root, named after it (draft-workbench-v2 REQ-186). */}
+        <span data-testid="tree-root">
+          {(p.workspaceStamp as { name?: string } | null)?.name || p.project || tr("tree.files")}
+        </span>
       </div>
       <input
         ref={p.filterRef}
@@ -654,6 +658,7 @@ export function Explorer(p: ExplorerProps) {
                 title={entry.path}
                 data-path={entry.path}
                 data-dir={entry.dir ? "1" : undefined}
+                data-ignored={entry.ignored ? "1" : undefined}
                 aria-level={depth + 1}
                 aria-expanded={entry.dir ? filtering || open.has(entry.path) : undefined}
                 aria-selected={selected === entry.path}
@@ -669,10 +674,14 @@ export function Explorer(p: ExplorerProps) {
                 <span class="tw">
                   {entry.dir ? (filtering || open.has(entry.path) ? "▾" : "▸") : ""}
                 </span>
-                {type ? (
-                  <span class="ft">{type}</span>
+                {entry.dir ? (
+                  <FileIconView name={entry.name} dir open={filtering || open.has(entry.path)} />
                 ) : (
-                  !entry.dir && <span class="ft plain">·</span>
+                  // The kind's icon (draft-workbench-v2 REQ-187), its type for screen readers.
+                  <span class={`ft ${type ? "" : "plain"}`}>
+                    <FileIconView name={entry.name} dir={false} />
+                    {type && <span class="sr">{type}</span>}
+                  </span>
                 )}
                 <span class="name">{entry.name}</span>
                 {isSpec(entry.path) && (
