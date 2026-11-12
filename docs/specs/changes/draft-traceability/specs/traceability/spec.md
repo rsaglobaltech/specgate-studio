@@ -24,7 +24,7 @@ The system SHALL show in Traceability one row for every scenario of the project,
 
 ### Requirement: REQ-122 — Filters: gaps, without a test, waiting for an answer
 
-<!-- specgate:trace actor=Reviewer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Reviewer kind=functional -->
 
 The system SHALL filter Traceability's rows by three filters — gaps, without a test, and waiting for an answer — showing how many rows each filter keeps, and SHALL name, on a row waiting for an answer, the open question that blocks its requirement.
 
