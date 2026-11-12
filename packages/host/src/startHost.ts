@@ -452,7 +452,11 @@ export async function startHost(given: HostOptions): Promise<Host> {
       await workspace?.close();
       await new Promise<void>((ok) => {
         for (const ws of server.clients) ws.terminate();
-        server.close(() => http.close(() => ok()));
+        // A page left open keeps its HTTP connections: dropped, so closing never waits on it.
+        server.close(() => {
+          http.close(() => ok());
+          http.closeAllConnections();
+        });
       });
     },
   };

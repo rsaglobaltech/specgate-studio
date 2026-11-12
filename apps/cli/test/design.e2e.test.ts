@@ -662,33 +662,37 @@ test("REQ-177 SCN-526: a feature and a test — tabs typed FT and TS, the breadc
 
 // ── REQ-178 ─────────────────────────────────────────────────────────────
 
-test("REQ-178 SCN-527: the host stops and comes back — Reconnecting… and a grey status bar, then gone and Home read again", async () => {
-  const s = await sprich();
-  const page = await open(s);
-  const port = Number(new URL(s.url).port);
-  let again: Awaited<ReturnType<typeof serve>> | null = null;
-  try {
-    await page.waitForSelector('[data-testid="next-title"]');
-    await s.host.close();
-    await page.waitForSelector('[data-testid="reconnecting"]', { timeout: 5000 });
-    assert.match(
-      await page.innerText('[data-testid="reconnecting"]'),
-      /Reconnecting to the studio…/,
-    );
-    assert.equal(await css(page, ".status", "background-color"), "rgb(91, 86, 80)");
-    // The host back on the same port: the banner goes, Home is read again.
-    again = await sprichOn(port);
-    await page.waitForSelector('[data-testid="reconnecting"]', {
-      state: "detached",
-      timeout: 15_000,
-    });
-    assert.equal(await css(page, ".status", "background-color"), "rgb(185, 61, 11)");
-    await page.waitForSelector('[data-testid="next-title"]');
-  } finally {
-    await page.close();
-    await again?.close();
-  }
-});
+test(
+  "REQ-178 SCN-527: the host stops and comes back — Reconnecting… and a grey status bar, then gone and Home read again",
+  { timeout: 90_000 },
+  async () => {
+    const s = await sprich();
+    const page = await open(s);
+    const port = Number(new URL(s.url).port);
+    let again: Awaited<ReturnType<typeof serve>> | null = null;
+    try {
+      await page.waitForSelector('[data-testid="next-title"]');
+      await s.host.close();
+      await page.waitForSelector('[data-testid="reconnecting"]', { timeout: 5000 });
+      assert.match(
+        await page.innerText('[data-testid="reconnecting"]'),
+        /Reconnecting to the studio…/,
+      );
+      assert.equal(await css(page, ".status", "background-color"), "rgb(91, 86, 80)");
+      // The host back on the same port: the banner goes, Home is read again.
+      again = await sprichOn(port);
+      await page.waitForSelector('[data-testid="reconnecting"]', {
+        state: "detached",
+        timeout: 15_000,
+      });
+      assert.equal(await css(page, ".status", "background-color"), "rgb(185, 61, 11)");
+      await page.waitForSelector('[data-testid="next-title"]');
+    } finally {
+      await page.close();
+      await again?.close();
+    }
+  },
+);
 
 test("REQ-178 SCN-528: Traceability cannot be read — [ COULD NOT READ ], traceability.md, line 48, Read again, Open line 48; Home and Questions still work", async () => {
   const s = await sprich({

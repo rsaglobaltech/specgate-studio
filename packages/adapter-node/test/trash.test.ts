@@ -25,14 +25,15 @@ function recorder(code = 0) {
 test("REQ-166 SCN-493: on macOS the note goes to Finder's trash, its path an argument of its own", async () => {
   const dir = temp();
   try {
-    const note = path.join(dir, 'it\'s "notes"; rm -rf ~.md');
+    // A name a shell would split or run — and one Windows allows.
+    const note = path.join(dir, "it's notes; rm -rf ~ $(x).md");
     fs.writeFileSync(note, "x");
     const r = recorder();
     await systemTrash({ platform: "darwin", exec: r.exec })(note);
     assert.equal(r.calls.length, 1);
     assert.equal(r.calls[0]!.program, "osascript");
     assert.equal(r.calls[0]!.args.at(-1), note, "the path is argv, not script text");
-    assert.ok(!r.calls[0]!.args.slice(0, -1).join(" ").includes("notes"));
+    assert.ok(!r.calls[0]!.args.slice(0, -1).join(" ").includes("rm -rf"));
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
