@@ -30,9 +30,9 @@ The system SHALL show the project's files as a tree whose folders open and close
 
 ### Requirement: REQ-162 — The side panel of the boards, with file-type icons and the specification marked
 
-<!-- specgate:trace actor=Developer kind=functional status="Needs Clarification" -->
+<!-- specgate:trace actor=Developer kind=functional -->
 
-The system SHALL show the tree in the side panel the boards draw — a 36 px uppercase header with its "?", rows on the side-panel ground, the orange inset on the current row — and SHALL show on each row its file type's icon, marking `spec.md`, `docs/specs` and `features` as the specification.
+The system SHALL show the tree in the side panel the boards draw — a 36 px uppercase header with its "?", rows of 26 px on the side-panel ground, the orange inset on the current row — and SHALL show on each row its file type's icon, marking `spec.md`, `docs/specs` and `features` as the specification.
 
 > Brief: "Each row, in the side panel the boards draw (a 36 px uppercase header with its "?", the orange inset on the current row), shows its file type's icon, and spec.md, docs/specs and features are marked as the specification."
 
@@ -110,9 +110,9 @@ The system SHALL, while the tree has the focus, move the selection with the up a
 
 ### Requirement: REQ-166 — A context menu that writes only through the host's file port, inside the project
 
-<!-- specgate:trace actor=Developer kind=business-rule status="Needs Clarification" -->
+<!-- specgate:trace actor=Developer kind=business-rule -->
 
-The system SHALL offer on each row a context menu with new file, new folder, rename, delete, copy path and open in terminal; it SHALL delete only after the Developer confirms; and every write SHALL go through the host's file port, SHALL be served only to the studio's own page — the same Origin check as saving a file — and SHALL be refused, writing nothing, for a path outside the project, a link included.
+The system SHALL offer on each row a context menu with new file, new folder, rename, delete, copy path and open in terminal; it SHALL delete only after the Developer confirms — Delete moving the file to the system's trash, Shift+Delete removing it for good after a confirmation that says so; and every write SHALL go through the host's file port, SHALL be served only to the studio's own page — the same Origin check as saving a file — and SHALL be refused, writing nothing, for a path outside the project, a link included.
 
 > Brief: "A context menu offers new file, new folder, rename, delete after a confirmation, copy path and open in terminal; each write goes through the host's file port, only from the studio's own page and never outside the project, and has its "?" and its notice in English and Spanish."
 
@@ -127,6 +127,12 @@ The system SHALL offer on each row a context menu with new file, new folder, ren
 - GIVEN sprich in the browser, `docs/notes.md` selected
 - WHEN the Developer presses Delete and confirms "Delete docs/notes.md?"
 - THEN the Developer sees `docs/notes.md` gone from the tree and the notice "Moved docs/notes.md to the trash", and the file is in the system's trash
+
+#### Scenario: SCN-501 — Shift+Delete removes for good, on the desktop
+
+- GIVEN sprich in the desktop app, `docs/notes.md` selected
+- WHEN the Developer presses Shift+Delete and confirms "Delete docs/notes.md for good? It cannot be undone."
+- THEN the Developer sees `docs/notes.md` gone from the tree and the notice "Deleted docs/notes.md for good", and the file is neither on disk nor in the trash
 
 #### Scenario: SCN-494 — A page of another site cannot rename a file
 
@@ -185,3 +191,23 @@ The system SHALL give the Explorer's header and each action of its context menu 
 - GIVEN sprich in the browser in English
 - WHEN the Reviewer presses the "?" in the Explorer's header
 - THEN the Reviewer sees what the tree shows, what the M, U and A letters and the specification mark mean, and that the tree writes only through its menu
+
+### Requirement: REQ-169 — The spec's sections above the file tree: the spec, and its modules and requirements
+
+<!-- specgate:trace actor=Developer kind=functional -->
+
+The system SHALL show in the Explorer's side panel, above the file tree, the shell board's two sections: "SPEC EXPLORER" with `spec.md`, `docs/brief.md`, the open changes with what each waits for, the capabilities and the features, each with its count; and "MODULES · REQUIREMENTS" with each module's requirements built of its total and each requirement's status dot, opening the requirement when chosen.
+
+> Brief: "Each row, in the side panel the boards draw (a 36 px uppercase header with its "?", the orange inset on the current row), shows its file type's icon, and spec.md, docs/specs and features are marked as the specification."
+
+#### Scenario: SCN-502 — sprich's spec above its files, on the desktop
+
+- GIVEN sprich in the desktop app, with draft-pedidos open and two questions in it, 4 capabilities, and the module pedidos with REQ-031 waiting for an answer
+- WHEN the Developer chooses Explorer in the activity bar
+- THEN the Developer sees "SPEC EXPLORER" with `spec.md`, `docs/brief.md`, draft-pedidos with "2 questions", "capabilities (4)"; below it "MODULES · REQUIREMENTS" with pedidos and REQ-031 with an amber dot; and below both the file tree
+
+#### Scenario: SCN-503 — A requirement opened from its module, in the browser
+
+- GIVEN sprich in the browser, the Explorer's "MODULES · REQUIREMENTS" showing pedidos open
+- WHEN the Developer chooses REQ-031
+- THEN the Developer sees the file of REQ-031 open in the editor at its heading, and REQ-031 the current row with the orange inset

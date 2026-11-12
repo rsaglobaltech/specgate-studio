@@ -24,9 +24,9 @@ The system SHALL draw every view with the fonts it ships — Syne for titles and
 
 ### Requirement: REQ-172 — A frame without empty panels: the menu bar, the gate pill in its colour, a primary Build, and a status bar of the open view
 
-<!-- specgate:trace actor=Developer kind=functional status="Needs Clarification" -->
+<!-- specgate:trace actor=Developer kind=functional -->
 
-The system SHALL hide the bottom panel and the tab strip unless they hold something; it SHALL show in the header the menu bar, the gate pill in the gate's colour and a primary Build, and in the status bar what the open view counts.
+The system SHALL hide the bottom panel and the tab strip unless they hold something; it SHALL offer the menu bar — the operating system's menu in the desktop app, a bar in the page's header in the browser — and SHALL show in the header the gate pill in the gate's colour and a primary Build, and in the status bar what the open view counts.
 
 > Brief: "Unless they hold something, the bottom panel and the tab strip are hidden; the header carries the menu bar, the gate pill in the gate's colour and a primary Build, and the status bar shows what the open view counts."
 
@@ -185,3 +185,23 @@ The system SHALL, while the connection to the host is lost, show a banner and a 
 - GIVEN sprich in the browser on its first read, the traceability section taking 2 s to read
 - WHEN the Developer opens Traceability
 - THEN the Developer sees "[ LOADING ]" and grey bars in the shape of the table until the rows come, never a blank page
+
+### Requirement: REQ-179 — The Help view: every "?" explanation, searchable, in English and Spanish
+
+<!-- specgate:trace actor=Reviewer kind=functional -->
+
+The system SHALL show in the Help view every feature's "?" explanation from the help catalog, grouped by area, with a search over their titles, commands and text, in the studio's language.
+
+> Brief: "The "?" opens beside the button that has it, and the palette shows the selected feature's explanation beside its list, both under "[ UNDER THE HOOD ]"; the palette groups the features by area."
+
+#### Scenario: SCN-531 — Searching "archive", on the desktop
+
+- GIVEN the Reviewer in sprich in the desktop app, in English
+- WHEN the Reviewer opens Help and types "archive"
+- THEN the Reviewer sees "Archive a change" with its command `specgate archive` and its five parts, and no feature that does not mention it
+
+#### Scenario: SCN-532 — The same catalogue in Spanish, in the browser
+
+- GIVEN the Reviewer in sprich in the browser, in Spanish
+- WHEN the Reviewer opens Help
+- THEN the Reviewer sees the features grouped by area, each with its explanation in Spanish under "[ POR DEBAJO ]"

@@ -10,13 +10,14 @@ screenshots of both sides in `docs/design/screens/`.
 
 ## Scope
 
-In scope (REQ-171 … REQ-178):
+In scope (REQ-171 … REQ-179):
 
 - The boards' identity shipped with the studio: Syne, IBM Plex Sans and IBM
   Plex Mono, the colour tokens, 4 px corners, the orange block shadow; no font
   from the network (REQ-171).
 - A frame without empty panels: the bottom panel and the tab strip only when
-  they hold something; the menu bar, the gate pill in its colour and a primary
+  they hold something; the menu bar (the operating system's on desktop, a bar
+  in the page in the browser), the gate pill in its colour and a primary
   Build in the header; a status bar of the open view (REQ-172).
 - Home as `IDE-Inicio` draws it: the next step as a sentence, four counters,
   the route, the modules, the activity, the actions (REQ-173); an empty
@@ -29,11 +30,12 @@ In scope (REQ-171 … REQ-178):
   breadcrumb (REQ-177).
 - The states of `IDE-Estados`: lost connection, loading, could not read,
   notices that stay on failure (REQ-178).
+- The Help view: every "?" explanation, searchable, in English and Spanish
+  (REQ-179, Q3).
 
 Out of scope: Traceability, Report and Settings (phase 3's drafts), the Brief
 form (draft-brief), a draft's review in Changes (draft-changes), the file tree
-(draft-explorer-tree), the agent panel of the shell board (Q1), the Help view
-(Q3). Two bugs the audit found — Build listing a requirement a question
+(draft-explorer-tree), the agent panel of the shell board (Q1: a draft of its own, later). Two bugs the audit found — Build listing a requirement a question
 blocks, Report's count — are against REQ-101 and the report's own draft, and
 are fixed there, not here.
 
