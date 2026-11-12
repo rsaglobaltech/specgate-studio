@@ -19,7 +19,8 @@ export interface TabFace {
 
 export interface EditorGridProps {
   editors: Editors;
-  onChange: (e: Editors) => void;
+  /** The new groups, or how to make them from the latest (keys pressed faster than a render). */
+  onChange: (e: Editors | ((latest: Editors) => Editors)) => void;
   face: (path: string) => TabFace;
   /** A group's body: its breadcrumb and editor for its active file. */
   body: (group: string, path: string) => ComponentChildren;
@@ -85,7 +86,7 @@ function GridNode(props: EditorGridProps & { node: LayoutNode; path: number[] })
   };
   const min = () => ((row ? MIN_W : MIN_H) / avail()) * 100;
   const move = (i: number, px: number) =>
-    props.onChange(resizeAt(props.editors, props.path, i, (px / avail()) * 100, min()));
+    props.onChange((e) => resizeAt(e, props.path, i, (px / avail()) * 100, min()));
   return (
     <div class="esplit" data-dir={node.dir} ref={box}>
       {node.children.map((c, i) => [

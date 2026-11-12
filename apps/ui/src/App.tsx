@@ -780,7 +780,9 @@ export function App({ rpc }: { rpc: Rpc }) {
   const sideShown = (view === "explorer" || sidebar) && !small;
   /** What the grid shows: the saved groups, or one group in a small window (REQ-191). */
   const shownEditors = small ? collapsed(editors) : editors;
-  const changeEditors = (next: Editors) => {
+  const changeEditors = (change: Editors | ((latest: Editors) => Editors)) => {
+    if (typeof change === "function") return setEditors(change);
+    const next = change;
     if (!small) return setEditors(next);
     // Collapsed: a tab chosen is chosen in the group that holds it.
     const p = next.groups[next.active]?.active;
