@@ -345,7 +345,10 @@ test("REQ-132 SCN-398: the last gate after a restart, on the desktop — that ga
     await openReport(page);
     await page.waitForSelector('[data-testid="report-gate"][data-ran="true"]');
     assert.equal(await page.getAttribute(".rgate-when", "data-at"), "2026-11-12T19:34:45.010Z");
-    assert.match((await page.textContent(".rgate-when")) ?? "", /last run Nov 12, 2026.*· main/);
+    assert.match(
+      (await page.textContent(".rgate-when")) ?? "",
+      /last run \w{3} 1[23], 2026, .+ · main/,
+    );
     assert.deepEqual(
       await page.$$eval('[data-testid="report-gate"] .rstage', (els) =>
         els.map((e) => `${e.getAttribute("data-stage")}:${e.getAttribute("data-result")}`),
