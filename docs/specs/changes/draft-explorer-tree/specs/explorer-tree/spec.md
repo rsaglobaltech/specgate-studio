@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-161 — Folders open one level at a time; 50,000 files stay under 50 ms; open folders kept per project
 
-<!-- specgate:trace actor=Developer kind=non-functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=non-functional -->
 
 The system SHALL show the project's files as a tree whose folders open and close one level at a time, reading only the folder that is opened, so that in a project of 50,000 files a folder's children show in under 50 ms; it SHALL keep, per project, which folders were left open and show them open the next time that project is opened.
 
@@ -30,7 +30,7 @@ The system SHALL show the project's files as a tree whose folders open and close
 
 ### Requirement: REQ-162 — The side panel of the boards, with file-type icons and the specification marked
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL show the tree in the side panel the boards draw — a 36 px uppercase header with its "?", rows of 26 px on the side-panel ground, the orange inset on the current row — and SHALL show on each row its file type's icon, marking `spec.md`, `docs/specs` and `features` as the specification.
 
@@ -50,7 +50,7 @@ The system SHALL show the tree in the side panel the boards draw — a 36 px upp
 
 ### Requirement: REQ-163 — Git letters on files and a dot on folders holding a change
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL show, on each file changed in git, its letter in its colour — M for modified, U for untracked, A for added — and a dot on each folder that holds a changed file; both SHALL follow the repository when it changes, without a reload.
 
@@ -70,7 +70,7 @@ The system SHALL show, on each file changed in git, its letter in its colour —
 
 ### Requirement: REQ-164 — The active editor's file revealed in the tree
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL, when a file becomes the active editor tab, open the folders above it in the tree, select its row and scroll it into view, without taking the keyboard focus from the editor.
 
@@ -90,7 +90,7 @@ The system SHALL, when a file becomes the active editor tab, open the folders ab
 
 ### Requirement: REQ-165 — The tree by keyboard: arrows, Enter, F2 and Delete
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL, while the tree has the focus, move the selection with the up and down arrows, open a folder or go to its first child with the right arrow, close it or go to its parent with the left arrow, open the selected file with Enter, start renaming it with F2, and start deleting it with Delete.
 
@@ -110,7 +110,7 @@ The system SHALL, while the tree has the focus, move the selection with the up a
 
 ### Requirement: REQ-166 — A context menu that writes only through the host's file port, inside the project
 
-<!-- specgate:trace actor=Developer kind=business-rule -->
+<!-- specgate:trace status=Implemented actor=Developer kind=business-rule -->
 
 The system SHALL offer on each row a context menu with new file, new folder, rename, delete, copy path and open in terminal; it SHALL delete only after the Developer confirms — Delete moving the file to the system's trash, Shift+Delete removing it for good after a confirmation that says so; and every write SHALL go through the host's file port, SHALL be served only to the studio's own page — the same Origin check as saving a file — and SHALL be refused, writing nothing, for a path outside the project, a link included.
 
@@ -154,7 +154,7 @@ The system SHALL offer on each row a context menu with new file, new folder, ren
 
 ### Requirement: REQ-167 — The filter inside the tree; what is ignored is never shown
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL, while the filter has text, show only the files whose path matches it, inside their folders opened down to them, and restore the folders left open when the filter is cleared; it SHALL never show, open or match a file that `.gitignore` or the studio's ignore rules name.
 
@@ -174,7 +174,7 @@ The system SHALL, while the filter has text, show only the files whose path matc
 
 ### Requirement: REQ-168 — The tree's "?" and its notices, in English and Spanish
 
-<!-- specgate:trace actor=Reviewer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Reviewer kind=functional -->
 
 The system SHALL give the Explorer's header and each action of its context menu a "?" that says what it does, what it writes and what it does not do, and SHALL end each write with a notice that names the file and what was done, in English and in Spanish.
 
@@ -194,7 +194,7 @@ The system SHALL give the Explorer's header and each action of its context menu 
 
 ### Requirement: REQ-169 — The spec's sections above the file tree: the spec, and its modules and requirements
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL show in the Explorer's side panel, above the file tree, the shell board's two sections: "SPEC EXPLORER" with `spec.md`, `docs/brief.md`, the open changes with what each waits for, the capabilities and the features, each with its count; and "MODULES · REQUIREMENTS" with each module's requirements built of its total and each requirement's status dot, opening the requirement when chosen.
 

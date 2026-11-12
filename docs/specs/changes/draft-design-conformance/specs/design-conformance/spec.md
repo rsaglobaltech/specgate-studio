@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-171 — The boards' fonts, colours, 4 px corners and block shadow, shipped with the studio
 
-<!-- specgate:trace actor=Developer kind=non-functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=non-functional -->
 
 The system SHALL draw every view with the fonts it ships — Syne for titles and the wordmark, IBM Plex Sans for text, IBM Plex Mono for code and commands — the boards' colours, 4 px corners on cards, buttons and fields, and the orange block shadow on the next-step card, the "?" popover and the palette; it SHALL load none of them from the network.
 
@@ -24,7 +24,7 @@ The system SHALL draw every view with the fonts it ships — Syne for titles and
 
 ### Requirement: REQ-172 — A frame without empty panels: the menu bar, the gate pill in its colour, a primary Build, and a status bar of the open view
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL hide the bottom panel and the tab strip unless they hold something; it SHALL offer the menu bar — the operating system's menu in the desktop app, a bar in the page's header in the browser — and SHALL show in the header the gate pill in the gate's colour and a primary Build, and in the status bar what the open view counts.
 
@@ -44,7 +44,7 @@ The system SHALL hide the bottom panel and the tab strip unless they hold someth
 
 ### Requirement: REQ-173 — Home leads with the next step, four counters, the route, the modules and the activity
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL show on Home, first, the next step as a sentence with its reason, its button and its "?"; then four counters — requirements, built, proven, the agent's cost; then the route, the modules with their progress and the activity; and a row of common actions.
 
@@ -64,7 +64,7 @@ The system SHALL show on Home, first, the next step as a sentence with its reaso
 
 ### Requirement: REQ-174 — An empty folder's Home asks the five questions as option cards
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL show, on Home of an empty folder, the five setup questions as option cards with the command they run, beside "Already have code?" and the Developer's recent projects.
 
@@ -84,7 +84,7 @@ The system SHALL show, on Home of an empty folder, the five setup questions as o
 
 ### Requirement: REQ-175 — Changes, Questions and Build list in a side panel; Live in three columns
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL list the items of Changes, Questions and Build in a side panel, grouped as their boards group them, with the selected item shown beside it; and SHALL show Live in three columns: the modules and the queue, the current requirement, and what needs attention with what has finished.
 
@@ -116,7 +116,7 @@ The system SHALL list the items of Changes, Questions and Build in a side panel,
 
 ### Requirement: REQ-176 — The "?" beside its button and the palette's explanation, under "[ UNDER THE HOOD ]"
 
-<!-- specgate:trace actor=Reviewer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Reviewer kind=functional -->
 
 The system SHALL open a feature's "?" as a popover beside the button that has it, not as a dialog in the middle of the window, and SHALL show in the palette the selected feature's explanation beside its list, both under "[ UNDER THE HOOD ]"; the palette SHALL group the features by area.
 
@@ -136,7 +136,7 @@ The system SHALL open a feature's "?" as a popover beside the button that has it
 
 ### Requirement: REQ-177 — Editor tabs show the file's type and a requirement's id and title; a breadcrumb shows where
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL show on each editor tab the file's type and, for a tab opened on a requirement, its id and title; and SHALL show above the editor a breadcrumb of where the open file is, down to the requirement under the cursor.
 
@@ -156,7 +156,7 @@ The system SHALL show on each editor tab the file's type and, for a tab opened o
 
 ### Requirement: REQ-178 — Lost connection, loading, unreadable sections and failed actions say so
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL, while the connection to the host is lost, show a banner and a grey status bar until it is back and then read the open section again; SHALL show a section being read in its shape, never blank; SHALL name, for a section that cannot be read, the file and the line and offer to read it again; and SHALL keep a failed action's notice until it is closed, with a way to retry, while a success notice goes by itself.
 
@@ -188,7 +188,7 @@ The system SHALL, while the connection to the host is lost, show a banner and a 
 
 ### Requirement: REQ-179 — The Help view: every "?" explanation, searchable, in English and Spanish
 
-<!-- specgate:trace actor=Reviewer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Reviewer kind=functional -->
 
 The system SHALL show in the Help view every feature's "?" explanation from the help catalog, grouped by area, with a search over their titles, commands and text, in the studio's language.
 
