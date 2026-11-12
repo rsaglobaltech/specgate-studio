@@ -80,8 +80,10 @@ import type {
   AgentView,
   AppliedPlan,
   Mention,
+  NewGroup,
   Setting,
   SettingScope,
+  SettingSection,
   SettingsView,
   UserSettingResult,
   Figure,
@@ -157,7 +159,7 @@ export type { BriefModule, BriefView, DraftResult };
 /** The brief as a form, and the client's text proposing one (draft-brief REQ-071, REQ-074). */
 export type { BriefForm, BriefFormActor, BriefFormModule, BriefFormResult, BriefFormView };
 /** The settings editor: two scopes and its search (draft-settings REQ-141). */
-export type { Setting, SettingScope, SettingsView, UserSettingResult };
+export type { NewGroup, Setting, SettingScope, SettingSection, SettingsView, UserSettingResult };
 /** Report's figures, for the project and each module (draft-report REQ-131). */
 export type { Figure, ReportCost, ReportView };
 

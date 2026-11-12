@@ -24,7 +24,7 @@ The system SHALL open Settings as an editor with a search box and two scopes, Pr
 
 ### Requirement: REQ-142 — Each project setting says which `specgate config set` command saves it and where
 
-<!-- specgate:trace actor=Developer kind=business-rule -->
+<!-- specgate:trace status=Implemented actor=Developer kind=business-rule -->
 
 The system SHALL show beside every project setting the `specgate config set` command that saves it and the file it is kept in, and SHALL save it only by running that command through specgate, with its arguments as an array; when specgate refuses a value, it SHALL show specgate's finding and fix and write nothing.
 
@@ -44,7 +44,7 @@ The system SHALL show beside every project setting the `specgate config set` com
 
 ### Requirement: REQ-143 — The sections: agents and profiles, preferences, agent guards, quality, ALM, editor, terminal, shortcuts, appearance
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL group Settings in nine sections, in this order — Agents and profiles, Preferences, Agent guards, Quality, ALM, Editor, Terminal, Shortcuts, Appearance — each setting under one scope; every project setting of every section SHALL be saved through `specgate config set`, the studio never editing specgate's files itself; it SHALL show where a credential comes from, by the name of its environment variable, and never its value.
 

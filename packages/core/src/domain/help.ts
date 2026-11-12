@@ -58,6 +58,10 @@ export const ACTIONS = [
   "brief-form",
   "brief-propose",
   "settings-user",
+  "settings-save",
+  "agent-guard",
+  "report-download",
+  "report-print",
 ] as const;
 export type ActionId = (typeof ACTIONS)[number];
 
@@ -1218,6 +1222,93 @@ export const HELP: Catalog = {
         "No escribe ningún archivo del proyecto, no ejecuta ningún comando de specgate y no hace commit.",
       next: "Cada proyecto que abras lo usa; elige otro valor para cambiarlo.",
       notice: { ranOk: "Fijado {key} a {to} en {path}", next: "Vale para cada proyecto" },
+    },
+  },
+
+  // draft-settings REQ-142, REQ-143: a project setting, saved only by specgate (A5, A9).
+  "settings-save": {
+    en: {
+      does: "Saves the project setting {key} as {to} by running specgate's own `config set`: specgate checks the value and writes it in the file it keeps that setting in, shared with the team through git.",
+      command: "specgate config set {key} {to}",
+      files:
+        "The one file specgate names for {key}: `harness.config.yaml`, `.specgate/config.json`, `.harness/profiles.yaml` or `alm.config.yaml`.",
+      doesNot:
+        "The studio never edits that file itself; a value specgate refuses writes nothing. It does not run the command it configures, commit or push.",
+      next: "Then `specgate check`, to see the gate with it.",
+      notice: { ranOk: "`{command}` saved {key}.", next: "specgate check" },
+    },
+    es: {
+      does: "Guarda el ajuste del proyecto {key} como {to} ejecutando el propio `config set` de specgate: specgate comprueba el valor y lo escribe en el archivo donde guarda ese ajuste, compartido con el equipo por git.",
+      command: "specgate config set {key} {to}",
+      files:
+        "El único archivo que specgate nombra para {key}: `harness.config.yaml`, `.specgate/config.json`, `.harness/profiles.yaml` o `alm.config.yaml`.",
+      doesNot:
+        "El studio nunca edita ese archivo él mismo; un valor que specgate rechaza no escribe nada. No ejecuta el comando que configura, ni hace commit ni push.",
+      next: "Después, `specgate check`, para ver el gate con él.",
+      notice: { ranOk: "`{command}` guardó {key}.", next: "specgate check" },
+    },
+  },
+  "agent-guard": {
+    en: {
+      does: "Turns specgate's agent guards on or off. On, the agent plugins refuse an edit to source code until a test names the requirement, and refuse an edit of `spec.md`, `features/` or `docs/specs/` meant to make a test pass.",
+      command: "specgate config set agent_guard {to}",
+      files: "`.specgate/config.json`.",
+      doesNot:
+        "It does not install the guards globally (`specgate agents install --global` does), and it changes no code or test.",
+      next: "The next agent run follows it; `specgate check` as always.",
+      notice: { ranOk: "`{command}` set the agent guards.", next: "specgate check" },
+    },
+    es: {
+      does: "Enciende o apaga las protecciones del agente de specgate. Encendidas, los plugins del agente rechazan editar código hasta que una prueba nombre el requisito, y rechazan editar `spec.md`, `features/` o `docs/specs/` para que una prueba pase.",
+      command: "specgate config set agent_guard {to}",
+      files: "`.specgate/config.json`.",
+      doesNot:
+        "No instala las protecciones para todo el equipo (`specgate agents install --global` lo hace) y no cambia código ni pruebas.",
+      next: "La próxima ejecución del agente las sigue; `specgate check`, como siempre.",
+      notice: { ranOk: "`{command}` fijó las protecciones del agente.", next: "specgate check" },
+    },
+  },
+  // draft-report REQ-133: the report as one page, downloaded or printed (A9 … A11).
+  "report-download": {
+    en: {
+      does: "Saves the report you see — {module} — as one self-contained HTML page, {path}: its styles inside it, no script, no request to any address, so it opens offline anywhere.",
+      command: "None: the studio renders the page from the data the report shows.",
+      files: "{path}, where you choose to save it; no file of the project.",
+      doesNot:
+        "It runs no specgate command, writes nothing in the project and sends the page to no one.",
+      next: "Send the file, or open it and print it to PDF.",
+      notice: { ranOk: "Saved {path}", next: "Send it, or print it to PDF" },
+    },
+    es: {
+      does: "Guarda el informe que ves — {module} — como una sola página HTML, {path}: con sus estilos dentro, sin scripts y sin pedir nada a ninguna dirección, así que se abre sin conexión en cualquier sitio.",
+      command: "Ninguno: el studio genera la página con los datos que muestra el informe.",
+      files: "{path}, donde elijas guardarlo; ningún archivo del proyecto.",
+      doesNot:
+        "No ejecuta ningún comando de specgate, no escribe nada en el proyecto y no envía la página a nadie.",
+      next: "Envía el archivo, o ábrelo e imprímelo a PDF.",
+      notice: { ranOk: "Guardado {path}", next: "Envíalo, o imprímelo a PDF" },
+    },
+  },
+  "report-print": {
+    en: {
+      does: 'Opens the system\'s print dialog on the report alone — without the activity bar, the panels or the status bar — laid out for paper; its "Save as PDF" makes the PDF.',
+      command: "None: the print dialog is the system's.",
+      files: "None: the studio writes nothing; the PDF is the print dialog's, where you save it.",
+      doesNot: "It runs no specgate command and writes no file of the project.",
+      next: "Choose Save as PDF, or a printer.",
+      notice: { ranOk: "The print dialog opened", next: "Choose Save as PDF, or a printer" },
+    },
+    es: {
+      does: "Abre el diálogo de impresión del sistema solo con el informe — sin la barra de actividad, los paneles ni la barra de estado — maquetado para papel; su «Guardar como PDF» hace el PDF.",
+      command: "Ninguno: el diálogo de impresión es del sistema.",
+      files:
+        "Ninguno: el studio no escribe nada; el PDF es del diálogo de impresión, donde lo guardes.",
+      doesNot: "No ejecuta ningún comando de specgate y no escribe ningún archivo del proyecto.",
+      next: "Elige Guardar como PDF, o una impresora.",
+      notice: {
+        ranOk: "Se abrió el diálogo de impresión",
+        next: "Elige Guardar como PDF, o una impresora",
+      },
     },
   },
 };

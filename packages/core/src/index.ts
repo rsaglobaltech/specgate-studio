@@ -304,16 +304,28 @@ export {
   type PlanChange,
 } from "./domain/agent.js";
 export { Agent, type AgentOptions, type AgentResult } from "./application/Agent.js";
-/** The settings editor: two scopes, project and user, and its search (draft-settings REQ-141). */
+/** The settings editor: two scopes, nine sections, its search; specgate's catalog (draft-settings REQ-141 … REQ-143). */
 export {
   SCOPES,
-  SETTINGS,
+  SETTING_SECTIONS,
+  SECTION_NAMES,
+  SECTION_SCOPE,
+  SHORTCUTS,
+  USER_SETTINGS,
+  catalogOf,
+  configSetLine,
+  configValue,
+  projectSettings,
   searchSettings,
+  sectionOfKey,
   settingValue,
+  shortcutSettings,
   userSetting,
+  type CatalogKey,
+  type NewGroup,
   type Setting,
-  type SettingDef,
   type SettingScope,
+  type SettingSection,
   type SettingsView,
 } from "./domain/settings.js";
 /** Report's figures, for the project and each module (draft-report REQ-131). */
@@ -327,8 +339,4 @@ export {
 } from "./domain/report.js";
 export type { UserSettingsPort } from "./ports/UserSettingsPort.js";
 export { InMemoryUserSettings } from "./fakes/InMemoryUserSettings.js";
-export {
-  Settings,
-  type SettingsOptions,
-  type UserSettingResult,
-} from "./application/Settings.js";
+export { Settings, type SettingsOptions, type UserSettingResult } from "./application/Settings.js";

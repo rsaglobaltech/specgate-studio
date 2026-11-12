@@ -73,6 +73,7 @@ import { Explorer } from "./Explorer.js";
 import { Home } from "./views/Home.js";
 import { HelpView } from "./views/HelpView.js";
 import { SettingsEditor } from "./views/Settings.js";
+import { applyPrefs } from "./prefs.js";
 import { Report } from "./views/Report.js";
 import { fileType, modulesOf } from "./tree.js";
 
@@ -293,15 +294,17 @@ export function App({ rpc }: { rpc: Rpc }) {
       (u) => {
         if (u.lang === "en" || u.lang === "es") setLang(u.lang);
         if (u.theme === "dark" || u.theme === "light") setTheme(u.theme);
+        applyPrefs(u);
       },
       () => undefined,
     );
   }, [rpc]);
-  /** A user setting: applied now, and saved by the host in the Developer's own file (REQ-141). */
+  /** A user setting: applied now, and saved by the host in the Developer's own file (REQ-141, REQ-143). */
   const saveUser = useCallback(
-    (key: "lang" | "theme", value: string, quiet = false) => {
+    (key: string, value: string, quiet = false) => {
       if (key === "lang" && (value === "en" || value === "es")) setLang(value);
       else if (key === "theme" && (value === "dark" || value === "light")) setTheme(value);
+      else if (/^(editor|terminal)\./.test(key)) applyPrefs({ [key]: value });
       else return;
       void rpc.ask("settings.user.set", { key, value }).then(
         (r) => {
@@ -1779,7 +1782,7 @@ interface ViewProps {
   lang: Lang;
   theme: Theme;
   /** A user setting chosen in Settings: applied, and saved in the Developer's file (REQ-141). */
-  saveUser: (key: "lang" | "theme", value: string) => void;
+  saveUser: (key: string, value: string) => void;
   project: string;
   total: number;
   done: number;
@@ -1922,18 +1925,12 @@ function View(p: ViewProps) {
     case "report":
       // Built of the total, scenarios, coverage, mutation, cost and time (draft-report REQ-131).
       return (
-        <Report
-          rpc={p.rpc}
-          lang={p.lang}
-          tr={p.tr}
-          total={p.total}
-          reportTotal={p.reportTotal}
-        />
+        <Report rpc={p.rpc} lang={p.lang} tr={p.tr} total={p.total} reportTotal={p.reportTotal} />
       );
     case "help":
       return <HelpView rpc={p.rpc} lang={p.lang} tr={p.tr} />;
     case "settings":
-      // An editor with a search and two scopes, Project and User (draft-settings REQ-141).
+      // A search, two scopes and nine sections; saved through specgate (draft-settings REQ-141 … REQ-143).
       return (
         <SettingsEditor
           rpc={p.rpc}
@@ -1942,6 +1939,8 @@ function View(p: ViewProps) {
           project={p.project}
           tr={p.tr}
           onUser={p.saveUser}
+          run={p.run}
+          onHelp={p.onHelp}
         />
       );
     default:
@@ -2200,7 +2199,14 @@ function AskDialog(props: {
 }
 
 /** The views drawn as a side panel beside their detail, edge to edge (REQ-175). */
-const SPLIT_VIEWS = new Set<ViewId>(["traceability", "changes", "questions", "build", "live"]);
+const SPLIT_VIEWS = new Set<ViewId>([
+  "traceability",
+  "changes",
+  "questions",
+  "build",
+  "live",
+  "settings",
+]);
 
 /** The desktop app: the operating system draws the menu (REQ-172, A5). */
 const DESKTOP =

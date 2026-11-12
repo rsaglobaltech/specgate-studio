@@ -117,7 +117,7 @@ export async function startHost(given: HostOptions): Promise<Host> {
   // anything changes: each is asked once (draft-design-conformance REQ-173).
   const reads = new Map<string, Promise<SpecgateAnswer>>();
   const forget = () => reads.clear();
-  const READ_ONLY = /^(change show \S+|harness report( --capability \S+)?|config list)$/;
+  const READ_ONLY = /^(change show \S+|harness report( --capability \S+)?|config (list|keys))$/;
   const memo = <P extends Pick<SpecgatePort, "call">>(port: P): P => {
     const wrapped = Object.create(port) as P;
     wrapped.call = (args: readonly string[]) => {

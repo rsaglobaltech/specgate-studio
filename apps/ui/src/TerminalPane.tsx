@@ -3,6 +3,7 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import type { Rpc } from "./rpc.js";
+import { currentPrefs, onPrefs } from "./prefs.js";
 
 /** The studio's own terminal: what the studio runs, shown, never typed into (REQ-053, REQ-054). */
 export const STUDIO = "specgate";
@@ -81,10 +82,12 @@ export default function TerminalPane(p: TerminalPaneProps) {
     host.dataset.terminal = id;
     host.dataset.name = name;
     box.current!.appendChild(host);
+    // The user's terminal settings (draft-settings REQ-143): font size and scrollback.
+    const prefs = currentPrefs();
     const term = new Terminal({
-      scrollback: SCROLLBACK,
+      scrollback: prefs["terminal.scrollback"] ?? SCROLLBACK,
       fontFamily: "'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace",
-      fontSize: 12,
+      fontSize: prefs["terminal.fontSize"],
       cursorBlink: id !== STUDIO,
       disableStdin: false,
       theme: THEMES[props.current.theme],
@@ -184,6 +187,23 @@ export default function TerminalPane(p: TerminalPaneProps) {
   useEffect(() => {
     for (const e of entries.current.values()) e.term.options.theme = THEMES[p.theme];
   }, [p.theme]);
+
+  // A terminal setting chosen in Settings applies to every terminal open (REQ-143).
+  useEffect(
+    () =>
+      onPrefs((q) => {
+        for (const e of entries.current.values()) {
+          e.term.options.fontSize = q["terminal.fontSize"];
+          e.term.options.scrollback = q["terminal.scrollback"];
+          try {
+            e.fit.fit();
+          } catch {
+            // Not laid out yet.
+          }
+        }
+      }),
+    [],
+  );
 
   // Only the selected terminal shows — in the same frame as its tab — the others
   // stay mounted with their scrollback.
