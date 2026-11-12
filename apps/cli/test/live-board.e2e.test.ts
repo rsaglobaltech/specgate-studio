@@ -457,9 +457,10 @@ test("REQ-201 SCN-603: in the browser, a 300-character command is one row `run l
     assert.ok(one <= 24, `one row, ${one}px`);
     assert.match((await logRows(page))[0]!, / run ls packages\//);
     assert.equal(await page.getAttribute(row, "title"), command);
-    assert.ok(
-      await page.$eval(`${row} .ltarget`, (el) => el.scrollWidth > el.clientWidth),
-      "cut with …",
+    assert.equal(
+      await text(page, `${row} .ltarget`),
+      "ls packages/* apps/* -d …",
+      "its first command and …",
     );
     await page.click(row);
     assert.equal(await text(page, `${row} .lfull`), command);

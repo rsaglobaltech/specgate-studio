@@ -594,7 +594,7 @@ function AgentLog(props: { log: LogLine[]; t: T }) {
               data-req={l.req}
               data-result={l.result ?? undefined}
               aria-expanded={expanded}
-              title={l.target}
+              title={l.full}
               onClick={() =>
                 setOpen((o) => {
                   const next = new Set(o);
@@ -610,7 +610,7 @@ function AgentLog(props: { log: LogLine[]; t: T }) {
                 <span class="ltarget">{l.target}</span>
                 <LogTail l={l} t={t} />
               </div>
-              {expanded && <pre class="lfull">{l.target}</pre>}
+              {expanded && <pre class="lfull">{l.full}</pre>}
             </li>
           );
         })}

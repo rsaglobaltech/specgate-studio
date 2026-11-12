@@ -80,7 +80,10 @@ export interface LogLine {
   t: number;
   req: string;
   verb: string;
+  /** What it worked on, as it reads in one row: inside the worktree, relative; a chain, its first command and "…". */
   target: string;
+  /** The target as the agent wrote it, for the hover and the expanded line. */
+  full: string;
   result: "ok" | "error" | null;
   added: number | null;
   removed: number | null;
@@ -503,6 +506,65 @@ function verbOf(kind: string, tool: string): string | null {
 const count = (v: unknown): number | null =>
   typeof v === "number" && Number.isFinite(v) ? v : null;
 
+/** The requirement's worktree in a path or a command: specgate's `…/specgate-harness-REQ-141-e79ed237`. */
+const worktreeOf = (req: string) =>
+  new RegExp(`[^\\s'"=;&|<>]*specgate-harness-${req.replace(/[^\w-]/g, "")}-[0-9a-f]+`, "g");
+
+/** A command split at its top-level `&&`, `||`, `;` and `|`, quotes kept whole. */
+function parts(command: string): string[] {
+  const out: string[] = [];
+  let cur = "";
+  let quote: string | null = null;
+  for (let i = 0; i < command.length; i++) {
+    const c = command[i]!;
+    if (quote) {
+      if (c === "\\" && quote === '"') {
+        cur += c + (command[i + 1] ?? "");
+        i++;
+        continue;
+      }
+      if (c === quote) quote = null;
+      cur += c;
+    } else if (c === "'" || c === '"') {
+      quote = c;
+      cur += c;
+    } else if (c === ";" || c === "|" || (c === "&" && command[i + 1] === "&")) {
+      if (command[i + 1] === c) i++;
+      out.push(cur);
+      cur = "";
+    } else cur += c;
+  }
+  out.push(cur);
+  return out.map((p) => p.trim()).filter(Boolean);
+}
+
+/** A path inside the requirement's worktree, relative to it (A6). */
+export function relativeTarget(target: string, req: string): string {
+  return target.replace(new RegExp(`${worktreeOf(req).source}[\\\\/]?`, "g"), "") || ".";
+}
+
+/**
+ * A command as one readable row (A6): the worktree's own `cd <worktree> &&`
+ * and `D=<worktree>;` left out, paths inside it relative, and a chain shown
+ * as its first meaningful command and "…".
+ */
+export function shortCommand(command: string, req: string): string {
+  const ROOT = "\u0000";
+  let s = command.replace(worktreeOf(req), ROOT);
+  const first = s.split(/\r?\n/)[0]!;
+  const more = first !== s;
+  s = first;
+  const lead = new RegExp(
+    `^\\s*(?:[A-Za-z_]\\w*=${ROOT}|cd\\s+(?:${ROOT}|"?\\$\\{?[A-Za-z_]\\w*\\}?"?))\\s*$`,
+  );
+  const all = parts(s).filter((p) => !lead.test(p));
+  const shown = (all[0] ?? "")
+    .replace(new RegExp(`${ROOT}[\\\\/]`, "g"), "")
+    .replace(/"?\$\{?D\}?"?[\\/]/g, "")
+    .replace(new RegExp(ROOT, "g"), ".");
+  return all.length > 1 || more ? `${shown} …` : shown;
+}
+
 /** One event as a line of SALIDA DEL AGENTE (REQ-201), or null for one that is not an action. */
 export function logLineOf(req: string, e: HarnessEvent): LogLine | null {
   const t = num(e.t);
@@ -512,6 +574,7 @@ export function logLineOf(req: string, e: HarnessEvent): LogLine | null {
       req,
       verb: "ask",
       target: text(e.text),
+      full: text(e.text),
       result: null,
       added: null,
       removed: null,
@@ -525,7 +588,9 @@ export function logLineOf(req: string, e: HarnessEvent): LogLine | null {
     t,
     req,
     verb,
-    target: text(e.target),
+    target:
+      verb === "run" ? shortCommand(text(e.target), req) : relativeTarget(text(e.target), req),
+    full: text(e.target),
     result: e.result === "error" ? "error" : e.result === "ok" ? "ok" : null,
     // The counts specgate's events will carry (Q1, A7): shown once they are there.
     added: count(e.added),

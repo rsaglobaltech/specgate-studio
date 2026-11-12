@@ -13,6 +13,8 @@ import {
   InMemoryHarnessEvents,
   foldLive,
   parseEvents,
+  relativeTarget,
+  shortCommand,
   type HarnessEvent,
   type LiveStage,
   type LiveStudio,
@@ -261,4 +263,55 @@ test("REQ-103: the studio's start feeds Rama creada, the queue's estimates come 
   assert.equal(live.requirements.find((x) => x.req === "REQ-030")!.maxAttempts, 5);
   s.harness.finish(0, { results: [{ requirement: "REQ-030", result: "pass" }] });
   await s.builds.close();
+});
+
+test("REQ-201 SCN-603: the demo's shell lines read as what ran — the worktree's cd and D= left out, its paths relative, a chain as its first command and …; the whole of it kept", () => {
+  const view = foldLive({ "REQ-141": RUN }, T0 - 1, studio({ building: null, queue: [] }));
+  const runs = view.log.filter((l) => l.verb === "run");
+  assert.ok(
+    runs.every((l) => !l.target.includes("specgate-harness-REQ-141")),
+    JSON.stringify(runs.filter((l) => l.target.includes("specgate-harness")).map((l) => l.target)),
+  );
+  const shown = runs.map((l) => l.target);
+  assert.ok(shown.includes("cat packages/core/src/ports/SpecgatePort.ts …"));
+  assert.ok(shown.includes("npm test"));
+  assert.ok(shown.some((t) => /^grep -rn "REQ-141\\|REQ-142\\|REQ-143" .* …$/.test(t)));
+  assert.ok(
+    shown.includes(
+      "cat docs/specs/changes/draft-settings/{assumptions.md,proposal.md,change.yaml,questions.md,specs/settings/spec.md} …",
+    ),
+    "D=<worktree>; then $D/… made relative",
+  );
+  const cd = runs.find((l) => l.target === "cat packages/core/src/ports/SpecgatePort.ts …")!;
+  assert.match(cd.full, /^cd \/private\/var\/folders\/.*specgate-harness-REQ-141-e79ed237; cat /);
+  // A file read inside the worktree, relative to it.
+  assert.ok(view.log.filter((l) => l.verb !== "run").every((l) => !l.target.startsWith("/")));
+});
+
+test("REQ-201: a command as one row — the worktree's own prefixes left out, Windows paths too; a plain command as it is", () => {
+  const root = "/private/var/folders/h8/x/T/specgate-harness-REQ-141-e79ed237";
+  assert.equal(
+    shortCommand(`cd ${root} && npm test -- settings`, "REQ-141"),
+    "npm test -- settings",
+  );
+  assert.equal(
+    shortCommand(`D=${root}; cd $D; grep -rn "REQ-141" packages | head -30`, "REQ-141"),
+    'grep -rn "REQ-141" packages …',
+  );
+  assert.equal(
+    shortCommand(`sed -n 1,40p ${root}/apps/ui/src/rpc.ts`, "REQ-141"),
+    "sed -n 1,40p apps/ui/src/rpc.ts",
+  );
+  assert.equal(
+    shortCommand(
+      `cd C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\specgate-harness-REQ-141-ab12; npm test`,
+      "REQ-141",
+    ),
+    "npm test",
+  );
+  assert.equal(shortCommand("npm run build", "REQ-141"), "npm run build");
+  assert.equal(
+    relativeTarget(`${root}/packages/core/src/index.ts`, "REQ-141"),
+    "packages/core/src/index.ts",
+  );
 });

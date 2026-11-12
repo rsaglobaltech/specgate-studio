@@ -198,6 +198,8 @@ export {
   foldLive,
   foldStages,
   logLineOf,
+  relativeTarget,
+  shortCommand,
   foldRequirement,
   foldUsage,
   liveQuestions,
