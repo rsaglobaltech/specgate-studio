@@ -204,7 +204,9 @@ async function emptyFolder() {
     url: host.url.replace(/^ws/, "http"),
     done: async (page?: Page) => {
       await close({ host }, page);
-      for (const d of [parent, home]) fs.rmSync(d, { recursive: true, force: true });
+      // Windows keeps a folder busy a moment after the host's processes end.
+      for (const d of [parent, home])
+        await fs.promises.rm(d, { recursive: true, force: true, maxRetries: 40, retryDelay: 250 });
     },
   };
 }
