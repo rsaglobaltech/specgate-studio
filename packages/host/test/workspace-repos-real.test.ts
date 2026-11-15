@@ -86,11 +86,20 @@ test("REQ-218 SCN-981 SCN-982: truck-workspace opens as a workspace with fleet a
     const fleetState = (await fleet.ask<WorkspaceState>("workspace.get")).result!;
     assert.equal(fleetState.kind, "specgate");
     assert.equal(fleetState.name, "truck-fleet");
+    // Its Home read through, so no specgate it started still runs in truck-fleet when it closes
+    // (Windows keeps a folder a process works in).
+    const fleetHome = await fleet.ask("home.get");
+    assert.equal(fleetHome.error, undefined, JSON.stringify(fleetHome.error));
     fleet.close();
   } finally {
     ui.close();
     await host.close();
     await registry.closeAll();
-    fs.rmSync(t.parent, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+    await fs.promises.rm(t.parent, {
+      recursive: true,
+      force: true,
+      maxRetries: 60,
+      retryDelay: 250,
+    });
   }
 });
