@@ -51,6 +51,8 @@ export function attachBuilds(
   handlers: Record<string, (params: unknown) => Promise<unknown>>;
   /** A section was read again: Live is told if what it shows changed — an answer (REQ-104). */
   refresh(): void;
+  /** The requirement being built now, or null: an update waits for it (draft-desktop A9). */
+  building(): string | null;
   close(): Promise<void>;
 } {
   const builds = new Builds({
@@ -92,6 +94,7 @@ export function attachBuilds(
       },
     },
     refresh: () => void builds.refresh().catch(() => undefined),
+    building: () => builds.building,
     // The host waits for the build it started: none outlives it.
     close: () => builds.close(),
   };

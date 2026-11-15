@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import { serve } from "./serve.js";
+import { newToken } from "@specgate-studio/host";
+import { serve, serveOrJoin } from "./serve.js";
 
 const USAGE = "Usage: specgate-studio serve [--project-dir <path> | --no-folder] [--port <n>]\n";
 
@@ -22,12 +23,28 @@ async function main(argv: string[]): Promise<void> {
       process.exit(2);
     }
   }
-  const host = await serve({ projectDir, port, noFolder });
-  const url = host.url.replace(/^ws/, "http");
-  process.stdout.write(
-    `specgate studio serving ${noFolder ? "no folder" : projectDir}\n  ${url}\n`,
-  );
-  const stop = () => void host.close().then(() => process.exit(0));
+  if (noFolder) {
+    // No folder open: nothing to share with another host (draft-workbench-v2 REQ-185).
+    // Its address carries a token of its own: nothing without it is answered (draft-desktop A2).
+    const host = await serve({ projectDir, port, noFolder, tokens: [newToken()] });
+    process.stdout.write(
+      `specgate studio serving no folder\n  ${host.url.replace(/^ws/, "http")}\n`,
+    );
+    const stop = () => void host.close().then(() => process.exit(0));
+    process.on("SIGINT", stop);
+    process.on("SIGTERM", stop);
+    return;
+  }
+  const served = await serveOrJoin({ projectDir, port });
+  if (served.joined) {
+    // The desktop app (or another serve) runs this project's host: one host, shared (REQ-158).
+    process.stdout.write(
+      `specgate studio: ${projectDir} is already open in the studio (process ${served.lock.pid}); open its address:\n  ${served.url}\n`,
+    );
+    return;
+  }
+  process.stdout.write(`specgate studio serving ${projectDir}\n  ${served.url}\n`);
+  const stop = () => void served.host.close().then(() => process.exit(0));
   process.on("SIGINT", stop);
   process.on("SIGTERM", stop);
 }

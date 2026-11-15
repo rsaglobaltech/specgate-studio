@@ -22,8 +22,8 @@ import {
   type SectionReader,
   type SpecgateAnswer,
 } from "@specgate-studio/core";
-import type { Host, ProjectFiles } from "@specgate-studio/host";
-import { serve, UI_DIST } from "../src/index.js";
+import type { Host, HostLocks, ProjectFiles } from "@specgate-studio/host";
+import { serve, serveOrJoin, UI_DIST } from "../src/index.js";
 
 export type { Page };
 export const MAC = process.platform === "darwin";
@@ -104,6 +104,8 @@ export interface StudioOptions {
   scratch?: Map<string, string>;
   /** What the Developer's own settings file holds; nothing by default (draft-settings REQ-141). */
   user?: Record<string, unknown>;
+  /** Started as the desktop app's sidecar starts it: its lock written there (draft-desktop REQ-158). */
+  locks?: HostLocks;
 }
 
 export async function studio(opts: StudioOptions = {}) {
@@ -298,7 +300,7 @@ export async function studio(opts: StudioOptions = {}) {
     path.join(dir, "home", ".config", "specgate-studio", "settings.json"),
     opts.user ?? {},
   );
-  const host = await serve({
+  const options = {
     projectDir,
     port: opts.port ?? 0,
     userSettings,
@@ -317,7 +319,13 @@ export async function studio(opts: StudioOptions = {}) {
       },
       remove: async () => undefined,
     },
-  });
+  };
+  let host: Host;
+  if (opts.locks) {
+    const served = await serveOrJoin({ ...options, locks: opts.locks });
+    if (served.joined) throw new Error(`a host already serves ${projectDir}`);
+    host = served.host;
+  } else host = await serve(options);
   return {
     host,
     reads,

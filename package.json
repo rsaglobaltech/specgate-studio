@@ -13,10 +13,10 @@
     "node": ">=22"
   },
   "scripts": {
-    "build": "tsc -b packages/core packages/protocol packages/adapter-specgate-cli packages/adapter-specgate-api packages/adapter-node packages/adapter-pty-node packages/host apps/cli && tsc -p apps/ui/tsconfig.test.json && tsc -p apps/ui/tsconfig.json && npm run build -w @specgate-studio/ui",
-    "test": "npm run build && node --test \"packages/*/dist/test/**/*.test.js\" \"apps/cli/dist/test/**/*.test.js\" \"apps/ui/dist-test/test/*.test.js\" && node --test --test-concurrency=1 \"packages/*/dist/test/**/*.perf-test.js\" \"apps/cli/dist/test/**/*.perf-test.js\"",
+    "build": "tsc -b packages/core packages/protocol packages/adapter-specgate-cli packages/adapter-specgate-api packages/adapter-node packages/adapter-pty-node packages/host apps/cli apps/desktop && tsc -p apps/ui/tsconfig.test.json && tsc -p apps/ui/tsconfig.json && npm run build -w @specgate-studio/ui",
+    "test": "npm run build && node --test \"packages/*/dist/test/**/*.test.js\" \"apps/cli/dist/test/**/*.test.js\" \"apps/desktop/dist/test/**/*.test.js\" \"apps/ui/dist-test/test/*.test.js\" && node --test --test-concurrency=1 \"packages/*/dist/test/**/*.perf-test.js\" \"apps/cli/dist/test/**/*.perf-test.js\" \"apps/desktop/dist/test/**/*.perf-test.js\"",
     "arch": "depcruise packages apps --config .dependency-cruiser.cjs",
-    "clean": "tsc -b --clean packages/core packages/protocol packages/adapter-specgate-cli packages/adapter-specgate-api packages/adapter-node packages/adapter-pty-node packages/host apps/cli",
+    "clean": "tsc -b --clean packages/core packages/protocol packages/adapter-specgate-cli packages/adapter-specgate-api packages/adapter-node packages/adapter-pty-node packages/host apps/cli apps/desktop",
     "format": "prettier --write \"packages/*/src/**/*.ts\" \"packages/*/test/**/*.ts\" \"apps/*/src/**/*.{ts,tsx,css}\" \"apps/*/test/**/*.ts\"",
     "format:check": "prettier --check \"packages/*/src/**/*.ts\" \"packages/*/test/**/*.ts\" \"apps/*/src/**/*.{ts,tsx,css}\" \"apps/*/test/**/*.ts\""
   },

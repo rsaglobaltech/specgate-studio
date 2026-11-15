@@ -1,0 +1,324 @@
+# The desktop app's release (draft-desktop REQ-153 … REQ-157): every
+# installer built on its own system's runner, signed where the secrets
+# exist, and attached to a draft GitHub Release that a person publishes.
+#
+#   macOS    a .dmg per architecture (arm64, x64)  ad-hoc signed until APPLE_* exist
+#   Windows  an .msi (x64)                          unsigned until WINDOWS_* exist
+#   Linux    an .AppImage and a .deb (amd64)        .asc signatures once GPG_* exist
+#   Updates  latest.json and a .sig per installer   once TAURI_SIGNING_PRIVATE_KEY exists
+#
+# Nothing is signed on a developer's machine: the secrets live here only.
+# Which secrets, and the commands that make them: docs/desktop.md.
+name: Desktop release
+
+on:
+  push:
+    tags: ['desktop-v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'The tag to build and draft a release for, e.g. desktop-v0.1.0'
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: desktop-release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+  DOCS: https://github.com/${{ github.repository }}/blob/main/docs/desktop.md
+
+jobs:
+  draft:
+    name: Draft the release
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      HAS_APPLE: ${{ secrets.APPLE_CERTIFICATE != '' && secrets.APPLE_SIGNING_IDENTITY != '' }}
+      HAS_WINDOWS: ${{ secrets.WINDOWS_CERTIFICATE != '' }}
+      HAS_GPG: ${{ secrets.GPG_PRIVATE_KEY != '' }}
+      HAS_UPDATER: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      # The tag names the version the app says it is: apps/desktop/package.json.
+      - name: The tag matches the app's version
+        run: |
+          version="$(node -p "require('./apps/desktop/package.json').version")"
+          if [ "$TAG" != "desktop-v$version" ]; then
+            echo "::error::$TAG does not match apps/desktop/package.json ($version): tag desktop-v$version"
+            exit 1
+          fi
+      # The notes say, per platform, whether it is signed — and link the steps
+      # past the system's warning while it is not (A15).
+      - name: Release notes
+        run: |
+          {
+            echo "Specgate Studio desktop, ${TAG#desktop-v}."
+            echo
+            echo "## Install"
+            echo
+            if [ "$HAS_APPLE" = "true" ]; then
+              echo "- **macOS** (.dmg, arm64 for Apple silicon, x64 for Intel): signed and notarized."
+            else
+              echo "- **macOS** (.dmg, arm64 for Apple silicon, x64 for Intel): **not signed yet** — macOS warns on first launch. Follow [Open anyway]($DOCS#macos-open-anyway)."
+            fi
+            if [ "$HAS_WINDOWS" = "true" ]; then
+              echo "- **Windows** (.msi): signed."
+            else
+              echo "- **Windows** (.msi): **not signed yet** — SmartScreen warns. Follow [Run anyway]($DOCS#windows-smartscreen)."
+            fi
+            if [ "$HAS_GPG" = "true" ]; then
+              echo "- **Linux** (.AppImage, .deb): each with a \`.asc\` signature. [Verify it]($DOCS#linux-verify) before installing."
+            else
+              echo "- **Linux** (.AppImage, .deb): **no signature on this release** — see [Linux]($DOCS#linux-verify)."
+            fi
+            if [ "$HAS_UPDATER" != "true" ]; then
+              echo
+              echo "Updates: this release carries no update signatures; the studio does not update itself to it."
+            fi
+          } > notes.md
+          cat notes.md
+      - name: Draft release
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --notes-file notes.md
+          else
+            gh release create "$TAG" --draft --verify-tag --title "Specgate Studio ${TAG#desktop-v}" --notes-file notes.md
+          fi
+
+  build:
+    name: ${{ matrix.name }}
+    needs: draft
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS arm64
+            os: macos-latest
+            target: aarch64-apple-darwin
+            bundles: app,dmg
+          - name: macOS x64
+            os: macos-latest
+            target: x86_64-apple-darwin
+            bundles: app,dmg
+          - name: Windows x64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundles: msi
+          # 22.04: the oldest glibc the AppImage runs on.
+          - name: Linux x64
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            bundles: appimage,deb
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      GH_TOKEN: ${{ github.token }}
+      HAS_APPLE: ${{ secrets.APPLE_CERTIFICATE != '' && secrets.APPLE_SIGNING_IDENTITY != '' }}
+      HAS_NOTARY: ${{ secrets.APPLE_API_KEY != '' && secrets.APPLE_API_ISSUER != '' && secrets.APPLE_API_PRIVATE_KEY != '' }}
+      HAS_WINDOWS: ${{ secrets.WINDOWS_CERTIFICATE != '' }}
+      HAS_GPG: ${{ secrets.GPG_PRIVATE_KEY != '' }}
+      HAS_UPDATER: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      # Rust builds the shell (ADR-0002); the core and the UI need none.
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Linux libraries for the webview
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf libfuse2
+      - run: npm ci
+      - run: npm run build
+      # The Node runtime and the host for this target, before the build, so
+      # the signing step below can sign the native files among them.
+      - name: The sidecar for ${{ matrix.target }}
+        run: node apps/desktop/scripts/bundle-sidecar.mjs --target ${{ matrix.target }}
+
+      # ── macOS: signed and notarized once the Developer ID exists (REQ-153) ──
+      # Until then the config's ad-hoc identity ("-") signs it: Apple silicon
+      # runs nothing unsigned. Skipped, and said in the release notes, while
+      # APPLE_CERTIFICATE / APPLE_SIGNING_IDENTITY are not set.
+      - name: macOS signing — Developer ID into a keychain of this run
+        if: runner.os == 'macOS' && env.HAS_APPLE == 'true'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          password="$(openssl rand -hex 16)"
+          echo "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          security import "$RUNNER_TEMP/certificate.p12" -k "$keychain" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain"
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/certificate.p12"
+          # The native files inside the sidecar's resources: notarization
+          # refuses any Mach-O that is not signed with the hardened runtime.
+          find apps/desktop/dist/sidecar -type f | while read -r f; do
+            if file "$f" | grep -q 'Mach-O'; then
+              codesign --force --timestamp --options runtime \
+                --entitlements apps/desktop/src-tauri/entitlements.plist \
+                --sign "$APPLE_SIGNING_IDENTITY" "$f"
+            fi
+          done
+      - name: macOS signing — the notarization key
+        if: runner.os == 'macOS' && env.HAS_APPLE == 'true' && env.HAS_NOTARY == 'true'
+        env:
+          APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
+        run: |
+          echo "$APPLE_API_PRIVATE_KEY" > "$RUNNER_TEMP/AuthKey.p8"
+          echo "APPLE_API_KEY_PATH=$RUNNER_TEMP/AuthKey.p8" >> "$GITHUB_ENV"
+
+      # ── Windows: code-signed once the certificate exists (REQ-154) ─────────
+      # A .pfx in base64. A certificate whose key lives in a cloud HSM or on a
+      # token signs through its provider's tool instead: docs/desktop.md.
+      - name: Windows signing — the certificate into this run's store
+        if: runner.os == 'Windows' && env.HAS_WINDOWS == 'true'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP 'certificate.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+          $password = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText
+          $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $password
+          Remove-Item $pfx
+          "WINDOWS_THUMBPRINT=$($cert.Thumbprint)" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      # ── The build ──────────────────────────────────────────────────────────
+      # What the base config leaves off: signing identities and update
+      # signatures, each turned on only when its secrets exist.
+      - name: Build configuration for this run
+        run: |
+          node -e '
+            const c = { bundle: {} };
+            const conf = require("./apps/desktop/src-tauri/tauri.conf.json");
+            if (process.env.HAS_UPDATER === "true") {
+              if (conf.plugins.updater.pubkey.startsWith("REPLACE_")) {
+                console.error("::error::TAURI_SIGNING_PRIVATE_KEY is set but tauri.conf.json still has the placeholder public key: see docs/desktop.md");
+                process.exit(1);
+              }
+              c.bundle.createUpdaterArtifacts = true;
+            }
+            if (process.env.RUNNER_OS === "macOS" && process.env.HAS_APPLE === "true")
+              c.bundle.macOS = { signingIdentity: process.env.APPLE_SIGNING_IDENTITY };
+            if (process.env.RUNNER_OS === "Windows" && process.env.HAS_WINDOWS === "true")
+              c.bundle.windows = {
+                certificateThumbprint: process.env.WINDOWS_THUMBPRINT,
+                digestAlgorithm: "sha256",
+                timestampUrl: "http://timestamp.digicert.com",
+              };
+            require("fs").writeFileSync(process.env.RUNNER_TEMP + "/tauri.release.json", JSON.stringify(c));
+          '
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      - name: tauri build
+        working-directory: apps/desktop
+        env:
+          # The sidecar was made (and signed) above: the build does not make it again.
+          STUDIO_SIDECAR_PREBUILT: '1'
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ env.HAS_APPLE == 'true' && secrets.APPLE_SIGNING_IDENTITY || '' }}
+          APPLE_API_KEY: ${{ env.HAS_NOTARY == 'true' && secrets.APPLE_API_KEY || '' }}
+          APPLE_API_ISSUER: ${{ env.HAS_NOTARY == 'true' && secrets.APPLE_API_ISSUER || '' }}
+        run: npx tauri build --ci --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} --config "$RUNNER_TEMP/tauri.release.json"
+
+      # ── Checked before anything is uploaded ────────────────────────────────
+      - name: macOS — the app's signature
+        if: runner.os == 'macOS'
+        run: |
+          app="$(ls -d apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app)"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          if [ "$HAS_APPLE" = "true" ] && [ "$HAS_NOTARY" = "true" ]; then
+            spctl --assess --type execute --verbose=4 "$app"
+          else
+            echo "Ad-hoc signed: Gatekeeper will ask for Open anyway ($DOCS#macos-open-anyway)."
+          fi
+      - name: Windows — the installer's signature
+        if: runner.os == 'Windows' && env.HAS_WINDOWS == 'true'
+        shell: pwsh
+        run: |
+          Get-ChildItem apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi | ForEach-Object {
+            $s = Get-AuthenticodeSignature $_.FullName
+            Write-Output "$($_.Name): $($s.Status) — $($s.SignerCertificate.Subject)"
+            if ($s.Status -ne 'Valid') { exit 1 }
+          }
+      # ── Linux: a detached GPG signature per installer (REQ-155) ────────────
+      # Runs only when GPG_PRIVATE_KEY exists.
+      - name: Linux — GPG signatures
+        if: runner.os == 'Linux' && env.HAS_GPG == 'true'
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          export GNUPGHOME="$RUNNER_TEMP/gnupg"
+          mkdir -m 700 -p "$GNUPGHOME"
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          bundle=apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle
+          for f in "$bundle"/appimage/*.AppImage "$bundle"/deb/*.deb; do
+            gpg --batch --yes --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" --armor --detach-sign --output "$f.asc" "$f"
+            gpg --batch --verify "$f.asc" "$f"
+          done
+      # Each installer under 80 MB (REQ-157).
+      - name: Installer sizes
+        run: node apps/desktop/scripts/measure.mjs --sizes --target ${{ matrix.target }}
+
+      - name: Attach to the release
+        run: |
+          bundle=apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle
+          shopt -s nullglob
+          files=( "$bundle"/dmg/*.dmg "$bundle"/msi/*.msi "$bundle"/appimage/*.AppImage "$bundle"/deb/*.deb
+                  "$bundle"/appimage/*.asc "$bundle"/deb/*.asc
+                  "$bundle"/macos/*.app.tar.gz "$bundle"/macos/*.app.tar.gz.sig
+                  "$bundle"/msi/*.msi.sig "$bundle"/appimage/*.AppImage.sig )
+          # One updater archive per macOS architecture: named after it.
+          for i in "${!files[@]}"; do
+            f="${files[$i]}"
+            case "$f" in
+              *.app.tar.gz|*.app.tar.gz.sig)
+                renamed="${f/.app.tar.gz/_${{ matrix.target }}.app.tar.gz}"
+                mv "$f" "$renamed"
+                files[$i]="$renamed" ;;
+            esac
+          done
+          printf '%s\n' "${files[@]}"
+          gh release upload "$TAG" "${files[@]}" --clobber
+
+  updater:
+    name: Update manifest
+    needs: build
+    if: ${{ always() && needs.build.result == 'success' }}
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      HAS_UPDATER: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      # latest.json, read by the installed studios on start (REQ-156).
+      - name: latest.json
+        if: env.HAS_UPDATER == 'true'
+        run: |
+          mkdir assets
+          gh release download "$TAG" --dir assets --pattern '*.sig'
+          node apps/desktop/scripts/latest-json.mjs --tag "$TAG" --repo "${{ github.repository }}" --dir assets > latest.json
+          cat latest.json
+          gh release upload "$TAG" latest.json --clobber
+      - name: No update manifest
+        if: env.HAS_UPDATER != 'true'
+        run: echo "TAURI_SIGNING_PRIVATE_KEY is not set: no latest.json — see docs/desktop.md."
