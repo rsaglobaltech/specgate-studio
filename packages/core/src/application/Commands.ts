@@ -110,6 +110,11 @@ function answered(c: SpecgateCommand): {
       return { action: "apply", vars: { req: c.req } };
     case "archive":
       return { action: "archive", vars: { change: c.change } };
+    case "change-approve":
+      return {
+        action: "approve",
+        vars: { change: c.change, layer: c.layer },
+      };
     case "archive-preview":
       return { action: "archive-preview", vars: { change: c.change } };
     case "propose-ticket":
@@ -124,6 +129,11 @@ function answered(c: SpecgateCommand): {
 /** What a `--json` command wrote, from its answer. */
 function writtenIn(c: SpecgateCommand, data: unknown): string[] {
   if (c.name === "archive") return archiveWritten(data);
+  // `change approve --json` (specgate 1.0): the approval is kept in the change's approvals.json (REQ-217).
+  if (c.name === "change-approve")
+    return (data as { approve?: { ok?: unknown } | null } | null)?.approve?.ok === true
+      ? [`docs/specs/changes/${c.change}/approvals.json`]
+      : [];
   if (c.name === "draft-module" || c.name === "redraft") return draftWritten(data);
   // `config set --json` names the file of the key it saved (specgate 0.34, REQ-505).
   if (c.name === "settings-save") {

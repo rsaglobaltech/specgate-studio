@@ -116,6 +116,8 @@ export const ADOPT_FILES: readonly string[] = [
   "features/adoption/baseline.feature",
   "docs/specs/traceability.md",
   "docs/specs/adr/README.md",
+  // specgate 1.0 writes the project's glossary too (specgate-1-0).
+  "docs/specs/glossary.md",
 ];
 /** Written when adoption finds areas in the code (REQ-115, A9). */
 export const ADOPTION_AREAS = "docs/specs/adoption.md";

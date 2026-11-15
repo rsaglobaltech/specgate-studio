@@ -23,6 +23,8 @@ export type NextStep =
   | { kind: "build"; req: string; command: string }
   | { kind: "archive"; change: string; command: string }
   | { kind: "command"; command: string }
+  /** specgate 1.0's `status --json` asks for `migrate 1.0` (specgate-1-0 REQ-215). */
+  | { kind: "migrate"; changes: number; config: boolean; command: string }
   | { kind: "done" };
 
 interface OpenQuestionLike {
@@ -35,12 +37,32 @@ interface OpenQuestionLike {
 const str = (v: unknown): string | null => (typeof v === "string" && v ? v : null);
 
 /**
+ * The next command `status --json` names: specgate 1.0's `next.command`
+ * (specgate-1-0 REQ-215), or `nextCommand` from an older specgate.
+ */
+export function nextCommandOf(status: unknown): string | null {
+  const s = status as { next?: { command?: unknown } | null; nextCommand?: unknown } | null;
+  return str(s?.next?.command) ?? str(s?.nextCommand);
+}
+
+/**
  * The next step (A8): the one `specgate status` names, as a sentence with its
  * reason. Answering is said with the questions still open and what they
  * block; a draft no person approved, with its change.
  */
 export function nextStep(status: unknown, questions: unknown, review: readonly string[]): NextStep {
-  const command = str((status as { nextCommand?: unknown } | null)?.nextCommand);
+  // Open changes written for 0.x come first: specgate 1.0 says so (REQ-215).
+  const migrate = (status as { migrate?: unknown } | null)?.migrate as
+    { changes?: unknown; config?: unknown; command?: unknown } | null | undefined;
+  if (migrate && typeof migrate === "object") {
+    return {
+      kind: "migrate",
+      changes: Array.isArray(migrate.changes) ? migrate.changes.length : 0,
+      config: migrate.config === true,
+      command: str(migrate.command) ?? "specgate migrate 1.0",
+    };
+  }
+  const command = nextCommandOf(status);
   const open = (
     ((questions as { questions?: { open?: unknown } } | null)?.questions?.open ?? []) as unknown[]
   ).filter((q): q is OpenQuestionLike => !!q && typeof q === "object");

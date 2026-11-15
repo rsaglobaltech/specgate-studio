@@ -8,6 +8,7 @@ import type {
   ChangeCard,
   ChangeGroup,
   ChangesView,
+  LayerState,
   RunResult,
   SpecgateCommand,
   TicketReview,
@@ -92,6 +93,49 @@ export function Changes(p: ChangesProps) {
         <p class="muted" style="margin:6px 0 0">
           {t("change.waitsReview")}
         </p>
+      )}
+      {c.layers.length > 0 && (
+        <ul class="layers" style="margin:6px 0 0;padding-left:18px" data-testid="layers">
+          {c.layers.map((l) => (
+            <li key={l.layer} data-layer={l.layer} data-state={layerState(l)}>
+              <span class="mono">{l.layer}</span>{" "}
+              <span class="muted">
+                · {l.owner} · {t(`layer.${layerState(l)}`)}
+              </span>
+              {!l.approved && (
+                <>
+                  {" "}
+                  <button
+                    type="button"
+                    class="btn"
+                    data-action="approve"
+                    onClick={() =>
+                      void p.run(t("approve.label", { layer: l.layer }), {
+                        name: "change-approve",
+                        change: c.id,
+                        layer: l.layer as ApproveCommand["layer"],
+                      })
+                    }
+                  >
+                    {t("approve.label", { layer: l.layer })}
+                  </button>
+                  <HelpButton
+                    label={t("help.button", { feature: t("approve.label", { layer: l.layer }) })}
+                    onOpen={() =>
+                      p.onHelp(t("approve.label", { layer: l.layer }), [
+                        {
+                          action: "approve",
+                          feature: t("approve.feature"),
+                          vars: { change: c.id, layer: l.layer },
+                        },
+                      ])
+                    }
+                  />
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
       )}
       {c.requirements.length === 0 && (
         <p class="muted" style="margin:6px 0 0">
@@ -708,3 +752,10 @@ function Review(props: { review: ChangeReview | null; change: string; t: CT; onH
     </>
   );
 }
+
+/** Approving one layer from Changes (approve-layers REQ-217). */
+type ApproveCommand = Extract<SpecgateCommand, { name: "change-approve" }>;
+
+/** A layer's approval as Changes words it (specgate-1-0 REQ-214). */
+export const layerState = (l: LayerState): "approved" | "stale" | "waiting" =>
+  l.approved ? "approved" : l.stale ? "stale" : "waiting";

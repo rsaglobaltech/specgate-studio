@@ -8,6 +8,7 @@ import type {
   ArchivePreview,
   ChangeCard,
   ChangeGroup,
+  LayerState,
   ChangesView,
   ChangeReview,
   ReviewChangeView,
@@ -30,6 +31,8 @@ import type {
   SpecgateCommand,
   UncommittedGroup,
   WorkspaceState,
+  WorkspaceRepo,
+  WorkspaceView,
   AdoptPreview,
   Area,
   InitAnswers,
@@ -128,7 +131,15 @@ export interface FileWriteResult {
 /** What every action says about itself (draft-help). */
 export type { ActionId, Explanation, HelpVars, Lang, Notice };
 /** The Changes view (draft-changes). */
-export type { ArchivePreview, ChangeCard, ChangeGroup, ChangesView, Finding, TicketReview };
+export type {
+  ArchivePreview,
+  ChangeCard,
+  ChangeGroup,
+  ChangesView,
+  Finding,
+  LayerState,
+  TicketReview,
+};
 /** A draft's requests for change, and drafting it again with them (draft-changes REQ-082, REQ-083). */
 export type { ChangeReview, RedraftResult, ReviewChangeView, ReviewNoteView, Segment };
 /** Setting up a folder that is no project yet (draft-project-setup). */
@@ -222,6 +233,8 @@ export interface Requests {
       | { phase: "refused"; from: string; to: string; reason: "signature" | "download" };
     result: UpdateDecision;
   };
+  /** A specgate 1.0 workspace's repositories, from `workspace status --json` (workspace-repos REQ-218). */
+  "workspace.repos": { params: Record<string, never>; result: WorkspaceView | null };
   /** The project's files, relative with `/`, as Explorer lists them (draft-workbench REQ-032). */
   "files.list": { params: Record<string, never>; result: string[] };
   /** Home's next step, route, agent's cost and activity (draft-design-conformance REQ-173). */
@@ -492,3 +505,5 @@ export interface QuestionsSection {
     answered?: Question[];
   };
 }
+/** A specgate 1.0 workspace of repositories (workspace-repos REQ-218). */
+export type { WorkspaceRepo, WorkspaceView };

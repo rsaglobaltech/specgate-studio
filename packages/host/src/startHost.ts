@@ -16,6 +16,7 @@ import {
   Commands,
   checkSpecgate,
   fromWire,
+  nextCommandOf,
   ProjectState,
   type SpecgatePort,
   SECTIONS,
@@ -237,8 +238,8 @@ export async function startHost(given: HostOptions): Promise<Host> {
     state
       .section("home")
       .then((home) => {
-        const next = (home as { nextCommand?: unknown } | null)?.nextCommand;
-        nextReq = typeof next === "string" ? /\bREQ-\d+\b/.exec(next)?.[0] : undefined;
+        const next = nextCommandOf(home);
+        nextReq = next ? /\bREQ-\d+\b/.exec(next)?.[0] : undefined;
       })
       .catch(() => undefined);
   // An outdated specgate reads nothing, not even for the notices (REQ-013).

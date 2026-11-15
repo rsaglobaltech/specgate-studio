@@ -6,17 +6,21 @@
  */
 
 /** What a folder holds (REQ-021, A1). */
-export type FolderKind = "empty" | "code" | "specgate";
+export type FolderKind = "empty" | "code" | "specgate" | "workspace";
 
 /** How each kind reads (A1). */
 export const FOLDER_KIND_LABEL: Record<FolderKind, string> = {
   empty: "Empty folder",
   code: "Code, no specgate project",
   specgate: "Specgate project",
+  workspace: "Specgate workspace",
 };
 
 /** The file whose presence makes a folder a specgate project (A1). */
 export const SPECGATE_MARKER = "docs/specs/traceability.md";
+
+/** The file at a folder's top that makes it a specgate 1.0 workspace of repositories (workspace-repos REQ-218). */
+export const WORKSPACE_MARKER = "specgate.workspace.yaml";
 
 /**
  * The kind of a folder from its top-level entries and whether it holds
@@ -24,6 +28,8 @@ export const SPECGATE_MARKER = "docs/specs/traceability.md";
  */
 export function folderKind(entries: readonly string[], hasMarker: boolean): FolderKind {
   if (hasMarker) return "specgate";
+  // A workspace repository with no spec of its own: its repositories, not adoption (REQ-218).
+  if (entries.includes(WORKSPACE_MARKER)) return "workspace";
   return entries.every((e) => e === ".git") ? "empty" : "code";
 }
 

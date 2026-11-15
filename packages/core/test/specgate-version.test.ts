@@ -50,3 +50,12 @@ test("REQ-013: no specgate at all says how to install it", async () => {
   assert.equal(!r.ok && r.code, "specgate_missing");
   assert.equal(!r.ok && r.fix, "npm i -g @rsaglobaltech/specgate@0.30.0");
 });
+
+test("REQ-013: pre-release tags compare dot by dot, their numbers as numbers", () => {
+  assert.equal(isOlder("1.0.0-rc.9", "1.0.0-rc.12"), true);
+  assert.equal(isOlder("1.0.0-rc.12", "1.0.0-rc.9"), false);
+  assert.equal(isOlder("1.0.0-rc.12", "1.0.0-rc.12"), false);
+  assert.equal(isOlder("1.0.0-alpha", "1.0.0-alpha.1"), true);
+  assert.equal(isOlder("1.0.0-1", "1.0.0-alpha"), true);
+  assert.equal(isOlder("1.0.0-beta.2", "1.0.0-rc.1"), true);
+});

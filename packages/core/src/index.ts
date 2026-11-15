@@ -10,6 +10,8 @@ export type { SectionReader } from "./ports/SectionReader.js";
 export { ProjectState, type ChangeListener } from "./application/ProjectState.js";
 export {
   commandLine,
+  CHANGE_LAYERS,
+  type ChangeLayer,
   fromWire,
   shown,
   type SpecgateCommand,
@@ -21,6 +23,7 @@ export {
 } from "./domain/command.js";
 export {
   CHANGE_GROUPS,
+  approvalsOf,
   archivePreviewOf,
   deltaFilesOf,
   groupChanges,
@@ -33,6 +36,7 @@ export {
   type ReviewNoteView,
   type Segment,
   type ChangeCard,
+  type LayerState,
   type ChangeGroup,
   type ChangeRequirement,
   type ChangesView,
@@ -88,6 +92,7 @@ export {
   IgnoreRules,
   RECENT_LIMIT,
   SPECGATE_MARKER,
+  WORKSPACE_MARKER,
   SPECIFICATION_GROUP,
   branchTicket,
   folderKind,
@@ -103,6 +108,12 @@ export {
   type UncommittedGroup,
   type WorkspaceState,
 } from "./domain/workspace.js";
+export {
+  joinPath,
+  workspaceOf,
+  type WorkspaceRepo,
+  type WorkspaceView,
+} from "./domain/workspaceRepos.js";
 export type { FileSystemPort } from "./ports/FileSystemPort.js";
 export type { GitPort, GitWriter } from "./ports/GitPort.js";
 export { ANY_FILE, GIT_STATE, type Watch, type WatcherPort } from "./ports/WatcherPort.js";
@@ -172,6 +183,7 @@ export {
   estimatesOf,
   harnessArgs,
   harnessReport,
+  codedError,
   saveSpecification,
   uncommittedWork,
   BASELINE,
@@ -279,6 +291,7 @@ export {
   type AgentUsage,
   briefModuleNames,
   nextStep,
+  nextCommandOf,
   routeOf,
   type Activity,
   type HomeView,

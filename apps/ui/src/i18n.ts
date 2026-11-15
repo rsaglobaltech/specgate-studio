@@ -304,6 +304,14 @@ const en = {
   "setup.adoptButton": "Adopt",
   "setup.ready": "Ready",
   "setup.home": "Go to Home",
+  "workspace.kind":
+    "A specgate workspace: {n} repositories, {stories} stories. Each keeps its own specification and its own gate.",
+  "workspace.unreadable":
+    "specgate could not read this workspace: run specgate workspace status in the terminal.",
+  "workspace.done": "{done} of {total} done",
+  "workspace.gate": "gate {state}",
+  "workspace.open": "Open {name}",
+  "workspace.missing": "Not at {path}: clone it there.",
   "setup.areas": "Areas found in the code",
   "setup.areasNote": "A map to specify from, one behaviour at a time — not requirements.",
   "setup.byKind":
@@ -418,6 +426,12 @@ const en = {
   "next.command.title": "Next: {command}",
   "next.command.why": "As specgate status says.",
   "next.command.go": "Open the terminal",
+  "next.migrate.title": "Move the project to specgate 1.0",
+  "next.migrate.why":
+    "{n} open change(s) were written for 0.x: specgate migrate 1.0 puts each into its three layers, and says what is left to you.",
+  "next.migrate.whyConfig":
+    "harness.config.yaml still names the lanes under roles:, as 0.35 did: specgate migrate 1.0 moves them to lanes:.",
+  "next.migrate.go": "Open the terminal",
   "next.done.title": "Everything is built",
   "next.done.why": "specgate status names nothing left: the report is next.",
   "next.done.go": "Open the report",
@@ -843,6 +857,14 @@ const es: Record<MessageKey, string> = {
   "setup.adoptButton": "Adoptar",
   "setup.ready": "Preparación",
   "setup.home": "Ir a Inicio",
+  "workspace.kind":
+    "Un workspace de specgate: {n} repositorios, {stories} historias. Cada uno mantiene su propia especificación y su propio gate.",
+  "workspace.unreadable":
+    "specgate no pudo leer este workspace: ejecuta specgate workspace status en el terminal.",
+  "workspace.done": "{done} de {total} hechos",
+  "workspace.gate": "gate {state}",
+  "workspace.open": "Abrir {name}",
+  "workspace.missing": "No está en {path}: clónalo ahí.",
   "setup.areas": "Áreas encontradas en el código",
   "setup.areasNote":
     "Un mapa desde el que especificar, un comportamiento cada vez — no requisitos.",
@@ -961,6 +983,12 @@ const es: Record<MessageKey, string> = {
   "next.command.title": "Siguiente: {command}",
   "next.command.why": "Como dice specgate status.",
   "next.command.go": "Abrir el terminal",
+  "next.migrate.title": "Lleva el proyecto a specgate 1.0",
+  "next.migrate.why":
+    "{n} cambio(s) abierto(s) se escribieron para 0.x: specgate migrate 1.0 pone cada uno en sus tres capas y dice lo que te queda a ti.",
+  "next.migrate.whyConfig":
+    "harness.config.yaml aún nombra los carriles bajo roles:, como en 0.35: specgate migrate 1.0 los pasa a lanes:.",
+  "next.migrate.go": "Abrir el terminal",
   "next.done.title": "Todo está construido",
   "next.done.why": "specgate status no nombra nada pendiente: ahora el informe.",
   "next.done.go": "Abrir el informe",

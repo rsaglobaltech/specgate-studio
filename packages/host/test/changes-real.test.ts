@@ -51,6 +51,8 @@ function change(dir: string, id: string, title: string): string {
       `The system SHALL ${title.toLowerCase()}.\n\n#### Scenario: ${scn} — ${title}\n\n` +
       `- GIVEN an order\n- WHEN it is shown\n- THEN ${title.toLowerCase()}\n`,
   );
+  // specgate 1.0 waits for a person's approval before a change is built (specgate-1-0 REQ-214).
+  specgate(dir, "change", "approve", id);
   return req;
 }
 
