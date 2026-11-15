@@ -31,6 +31,8 @@ import type {
   SpecgateCommand,
   UncommittedGroup,
   WorkspaceState,
+  WorkspaceRepo,
+  WorkspaceView,
   AdoptPreview,
   Area,
   InitAnswers,
@@ -220,6 +222,8 @@ export interface Requests {
   "recent.list": { params: Record<string, never>; result: RecentProject[] };
   /** Open a recent project in its own host, or answer the one already open (REQ-026). */
   "recent.open": { params: { path: string }; result: { url: string; reused: boolean } };
+  /** A specgate 1.0 workspace's repositories, from `workspace status --json` (workspace-repos REQ-218). */
+  "workspace.repos": { params: Record<string, never>; result: WorkspaceView | null };
   /** The project's files, relative with `/`, as Explorer lists them (draft-workbench REQ-032). */
   "files.list": { params: Record<string, never>; result: string[] };
   /** Home's next step, route, agent's cost and activity (draft-design-conformance REQ-173). */
@@ -490,3 +494,5 @@ export interface QuestionsSection {
     answered?: Question[];
   };
 }
+/** A specgate 1.0 workspace of repositories (workspace-repos REQ-218). */
+export type { WorkspaceRepo, WorkspaceView };

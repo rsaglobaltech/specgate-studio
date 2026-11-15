@@ -92,6 +92,7 @@ export {
   IgnoreRules,
   RECENT_LIMIT,
   SPECGATE_MARKER,
+  WORKSPACE_MARKER,
   SPECIFICATION_GROUP,
   branchTicket,
   folderKind,
@@ -107,6 +108,12 @@ export {
   type UncommittedGroup,
   type WorkspaceState,
 } from "./domain/workspace.js";
+export {
+  joinPath,
+  workspaceOf,
+  type WorkspaceRepo,
+  type WorkspaceView,
+} from "./domain/workspaceRepos.js";
 export type { FileSystemPort } from "./ports/FileSystemPort.js";
 export type { GitPort, GitWriter } from "./ports/GitPort.js";
 export { ANY_FILE, GIT_STATE, type Watch, type WatcherPort } from "./ports/WatcherPort.js";

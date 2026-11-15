@@ -6,6 +6,8 @@ import {
   type GitPort,
   type SectionSource,
   type SpecgatePort,
+  toPosix,
+  workspaceOf,
 } from "@specgate-studio/core";
 
 /** specgate answering `--json` for the Changes view (draft-changes). */
@@ -36,6 +38,12 @@ export function attachChanges(
   return {
     handlers: {
       "changes.get": () => changes.view(),
+      // A workspace repository: its repositories as specgate counts them (workspace-repos REQ-218).
+      "workspace.repos": async () =>
+        workspaceOf(
+          (await wiring.specgate.call(["workspace", "status"])).data,
+          toPosix(projectDir),
+        ),
       "changes.ticket": async (params) => {
         const key = (params as { key?: unknown } | null)?.key;
         if (typeof key !== "string" || !/^[A-Z][A-Z0-9_]+-\d+$/.test(key))

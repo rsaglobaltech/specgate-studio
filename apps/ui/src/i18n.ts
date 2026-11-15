@@ -304,6 +304,14 @@ const en = {
   "setup.adoptButton": "Adopt",
   "setup.ready": "Ready",
   "setup.home": "Go to Home",
+  "workspace.kind":
+    "A specgate workspace: {n} repositories, {stories} stories. Each keeps its own specification and its own gate.",
+  "workspace.unreadable":
+    "specgate could not read this workspace: run specgate workspace status in the terminal.",
+  "workspace.done": "{done} of {total} done",
+  "workspace.gate": "gate {state}",
+  "workspace.open": "Open {name}",
+  "workspace.missing": "Not at {path}: clone it there.",
   "setup.areas": "Areas found in the code",
   "setup.areasNote": "A map to specify from, one behaviour at a time — not requirements.",
   "setup.byKind":
@@ -849,6 +857,14 @@ const es: Record<MessageKey, string> = {
   "setup.adoptButton": "Adoptar",
   "setup.ready": "Preparación",
   "setup.home": "Ir a Inicio",
+  "workspace.kind":
+    "Un workspace de specgate: {n} repositorios, {stories} historias. Cada uno mantiene su propia especificación y su propio gate.",
+  "workspace.unreadable":
+    "specgate no pudo leer este workspace: ejecuta specgate workspace status en el terminal.",
+  "workspace.done": "{done} de {total} hechos",
+  "workspace.gate": "gate {state}",
+  "workspace.open": "Abrir {name}",
+  "workspace.missing": "No está en {path}: clónalo ahí.",
   "setup.areas": "Áreas encontradas en el código",
   "setup.areasNote":
     "Un mapa desde el que especificar, un comportamiento cada vez — no requisitos.",
