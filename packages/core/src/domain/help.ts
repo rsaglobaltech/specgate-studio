@@ -17,6 +17,7 @@ export const ACTIONS = [
   "apply",
   "archive",
   "archive-preview",
+  "approve",
   "ask-change",
   "answer",
   "answer-reviewed",
@@ -246,6 +247,36 @@ export const HELP: Catalog = {
         failed: "{change} no se archivó",
         ranOk: "`{command}` mostró la vista previa del archivo de {change}.",
         next: "specgate archive {change}",
+      },
+    },
+  },
+  approve: {
+    en: {
+      does: "Approves the {layer} layer of {change} as you, the person git names in this project: Build starts on its requirements once every written layer is approved.",
+      command: "specgate change approve {change} --layer {layer}",
+      files:
+        "`docs/specs/changes/{change}/approvals.json`, with your name, the date and the layer's text as it is now.",
+      doesNot:
+        "It does not build, commit or push, and it is refused while the layer is not written or the change does not pass its checks. Editing the layer afterwards makes the approval stale.",
+      next: "Approve the other layers, or build its requirements once all are approved.",
+      notice: {
+        failed: "The {layer} layer of {change} was not approved",
+        ranOk: "`{command}` approved the {layer} layer of {change}.",
+        next: "specgate status",
+      },
+    },
+    es: {
+      does: "Aprueba la capa {layer} de {change} en tu nombre, la persona que git nombra en este proyecto: Build empieza sus requisitos cuando todas las capas escritas están aprobadas.",
+      command: "specgate change approve {change} --layer {layer}",
+      files:
+        "`docs/specs/changes/{change}/approvals.json`, con tu nombre, la fecha y el texto de la capa tal como está ahora.",
+      doesNot:
+        "No construye, no hace commit ni push, y se rechaza mientras la capa no esté escrita o el cambio no pase sus comprobaciones. Editar la capa después deja la aprobación caducada.",
+      next: "Aprueba las otras capas, o construye sus requisitos cuando todas estén aprobadas.",
+      notice: {
+        failed: "La capa {layer} de {change} no se aprobó",
+        ranOk: "`{command}` aprobó la capa {layer} de {change}.",
+        next: "specgate status",
       },
     },
   },
@@ -1447,6 +1478,7 @@ const UNSET: Record<string, string> = {
   id: "<plan-id>",
   then: "<its checks>",
   scenario: "<SCN>",
+  layer: "<discover|design|tasks>",
 };
 
 export type HelpVars = Partial<
@@ -1465,7 +1497,8 @@ export type HelpVars = Partial<
     | "side"
     | "id"
     | "then"
-    | "scenario",
+    | "scenario"
+    | "layer",
     string
   >
 >;

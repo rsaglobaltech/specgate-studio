@@ -9,12 +9,18 @@ import { PLAN_ID, validRequest } from "./agent.js";
  * (REQ-007): a value is always one element, never text a shell would read.
  * `write` commands change the project and run one at a time (REQ-006).
  */
+/** The three layers of a specgate 1.0 change (approve-layers REQ-217). */
+export const CHANGE_LAYERS = ["discover", "design", "tasks"] as const;
+export type ChangeLayer = (typeof CHANGE_LAYERS)[number];
+
 export type SpecgateCommand =
   | { name: "check" }
   | { name: "status" }
   // Home's "Doctor" (draft-design-conformance REQ-173, A9): every diagnostic, read-only.
   | { name: "doctor" }
   | { name: "change-validate"; change: string }
+  // A person approves one layer of a specgate 1.0 change from Changes (approve-layers REQ-217).
+  | { name: "change-approve"; change: string; layer: ChangeLayer }
   | { name: "apply"; req: string }
   | { name: "archive"; change: string }
   | { name: "config-set"; key: string; value: string }
@@ -113,6 +119,13 @@ export function commandLine(c: SpecgateCommand): CommandLine | null {
       return { args: ["doctor"], write: false };
     case "change-validate":
       return { args: ["change", "validate", c.change], write: false };
+    case "change-approve":
+      // Over the wire: the change an id, the layer one of the three (REQ-217).
+      return typeof c.change === "string" &&
+        CHANGE_ID.test(c.change) &&
+        (CHANGE_LAYERS as readonly string[]).includes(c.layer)
+        ? { args: ["change", "approve", c.change, "--layer", c.layer], write: true, json: true }
+        : null;
     case "apply":
       return { args: ["apply", c.req], write: true, json: true };
     case "archive":
