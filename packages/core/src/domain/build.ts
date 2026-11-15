@@ -293,6 +293,21 @@ export interface HarnessResult {
   question: string | null;
 }
 
+/**
+ * A result's error as specgate 1.0 words a refusal (specgate-1-0 REQ-216):
+ * `harness_not_approved: <why> Fix: <command>` — its code, its message and its
+ * fix; null for an error said without a code.
+ */
+export function codedError(
+  error: string | null | undefined,
+): { code: string; message: string; fix?: string } | null {
+  const m = /^([a-z][a-z0-9]*(?:_[a-z0-9]+)+): ([\s\S]*?)(?: Fix: ([\s\S]+))?$/.exec(
+    (error ?? "").trim(),
+  );
+  if (!m) return null;
+  return { code: m[1]!, message: m[2]!.trim(), ...(m[3] ? { fix: m[3].trim() } : {}) };
+}
+
 /** How a build ended, from its JSON report: its results, or the findings that refused it. */
 export function harnessReport(stdout: string): {
   results: HarnessResult[];

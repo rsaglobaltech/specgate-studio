@@ -8,6 +8,7 @@ import type {
   ChangeCard,
   ChangeGroup,
   ChangesView,
+  LayerState,
   RunResult,
   SpecgateCommand,
   TicketReview,
@@ -92,6 +93,18 @@ export function Changes(p: ChangesProps) {
         <p class="muted" style="margin:6px 0 0">
           {t("change.waitsReview")}
         </p>
+      )}
+      {c.layers.length > 0 && (
+        <ul class="layers" style="margin:6px 0 0;padding-left:18px" data-testid="layers">
+          {c.layers.map((l) => (
+            <li key={l.layer} data-layer={l.layer} data-state={layerState(l)}>
+              <span class="mono">{l.layer}</span>{" "}
+              <span class="muted">
+                · {l.owner} · {t(`layer.${layerState(l)}`)}
+              </span>
+            </li>
+          ))}
+        </ul>
       )}
       {c.requirements.length === 0 && (
         <p class="muted" style="margin:6px 0 0">
@@ -708,3 +721,7 @@ function Review(props: { review: ChangeReview | null; change: string; t: CT; onH
     </>
   );
 }
+
+/** A layer's approval as Changes words it (specgate-1-0 REQ-214). */
+export const layerState = (l: LayerState): "approved" | "stale" | "waiting" =>
+  l.approved ? "approved" : l.stale ? "stale" : "waiting";

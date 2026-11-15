@@ -418,6 +418,12 @@ const en = {
   "next.command.title": "Next: {command}",
   "next.command.why": "As specgate status says.",
   "next.command.go": "Open the terminal",
+  "next.migrate.title": "Move the project to specgate 1.0",
+  "next.migrate.why":
+    "{n} open change(s) were written for 0.x: specgate migrate 1.0 puts each into its three layers, and says what is left to you.",
+  "next.migrate.whyConfig":
+    "harness.config.yaml still names the lanes under roles:, as 0.35 did: specgate migrate 1.0 moves them to lanes:.",
+  "next.migrate.go": "Open the terminal",
   "next.done.title": "Everything is built",
   "next.done.why": "specgate status names nothing left: the report is next.",
   "next.done.go": "Open the report",
@@ -961,6 +967,12 @@ const es: Record<MessageKey, string> = {
   "next.command.title": "Siguiente: {command}",
   "next.command.why": "Como dice specgate status.",
   "next.command.go": "Abrir el terminal",
+  "next.migrate.title": "Lleva el proyecto a specgate 1.0",
+  "next.migrate.why":
+    "{n} cambio(s) abierto(s) se escribieron para 0.x: specgate migrate 1.0 pone cada uno en sus tres capas y dice lo que te queda a ti.",
+  "next.migrate.whyConfig":
+    "harness.config.yaml aún nombra los carriles bajo roles:, como en 0.35: specgate migrate 1.0 los pasa a lanes:.",
+  "next.migrate.go": "Abrir el terminal",
   "next.done.title": "Todo está construido",
   "next.done.why": "specgate status no nombra nada pendiente: ahora el informe.",
   "next.done.go": "Abrir el informe",

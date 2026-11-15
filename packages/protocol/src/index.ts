@@ -8,6 +8,7 @@ import type {
   ArchivePreview,
   ChangeCard,
   ChangeGroup,
+  LayerState,
   ChangesView,
   ChangeReview,
   ReviewChangeView,
@@ -127,7 +128,15 @@ export interface FileWriteResult {
 /** What every action says about itself (draft-help). */
 export type { ActionId, Explanation, HelpVars, Lang, Notice };
 /** The Changes view (draft-changes). */
-export type { ArchivePreview, ChangeCard, ChangeGroup, ChangesView, Finding, TicketReview };
+export type {
+  ArchivePreview,
+  ChangeCard,
+  ChangeGroup,
+  ChangesView,
+  Finding,
+  LayerState,
+  TicketReview,
+};
 /** A draft's requests for change, and drafting it again with them (draft-changes REQ-082, REQ-083). */
 export type { ChangeReview, RedraftResult, ReviewChangeView, ReviewNoteView, Segment };
 /** Setting up a folder that is no project yet (draft-project-setup). */

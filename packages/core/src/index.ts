@@ -21,6 +21,7 @@ export {
 } from "./domain/command.js";
 export {
   CHANGE_GROUPS,
+  approvalsOf,
   archivePreviewOf,
   deltaFilesOf,
   groupChanges,
@@ -33,6 +34,7 @@ export {
   type ReviewNoteView,
   type Segment,
   type ChangeCard,
+  type LayerState,
   type ChangeGroup,
   type ChangeRequirement,
   type ChangesView,
@@ -172,6 +174,7 @@ export {
   estimatesOf,
   harnessArgs,
   harnessReport,
+  codedError,
   saveSpecification,
   uncommittedWork,
   BASELINE,
@@ -279,6 +282,7 @@ export {
   type AgentUsage,
   briefModuleNames,
   nextStep,
+  nextCommandOf,
   routeOf,
   type Activity,
   type HomeView,

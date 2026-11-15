@@ -20,6 +20,17 @@ export interface ChangeRequirement {
   needs: string | null;
 }
 
+/** One layer of a change as specgate 1.0 approves it (specgate-1-0 REQ-214). */
+export interface LayerState {
+  /** `discover`, `design` or `tasks`. */
+  layer: string;
+  /** The role that approves it: `product`, `architect`, `developer`. */
+  owner: string;
+  approved: boolean;
+  /** Approved once, then edited: the approval no longer counts. */
+  stale: boolean;
+}
+
 export interface ChangeCard {
   id: string;
   group: ChangeGroup;
@@ -36,6 +47,8 @@ export interface ChangeCard {
   toApply: string[];
   /** The requests for change of its review.md, open or addressed (REQ-082); null when it has none. */
   review: ChangeReview | null;
+  /** Its written layers and their approvals, when specgate waits for them (REQ-214); empty otherwise. */
+  layers: LayerState[];
 }
 
 /** A piece of a requirement's text, marked when a redraft changed it (REQ-082, SCN-244). */
@@ -175,6 +188,30 @@ interface StatusRequirement {
 
 const str = (v: unknown): string | null => (typeof v === "string" && v !== "" ? v : null);
 
+/**
+ * specgate 1.0's `change.approvals` of `change show --json` (specgate-1-0
+ * REQ-214) when the harness waits for them — a layered change — or null: an
+ * older specgate, or a 0.x change, which the `approved:` line still decides.
+ */
+export function approvalsOf(
+  show: unknown,
+): { approved: boolean; approvedAt: string | null; layers: LayerState[] } | null {
+  const a = (show as { change?: { approvals?: unknown } } | null)?.change?.approvals as
+    | { required?: unknown; approved?: unknown; approvedAt?: unknown; layers?: unknown }
+    | null
+    | undefined;
+  if (!a || typeof a !== "object" || a.required !== true) return null;
+  const layers = (Array.isArray(a.layers) ? a.layers : [])
+    .filter((l): l is Record<string, unknown> => !!l && typeof l === "object" && l.present === true)
+    .map((l) => ({
+      layer: str(l.layer) ?? "",
+      owner: str(l.owner) ?? "",
+      approved: l.approved === true,
+      stale: Array.isArray(l.stale) && l.stale.length > 0 && l.approved !== true,
+    }));
+  return { approved: a.approved === true, approvedAt: str(a.approvedAt), layers };
+}
+
 /** The ids of `change list --json`. */
 export function changeIds(list: unknown): string[] {
   const changes = (list as { changes?: Array<{ id?: unknown }> } | null)?.changes;
@@ -201,7 +238,17 @@ export function groupChanges(
     const config =
       (shows[id] as { change?: { config?: Record<string, unknown> } } | null)?.change?.config ?? {};
     const draft = str(config.brief) !== null;
-    const approved = config.approved == null ? null : String(config.approved);
+    // specgate 1.0 says, layer by layer, whether it may be built (REQ-214);
+    // the `approved:` line decides for an older specgate or a 0.x change.
+    const gate = approvalsOf(shows[id]);
+    const approved = gate
+      ? gate.approved
+        ? (gate.approvedAt ?? "")
+        : null
+      : config.approved == null
+        ? null
+        : String(config.approved);
+    const waits = gate ? !gate.approved : draft && !approved;
     const reqs: ChangeRequirement[] = requirements
       .filter((r) => r.change === id && str(r.id))
       .map((r) => ({
@@ -213,12 +260,11 @@ export function groupChanges(
     const toApply = reqs.filter((r) => !r.applied).map((r) => r.id);
     // One specgate could not show is never offered for archive.
     const unknown = shows[id] == null;
-    const group: ChangeGroup =
-      draft && !approved
-        ? "review"
-        : unknown || reqs.length === 0 || toApply.length
-          ? "progress"
-          : "ready";
+    const group: ChangeGroup = waits
+      ? "review"
+      : unknown || reqs.length === 0 || toApply.length
+        ? "progress"
+        : "ready";
     groups[group].push({
       id,
       group,
@@ -229,6 +275,7 @@ export function groupChanges(
       requirements: reqs,
       toApply,
       review: reviewOf(shows[id]),
+      layers: gate?.layers ?? [],
     });
   }
   return { groups };
