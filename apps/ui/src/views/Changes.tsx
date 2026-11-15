@@ -102,6 +102,37 @@ export function Changes(p: ChangesProps) {
               <span class="muted">
                 · {l.owner} · {t(`layer.${layerState(l)}`)}
               </span>
+              {!l.approved && (
+                <>
+                  {" "}
+                  <button
+                    type="button"
+                    class="btn"
+                    data-action="approve"
+                    onClick={() =>
+                      void p.run(t("approve.label", { layer: l.layer }), {
+                        name: "change-approve",
+                        change: c.id,
+                        layer: l.layer as ApproveCommand["layer"],
+                      })
+                    }
+                  >
+                    {t("approve.label", { layer: l.layer })}
+                  </button>
+                  <HelpButton
+                    label={t("help.button", { feature: t("approve.label", { layer: l.layer }) })}
+                    onOpen={() =>
+                      p.onHelp(t("approve.label", { layer: l.layer }), [
+                        {
+                          action: "approve",
+                          feature: t("approve.feature"),
+                          vars: { change: c.id, layer: l.layer },
+                        },
+                      ])
+                    }
+                  />
+                </>
+              )}
             </li>
           ))}
         </ul>
@@ -721,6 +752,9 @@ function Review(props: { review: ChangeReview | null; change: string; t: CT; onH
     </>
   );
 }
+
+/** Approving one layer from Changes (approve-layers REQ-217). */
+type ApproveCommand = Extract<SpecgateCommand, { name: "change-approve" }>;
 
 /** A layer's approval as Changes words it (specgate-1-0 REQ-214). */
 export const layerState = (l: LayerState): "approved" | "stale" | "waiting" =>

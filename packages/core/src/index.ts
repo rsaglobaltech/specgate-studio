@@ -10,6 +10,8 @@ export type { SectionReader } from "./ports/SectionReader.js";
 export { ProjectState, type ChangeListener } from "./application/ProjectState.js";
 export {
   commandLine,
+  CHANGE_LAYERS,
+  type ChangeLayer,
   fromWire,
   shown,
   type SpecgateCommand,
