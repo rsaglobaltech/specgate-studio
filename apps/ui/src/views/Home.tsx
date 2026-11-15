@@ -45,6 +45,7 @@ const STEP_ACTION: Record<NextStep["kind"], ActionId> = {
   build: "build",
   archive: "archive",
   command: "check",
+  migrate: "check",
   done: "check",
 };
 
@@ -56,6 +57,7 @@ const STEP_VIEW: Record<NextStep["kind"], ViewId> = {
   build: "build",
   archive: "changes",
   command: "home",
+  migrate: "home",
   done: "report",
 };
 
@@ -118,9 +120,13 @@ export function Home(p: HomeProps) {
             <div class="next-why" data-testid="next-why">
               {reason(tr, next)}
             </div>
-            {p.next && <div class="mono next-cmd">{p.next}</div>}
+            {next.kind === "migrate" ? (
+              <div class="mono next-cmd">{next.command}</div>
+            ) : (
+              p.next && <div class="mono next-cmd">{p.next}</div>
+            )}
           </div>
-          {next.kind !== "command" && (
+          {next.kind !== "command" && next.kind !== "migrate" && (
             <button
               type="button"
               class="btn pri"
@@ -313,6 +319,8 @@ export function sentence(tr: HomeProps["tr"], n: NextStep): string {
       return tr("next.archive.title", { change: n.change });
     case "command":
       return tr("next.command.title", { command: n.command });
+    case "migrate":
+      return tr("next.migrate.title");
     default:
       return tr("next.done.title");
   }
@@ -328,6 +336,10 @@ export function reason(tr: HomeProps["tr"], n: NextStep): string {
     case "answer":
       return tr(n.reqs.length === 1 ? "next.answer.whyOne" : "next.answer.why", {
         reqs: list(n.reqs),
+      });
+    case "migrate":
+      return tr(n.config && n.changes === 0 ? "next.migrate.whyConfig" : "next.migrate.why", {
+        n: n.changes,
       });
     default:
       return tr(`next.${n.kind}.why`);

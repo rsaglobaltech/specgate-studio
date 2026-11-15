@@ -5,6 +5,7 @@ import {
   estimatesOf,
   harnessArgs,
   harnessReport,
+  codedError,
   saveSpecification,
   uncommittedWork,
   type BuildList,
@@ -13,7 +14,7 @@ import {
   type Resolution,
   type StopResult,
 } from "../domain/build.js";
-import { groupChanges, changeIds } from "../domain/changes.js";
+import { approvalsOf, groupChanges, changeIds } from "../domain/changes.js";
 import {
   foldLive,
   liveQuestions,
@@ -125,7 +126,9 @@ export class Builds {
     for (const [id, show] of Object.entries(shows)) {
       const config = (show as { change?: { config?: Record<string, unknown> } } | null)?.change
         ?.config;
-      if (config && config.approved == null) review.add(id);
+      // specgate 1.0 waits for each layer's approval (REQ-214); before it, the `approved:` line.
+      const gate = approvalsOf(show);
+      if (gate ? !gate.approved : config && config.approved == null) review.add(id);
     }
     const settings = (config as { config?: Record<string, unknown> } | null)?.config ?? {};
     const own = estimatesOf(plan);
@@ -531,9 +534,13 @@ export class Builds {
       return { exitCode: exitCode || 1, findings: report.findings };
     if (!mine) return { exitCode: exitCode || 1 };
     if (mine.result === "pass") return { exitCode: 0 };
+    // A refusal with its code and its fix, as specgate 1.0 says it (REQ-216).
     return {
       exitCode: exitCode || 1,
-      ended: { code: mine.result, message: mine.error ?? mine.question ?? "" },
+      ended: codedError(mine.error) ?? {
+        code: mine.result,
+        message: mine.error ?? mine.question ?? "",
+      },
     };
   }
 
