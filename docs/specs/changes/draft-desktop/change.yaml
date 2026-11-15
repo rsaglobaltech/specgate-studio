@@ -1,5 +1,5 @@
 specgate_change_version: 1
-schema: spec-driven
+schema: layered
 created: 2026-11-11
 rigor: lite
 skip_specs: false

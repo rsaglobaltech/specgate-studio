@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-218 — A specgate workspace opens as its repositories
 
-<!-- specgate:trace status=Implemented actor=Developer kind=functional feature=features/workspace/REQ-218.feature -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL open a folder holding `specgate.workspace.yaml` at its top and no `docs/specs/traceability.md` as a specgate workspace, offering no adoption for it; SHALL show on its Home the workspace's name and, for each repository `specgate workspace status --json` names, its name, its role, its requirements done of its total, its branch and its last gate; SHALL open a repository that is there, on "Open <repo>" / "Abrir <repo>", in a host of its own as a recent project opens; and SHALL say of a repository that is not there where it is expected and, when the workspace gives one, the `git clone` command that puts it there.
 
