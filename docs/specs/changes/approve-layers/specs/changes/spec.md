@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-217 — Each layer approved from Changes
 
-<!-- specgate:trace status=Implemented actor=Developer kind=functional feature=features/changes/REQ-217.feature -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL show, beside each written layer of an open change that specgate 1.0 says is not approved yet, an "Approve <layer>" / "Aprobar <layer>" button with its "?"; SHALL run, when it is pressed, `specgate change approve <change> --layer <layer>` with `--json`, accepting from the UI only a change id and one of `discover`, `design` or `tasks`; and SHALL end with its notice — the layer approved and `docs/specs/changes/<change>/approvals.json` written, or specgate's refusal with its code, its fix and nothing written — after which Changes shows the layer's new state.
 

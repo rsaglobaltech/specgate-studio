@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-214 — A change's approval read layer by layer, as specgate 1.0 says it
 
-<!-- specgate:trace status=Implemented actor=Developer kind=functional feature=features/specgate-port/REQ-214.feature -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL decide whether an open change waits for review from `change show --json`'s `change.approvals` whenever specgate gives it with `required: true` — the change waits while `approved` is false, whatever its `approved:` line says — and from the `approved:` line otherwise; SHALL show in Changes each written layer of such a change with its owner and whether it is approved, waits for its approval, or was edited after it; and SHALL list in Build the requirements of a change that waits as waiting for review, never as ready.
 
@@ -22,7 +22,7 @@ The system SHALL decide whether an open change waits for review from `change sho
 
 ### Requirement: REQ-215 — The next step as specgate 1.0 names it, the migration first
 
-<!-- specgate:trace status=Implemented actor=Developer kind=functional feature=features/specgate-port/REQ-215.feature -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL take Home's next step from `status --json`'s `next.command`, and from `nextCommand` when specgate gives no `next`; and SHALL, while `status --json` carries `migrate`, make the next step "Move the project to specgate 1.0" / "Lleva el proyecto a specgate 1.0", saying how many open changes were written for 0.x — or that `harness.config.yaml` still names the lanes under `roles:` — and showing `specgate migrate 1.0`, before any other step.
 
@@ -40,7 +40,7 @@ The system SHALL take Home's next step from `status --json`'s `next.command`, an
 
 ### Requirement: REQ-216 — A build specgate refused says its code and its fix
 
-<!-- specgate:trace status=Implemented actor=Developer kind=functional feature=features/specgate-port/REQ-216.feature -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL, when a build's result carries an error worded `<code>: <message> Fix: <command>` — as specgate 1.0's `harness_not_approved` is — end the build's notice with that code and message and offer that command as its fix, and SHALL keep the result's own word (`skipped`, `fail`) for an error said without a code.
 
