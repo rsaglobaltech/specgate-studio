@@ -1,4 +1,5 @@
 import { CloneDialog, FolderChooser, NoFolderPanel } from "./NoFolder.js";
+import { WorkspaceHome } from "./views/WorkspaceHome.js";
 import { EditorGrid } from "./EditorGrid.js";
 import { AgentPanel } from "./AgentPanel.js";
 import {
@@ -1946,6 +1947,9 @@ function View(p: ViewProps) {
             onCreated={() => p.openSetup("created")}
           />
         );
+      // A specgate 1.0 workspace: its repositories, each opened on its own (REQ-218).
+      if (p.kind === "workspace")
+        return <WorkspaceHome rpc={p.rpc} tr={p.tr} folder={p.folder || p.tr("view.home")} />;
       const step = p.kind === "code" ? "adopt" : null;
       if (step) {
         return (
