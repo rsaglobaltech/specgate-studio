@@ -1,4 +1,4 @@
-Feature: Build waits on uncommitted work and offers commit, stash or ignore
+Feature: Build waits on uncommitted work and offers commit, stash or ignore; the commit's message labelled
 
   @REQ-102 @SCN-303
   Scenario: sprich's 325 files committed from the desktop app
@@ -11,3 +11,15 @@ Feature: Build waits on uncommitted work and offers commit, stash or ignore
     Given sprich open in the browser with uncommitted files outside the specification
     When the Developer presses Build, chooses stash and cancels the confirmation
     Then nothing is stashed, the files stay as they were, and Build still says why it waits
+
+  @REQ-102 @SCN-610
+  Scenario: Confirm disabled until a message is written, in the browser
+    Given the browser showing Build waiting on 10 uncommitted files
+    When the Developer chooses commit and leaves the message empty, then writes "Agent set up"
+    Then the Developer first sees the field labelled "Mensaje del commit" and Confirm disabled with "Escribe un mensaje para confirmar" beside it, then Confirm enabled and that line gone
+
+  @REQ-102 @SCN-611
+  Scenario: The same dialog in English, on the desktop
+    Given the desktop app in English, Build waiting on 10 uncommitted files
+    When the Developer chooses commit
+    Then the Developer sees the field labelled "Commit message" in view without scrolling, and Confirm disabled with "Write a message to confirm" beside it

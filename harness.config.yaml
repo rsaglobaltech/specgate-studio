@@ -2,10 +2,3 @@ harness_version: 1
 test_cmd: "npm test"
 arch_cmd: "npm run arch"
 test_cmd_affected: "npm run build && node scripts/affected-tests.mjs {files}"
-
-# specgate 1.0 (ADR-0045): the open changes, migrated from 0.x, were approved
-# with the approved: line of change.yaml. Keep 0.27's behaviour until each
-# layer is approved with specgate change approve <id> --layer <layer>; remove
-# this to make the harness wait for those approvals.
-approvals:
-  required: never
