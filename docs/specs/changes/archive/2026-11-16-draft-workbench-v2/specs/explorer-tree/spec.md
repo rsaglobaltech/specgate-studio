@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-167 — The filter inside the tree; what is ignored is dimmed, never matched
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL, while the filter has text, show only the files whose path matches it, inside their folders opened down to them, and restore the folders left open when the filter is cleared; a file that `.gitignore` or the studio's ignore rules name SHALL be shown dimmed in the tree (draft-workbench-v2 REQ-186) and SHALL never be matched by the filter.
 

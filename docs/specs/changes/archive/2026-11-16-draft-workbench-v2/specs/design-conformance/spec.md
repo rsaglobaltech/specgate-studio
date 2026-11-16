@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-172 — A frame with its bottom panel always there: the menu bar, the gate pill in its colour, a primary Build, and a status bar of the open view
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL hide the tab strip unless a file is open, and SHALL keep the bottom panel on every view (draft-workbench-v2 REQ-184); it SHALL offer the menu bar — the operating system's menu in the desktop app, a bar in the page's header in the browser — and SHALL show in the header the gate pill in the gate's colour and a primary Build, and in the status bar what the open view counts.
 
