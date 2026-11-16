@@ -6,3 +6,4 @@ skip_specs: false
 retire_capabilities: false
 req_range: [REQ-214, REQ-216]
 scn_range: [SCN-961, SCN-970]
+approved: 2026-11-16
