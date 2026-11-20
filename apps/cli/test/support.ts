@@ -106,6 +106,8 @@ export interface StudioOptions {
   user?: Record<string, unknown>;
   /** Started as the desktop app's sidecar starts it: its lock written there (draft-desktop REQ-158). */
   locks?: HostLocks;
+  /** Measure mode: the page writes its cold start to this file (REQ-035 SCN-099). */
+  measure?: string;
   /** What `specgate check` exits with: 0, a green gate, by default (specgate-1-4-gate REQ-224). */
   checkExit?: number;
 }
@@ -305,6 +307,7 @@ export async function studio(opts: StudioOptions = {}) {
   const options = {
     projectDir,
     port: opts.port ?? 0,
+    ...(opts.measure ? { measure: opts.measure } : {}),
     userSettings,
     reader,
     runner,

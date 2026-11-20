@@ -23,7 +23,7 @@ const TYPES: Record<string, string> = {
  * `dir`. Hashed assets are cached for good; the index never is, so a new
  * build is picked up on reload.
  */
-export function uiHandler(dir: string | undefined) {
+export function uiHandler(dir: string | undefined, options: { measure?: boolean } = {}) {
   const root = dir ? path.resolve(dir) : null;
   return (req: IncomingMessage, res: ServerResponse): void => {
     if (!root || (req.method !== "GET" && req.method !== "HEAD")) {
@@ -59,7 +59,53 @@ export function uiHandler(dir: string | undefined) {
       "x-content-type-options": "nosniff",
     });
     if (req.method === "HEAD") res.end();
+    else if (options.measure && path.extname(served) === ".html")
+      // Measure mode (REQ-035 SCN-099): the page reports its cold start.
+      res.end(withMeasure(fs.readFileSync(served, "utf8")));
     else fs.createReadStream(served).pipe(res);
+  };
+}
+
+/** What tells the page to measure its cold start (apps/ui/src/measure.ts). */
+export const MEASURE_META = '<meta name="studio-measure" content="1">';
+
+/** The index with MEASURE_META: in its head, or after the doctype when it has none. */
+export function withMeasure(html: string): string {
+  if (/<head[^>]*>/i.test(html)) return html.replace(/<head[^>]*>/i, (h) => h + MEASURE_META);
+  const doctype = /^\s*<!doctype[^>]*>/i.exec(html);
+  const at = doctype ? doctype[0].length : 0;
+  return html.slice(0, at) + MEASURE_META + html.slice(at);
+}
+
+/** Where the page posts its cold start: the same path apps/ui/src/measure.ts posts to. */
+export const MEASURE_PATH = "/__studio/measure";
+
+/**
+ * The page's cold start, written to `file` as it came (REQ-035 SCN-099):
+ * only a small JSON object, only by POST. Any other request is not this one's.
+ */
+export function measureHandler(file: string) {
+  return (req: IncomingMessage, res: ServerResponse): boolean => {
+    if (req.method !== "POST" || new URL(req.url ?? "/", "http://host").pathname !== MEASURE_PATH)
+      return false;
+    let body = "";
+    req.setEncoding("utf8");
+    req.on("data", (chunk: string) => {
+      body += chunk;
+      if (body.length > 4096) req.destroy();
+    });
+    req.on("end", () => {
+      try {
+        const moments = JSON.parse(body) as unknown;
+        if (typeof moments !== "object" || moments === null || Array.isArray(moments))
+          throw new Error("not an object");
+        fs.writeFileSync(file, JSON.stringify(moments));
+        res.writeHead(204).end();
+      } catch {
+        res.writeHead(400).end();
+      }
+    });
+    return true;
   };
 }
 

@@ -37,6 +37,8 @@ export interface ProjectHostOptions {
   reader?: (projectDir: string) => SectionReader | Promise<SectionReader>;
   /** The UI's built files, served by every project's host (draft-workbench). */
   ui?: string;
+  /** Measure mode: the page's cold start written to this file (REQ-035 SCN-099). */
+  measure?: string;
   /** The project's files for Explorer and the editor (draft-workbench, draft-editor). */
   files?: (projectDir: string) => ProjectFiles;
   /** The specification's findings with file and line, for the editor (draft-editor REQ-043). */
@@ -126,6 +128,7 @@ export async function startProjectHost(
     // The Developer's own settings file, Settings' User scope (draft-settings REQ-141, A2).
     userSettings: new NodeUserSettings(options.home),
     ...(options.ui ? { ui: options.ui } : {}),
+    ...(options.measure ? { measure: options.measure } : {}),
     ...(options.files ? { files: options.files(projectDir) } : {}),
     ...(options.findings ? { findings: options.findings(projectDir) } : {}),
     ...(options.terminals ? { terminals: options.terminals } : {}),

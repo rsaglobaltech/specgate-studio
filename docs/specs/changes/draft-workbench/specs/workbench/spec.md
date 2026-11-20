@@ -90,7 +90,7 @@ The system SHALL start in dark, and SHALL switch every label of the studio betwe
 
 ### Requirement: REQ-035 — Visible in under 300 ms, interactive in under 1 s
 
-<!-- specgate:trace actor=Developer kind=non-functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=non-functional -->
 
 The system SHALL, on a cold start, show the workbench in under 300 ms and let the Developer use it in under 1 s, measured from the moment the window or the page is asked for.
 

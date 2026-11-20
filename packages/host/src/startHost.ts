@@ -34,7 +34,7 @@ import {
   type UserSettingsPort,
 } from "@specgate-studio/core";
 import { attachSettings } from "./settings.js";
-import { fromStudio, uiHandler } from "./serveUi.js";
+import { fromStudio, measureHandler, uiHandler } from "./serveUi.js";
 import { NO_TOKEN_TEXT, Session, cookieName, withoutToken } from "./session.js";
 import { attachTerminals, type TerminalWiring } from "./terminals.js";
 import { RPC_ERRORS, type Notifications, type ProjectOpened } from "@specgate-studio/protocol";
@@ -66,6 +66,11 @@ export interface HostOptions {
   workspace?: WorkspaceWiring;
   /** The UI's built files, served on the same port as the WebSocket. */
   ui?: string;
+  /**
+   * Measure mode (REQ-035 SCN-099): the page served reports its cold start,
+   * written to this file. Set from STUDIO_MEASURE by `measure.mjs --cold-start`.
+   */
+  measure?: string;
   /** The Developer's terminals: the pty and their shell (draft-terminal). */
   terminals?: TerminalWiring;
   /** The project's files for Explorer and the editor's tabs. */
@@ -185,7 +190,8 @@ export async function startHost(given: HostOptions): Promise<Host> {
 
   // One address for the browser: the UI's files over HTTP and JSON-RPC over
   // the WebSocket upgrade of the same port.
-  const serveFile = uiHandler(options.ui);
+  const serveFile = uiHandler(options.ui, { measure: Boolean(options.measure) });
+  const measured = options.measure ? measureHandler(options.measure) : () => false;
   const boundPort = () => {
     const a = http.address();
     return typeof a === "object" && a ? a.port : options.port;
@@ -214,6 +220,7 @@ export async function startHost(given: HostOptions): Promise<Host> {
         })
         .end();
     }
+    if (measured(req, res)) return;
     serveFile(req, res);
   });
   const server = new WebSocketServer({

@@ -148,6 +148,8 @@ export async function runHost(args: Args): Promise<void> {
     home,
     token,
     ...(ui ? { ui } : {}),
+    // The release build's cold start, measured by scripts/measure.mjs (REQ-035 SCN-099).
+    ...(process.env.STUDIO_MEASURE ? { measure: process.env.STUDIO_MEASURE } : {}),
   });
   say({
     type: "ready",
