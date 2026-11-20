@@ -42,17 +42,17 @@ The system SHALL show beside every project setting the `specgate config set` com
 
 <!-- specgate:trace actor=Developer feature=features/settings/REQ-142.feature kind=business-rule status=Implemented -->
 
-### Requirement: REQ-143 — The sections: agents and profiles, preferences, agent guards, quality, ALM, editor, terminal, shortcuts, appearance
+### Requirement: REQ-143 — The sections: agents and profiles, preferences, agent guards, quality, gate, ALM, editor, terminal, shortcuts, appearance
 
-The system SHALL group Settings in nine sections, in this order — Agents and profiles, Preferences, Agent guards, Quality, ALM, Editor, Terminal, Shortcuts, Appearance — each setting under one scope; every project setting of every section SHALL be saved through `specgate config set`, the studio never editing specgate's files itself; it SHALL show where a credential comes from, by the name of its environment variable, and never its value.
+The system SHALL group Settings in ten sections, in this order — Agents and profiles, Preferences, Agent guards, Quality, Gate, ALM, Editor, Terminal, Shortcuts, Appearance — each setting under one scope; every project setting of every section SHALL be saved through `specgate config set`, the studio never editing specgate's files itself; it SHALL show where a credential comes from, by the name of its environment variable, and never its value.
 
-> Brief: "Agents and profiles, preferences, agent guards, quality, ALM, editor, terminal, shortcuts, appearance."
+> Brief: "Agents and profiles, preferences, agent guards, quality, ALM, editor, terminal, shortcuts, appearance." Gate added after Quality by specgate-1-4-gate REQ-223 (issue #39).
 
-#### Scenario: SCN-425 — The nine sections, on the desktop
+#### Scenario: SCN-425 — The ten sections, on the desktop
 
 - GIVEN sprich open in the desktop app, its profiles `claude-sonnet` and `claude-opus` in `.harness/profiles.yaml`
 - WHEN the Developer opens Settings
-- THEN the Developer sees the nine sections in that order, and under Agents and profiles the agent set in `harness.config.yaml` and the profiles `claude-sonnet` and `claude-opus`
+- THEN the Developer sees the ten sections in that order, and under Agents and profiles the agent set in `harness.config.yaml` and the profiles `claude-sonnet` and `claude-opus`
 
 #### Scenario: SCN-426 — ALM names the token's variable, never its value, in the browser
 

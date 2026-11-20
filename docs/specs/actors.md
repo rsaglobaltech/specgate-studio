@@ -12,8 +12,10 @@ flowchart LR
   cap_changes["changes"]
   cap_core_host["core-host"]
   cap_design_conformance["design-conformance"]
+  cap_desktop["desktop"]
   cap_editor["editor"]
   cap_explorer_tree["explorer-tree"]
+  cap_gate_policy["gate-policy"]
   cap_help["help"]
   cap_live_polish["live-polish"]
   cap_project_setup["project-setup"]
@@ -23,6 +25,7 @@ flowchart LR
   cap_specgate_port["specgate-port"]
   cap_terminal["terminal"]
   cap_traceability["traceability"]
+  cap_workbench["workbench"]
   cap_workbench_v2["workbench-v2"]
   cap_workspace["workspace"]
   req_REQ_001["REQ-001 — One core host per open project, over typed JSON-RPC"]
@@ -44,6 +47,12 @@ flowchart LR
   req_REQ_024["REQ-024 — The branch, and the team and ticket it names"]
   req_REQ_025["REQ-025 — The uncommitted files, grouped by folder"]
   req_REQ_026["REQ-026 — The last 10 projects of each Developer"]
+  req_REQ_031["REQ-031 — The same activity bar on every screen"]
+  req_REQ_032["REQ-032 — Editor tabs, a bottom panel and a status bar"]
+  req_REQ_033["REQ-033 — A command palette that names each command"]
+  req_REQ_034["REQ-034 — Spanish or English, dark or light"]
+  req_REQ_035["REQ-035 — Visible in under 300 ms, interactive in under 1 s"]
+  req_REQ_036["REQ-036 — Views switch in under 50 ms; 5,000 rows scroll at 60 fps"]
   req_REQ_041["REQ-041 — The editor loads when the first file opens, not before"]
   req_REQ_042["REQ-042 — Build, Check, Trace, Ask for a change and '?' above each requirement"]
   req_REQ_043["REQ-043 — Findings underlined where they are, with their fix"]
@@ -73,7 +82,7 @@ flowchart LR
   req_REQ_091["REQ-091 — Every open question in one place, with what it blocks"]
   req_REQ_092["REQ-092 — An answer is written to its row, and the requirement stays blocked"]
   req_REQ_093["REQ-093 — 'The spec says it' marks the answer reviewed and lifts Needs Clarification"]
-  req_REQ_101["REQ-101 — Build lists what is ready: each title with its estimate below, who codes, REQ-000 only when named; what is ready to close, with 'Aplicar'"]
+  req_REQ_101["REQ-101 — Build lists what is ready: each title with its estimate below, who codes, the adoption baseline only when named; what is ready to close, with 'Aplicar'"]
   req_REQ_102["REQ-102 — Build waits on uncommitted work and offers commit, stash or ignore; the commit's message labelled"]
   req_REQ_103["REQ-103 — Live as the 'En vivo' board: the harness's stages, a header with counts, time and usage, the queue and what is finished"]
   req_REQ_104["REQ-104 — The agent's question is answered inside Live"]
@@ -92,7 +101,15 @@ flowchart LR
   req_REQ_133["REQ-133 — Download as one HTML page; print to PDF"]
   req_REQ_141["REQ-141 — A settings editor with search, and two scopes: project and user"]
   req_REQ_142["REQ-142 — Each project setting says which `specgate config set` command saves it and where"]
-  req_REQ_143["REQ-143 — The sections: agents and profiles, preferences, agent guards, quality, ALM, editor, terminal, shortcuts, appearance"]
+  req_REQ_143["REQ-143 — The sections: agents and profiles, preferences, agent guards, quality, gate, ALM, editor, terminal, shortcuts, appearance"]
+  req_REQ_151["REQ-151 — A Tauri 2 window, the core host as a sidecar with its own Node runtime"]
+  req_REQ_152["REQ-152 — One window per project, each over its own core host"]
+  req_REQ_153["REQ-153 — A .dmg for macOS: unsigned with 'Open anyway' steps now, signed and notarized once the certificate exists"]
+  req_REQ_154["REQ-154 — An .msi for Windows: unsigned with SmartScreen steps now, code-signed once the certificate exists"]
+  req_REQ_155["REQ-155 — An .AppImage and a .deb for Linux, signed"]
+  req_REQ_156["REQ-156 — Auto-update: offered on start, applied on restart, never during a build"]
+  req_REQ_157["REQ-157 — Idle memory under 200 MB; installer under 80 MB"]
+  req_REQ_158["REQ-158 — The same UI in a browser with `specgate-studio serve`"]
   req_REQ_161["REQ-161 — Folders open one level at a time; 50,000 files stay under 50 ms; open folders kept per project"]
   req_REQ_162["REQ-162 — The side panel of the boards, with file-type icons and the specification marked"]
   req_REQ_163["REQ-163 — Git letters on files and a dot on folders holding a change"]
@@ -133,6 +150,11 @@ flowchart LR
   req_REQ_216["REQ-216 — A build specgate refused says its code and its fix"]
   req_REQ_217["REQ-217 — Each layer approved from Changes"]
   req_REQ_218["REQ-218 — A specgate workspace opens as its repositories"]
+  req_REQ_222["REQ-222 — The studio needs specgate 1.4.0, and says so at start"]
+  req_REQ_223["REQ-223 — The gate's policy in Settings: preset, rules and the date"]
+  req_REQ_224["REQ-224 — Findings the policy reports, apart from those that fail"]
+  req_REQ_225["REQ-225 — A policy specgate cannot read is shown with each fix"]
+  req_REQ_226["REQ-226 — Home says the policy in force beside the gate's result"]
   actor_Developer --> cap_core_host
   cap_core_host --> req_REQ_001
   cap_core_host --> req_REQ_002
@@ -155,6 +177,13 @@ flowchart LR
   cap_workspace --> req_REQ_024
   cap_workspace --> req_REQ_025
   cap_workspace --> req_REQ_026
+  actor_Developer --> cap_workbench
+  cap_workbench --> req_REQ_031
+  cap_workbench --> req_REQ_032
+  cap_workbench --> req_REQ_033
+  cap_workbench --> req_REQ_034
+  cap_workbench --> req_REQ_035
+  cap_workbench --> req_REQ_036
   actor_Developer --> cap_editor
   cap_editor --> req_REQ_041
   cap_editor --> req_REQ_042
@@ -220,6 +249,15 @@ flowchart LR
   cap_settings --> req_REQ_141
   cap_settings --> req_REQ_142
   cap_settings --> req_REQ_143
+  actor_Developer --> cap_desktop
+  cap_desktop --> req_REQ_151
+  cap_desktop --> req_REQ_152
+  cap_desktop --> req_REQ_153
+  cap_desktop --> req_REQ_154
+  cap_desktop --> req_REQ_155
+  cap_desktop --> req_REQ_156
+  cap_desktop --> req_REQ_157
+  cap_desktop --> req_REQ_158
   actor_Developer --> cap_explorer_tree
   cap_explorer_tree --> req_REQ_161
   cap_explorer_tree --> req_REQ_162
@@ -267,9 +305,15 @@ flowchart LR
   cap_specgate_port --> req_REQ_216
   cap_changes --> req_REQ_217
   cap_workspace --> req_REQ_218
+  actor_Developer --> cap_gate_policy
+  cap_gate_policy --> req_REQ_222
+  cap_gate_policy --> req_REQ_223
+  cap_gate_policy --> req_REQ_224
+  cap_gate_policy --> req_REQ_225
+  cap_gate_policy --> req_REQ_226
 ```
 
 | Actor | Requirements |
 | --- | --- |
-| Developer | REQ-001, REQ-002, REQ-003, REQ-004, REQ-005, REQ-006, REQ-007, REQ-011, REQ-012, REQ-013, REQ-014, REQ-015, REQ-016, REQ-021, REQ-022, REQ-023, REQ-024, REQ-025, REQ-026, REQ-041, REQ-042, REQ-043, REQ-045, REQ-051, REQ-052, REQ-053, REQ-054, REQ-055, REQ-056, REQ-061, REQ-063, REQ-065, REQ-071, REQ-072, REQ-073, REQ-074, REQ-081, REQ-083, REQ-084, REQ-085, REQ-086, REQ-101, REQ-102, REQ-103, REQ-104, REQ-105, REQ-111, REQ-112, REQ-113, REQ-114, REQ-115, REQ-116, REQ-123, REQ-132, REQ-141, REQ-142, REQ-143, REQ-161, REQ-162, REQ-163, REQ-164, REQ-165, REQ-166, REQ-167, REQ-169, REQ-171, REQ-172, REQ-173, REQ-174, REQ-175, REQ-177, REQ-178, REQ-181, REQ-182, REQ-184, REQ-185, REQ-186, REQ-187, REQ-188, REQ-189, REQ-190, REQ-191, REQ-201, REQ-202, REQ-203, REQ-204, REQ-211, REQ-214, REQ-215, REQ-216, REQ-217, REQ-218 |
+| Developer | REQ-001, REQ-002, REQ-003, REQ-004, REQ-005, REQ-006, REQ-007, REQ-011, REQ-012, REQ-013, REQ-014, REQ-015, REQ-016, REQ-021, REQ-022, REQ-023, REQ-024, REQ-025, REQ-026, REQ-031, REQ-032, REQ-033, REQ-034, REQ-035, REQ-036, REQ-041, REQ-042, REQ-043, REQ-045, REQ-051, REQ-052, REQ-053, REQ-054, REQ-055, REQ-056, REQ-061, REQ-063, REQ-065, REQ-071, REQ-072, REQ-073, REQ-074, REQ-081, REQ-083, REQ-084, REQ-085, REQ-086, REQ-101, REQ-102, REQ-103, REQ-104, REQ-105, REQ-111, REQ-112, REQ-113, REQ-114, REQ-115, REQ-116, REQ-123, REQ-132, REQ-141, REQ-142, REQ-143, REQ-151, REQ-152, REQ-153, REQ-154, REQ-155, REQ-156, REQ-157, REQ-158, REQ-161, REQ-162, REQ-163, REQ-164, REQ-165, REQ-166, REQ-167, REQ-169, REQ-171, REQ-172, REQ-173, REQ-174, REQ-175, REQ-177, REQ-178, REQ-181, REQ-182, REQ-184, REQ-185, REQ-186, REQ-187, REQ-188, REQ-189, REQ-190, REQ-191, REQ-201, REQ-202, REQ-203, REQ-204, REQ-211, REQ-214, REQ-215, REQ-216, REQ-217, REQ-218, REQ-222, REQ-223, REQ-224, REQ-225, REQ-226 |
 | Reviewer | REQ-044, REQ-062, REQ-064, REQ-082, REQ-091, REQ-092, REQ-093, REQ-121, REQ-122, REQ-131, REQ-133, REQ-168, REQ-176, REQ-179, REQ-183, REQ-192 |

@@ -1,10 +1,10 @@
-Feature: The sections: agents and profiles, preferences, agent guards, quality, ALM, editor, terminal, shortcuts, appearance
+Feature: The sections: agents and profiles, preferences, agent guards, quality, gate, ALM, editor, terminal, shortcuts, appearance
 
   @REQ-143 @SCN-425
-  Scenario: The nine sections, on the desktop
+  Scenario: The ten sections, on the desktop
     Given sprich open in the desktop app, its profiles `claude-sonnet` and `claude-opus` in `.harness/profiles.yaml`
     When the Developer opens Settings
-    Then the Developer sees the nine sections in that order, and under Agents and profiles the agent set in `harness.config.yaml` and the profiles `claude-sonnet` and `claude-opus`
+    Then the Developer sees the ten sections in that order, and under Agents and profiles the agent set in `harness.config.yaml` and the profiles `claude-sonnet` and `claude-opus`
 
   @REQ-143 @SCN-426
   Scenario: ALM names the token's variable, never its value, in the browser

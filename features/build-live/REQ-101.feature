@@ -1,4 +1,4 @@
-Feature: Build lists what is ready: each title with its estimate below, who codes, REQ-000 only when named; what is ready to close, with "Aplicar"
+Feature: Build lists what is ready: each title with its estimate below, who codes, the adoption baseline only when named; what is ready to close, with "Aplicar"
 
   @REQ-101 @SCN-301
   Scenario: Build in the desktop app
