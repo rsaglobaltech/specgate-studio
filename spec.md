@@ -46,20 +46,6 @@ Take a project from a brief to proven, built requirements without leaving one fa
 
 | ID | Requirement | Priority | Status |
 |---|---|---|---|
-| REQ-000 | The service reports its own health | Must | Draft |
-
-### REQ-000 — The service reports its own health
-
-<!-- specgate:trace artifact='API /health, smoke test' uc='UC-000 Health baseline' cmd='QRY-000 HealthCheckQuery' -->
-
-The system MUST expose a health endpoint that answers with status 200 and a
-payload naming the service as `UP`, so that a deployment can be checked without
-reading logs.
-
-> The starter requirement, wired end to end: this prose, the row in
-> `docs/specs/traceability.md`, and `features/core/health.feature`. Rewrite it
-> for your own first requirement, or remove all three together —
-> `specgate validate --strict` reports any of them going missing on its own.
 
 ## 9. Non-functional requirements
 | ID | Requirement | Quality attribute | Status |

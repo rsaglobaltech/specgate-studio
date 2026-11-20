@@ -2,7 +2,7 @@
 
 ## Requirements
 
-### Requirement: REQ-101 — Build lists what is ready: each title with its estimate below, who codes, REQ-000 only when named; what is ready to close, with "Aplicar"
+### Requirement: REQ-101 — Build lists what is ready: each title with its estimate below, who codes, the adoption baseline only when named; what is ready to close, with "Aplicar"
 
 The system SHALL list in Build every requirement ready to build — approved, with its scenario and no open question blocking it — each with its id, its title on the row's full width, wrapped and never cut to nothing, its estimate on a line below the title, and the agent that will code it, with no horizontal scroll; SHALL say for each one left out why it is not ready; SHALL leave out REQ-000, the adoption baseline, unless the Developer names it; and SHALL list apart, under "Listos para cerrar" / "Ready to close", every requirement specgate reports as only its status left to update (`NEEDS_STATUS_UPDATE`, "its test is in place"), each with an "Aplicar" / "Apply" button and its "?", the button running `specgate apply <REQ>` in the terminal with its notice.
 

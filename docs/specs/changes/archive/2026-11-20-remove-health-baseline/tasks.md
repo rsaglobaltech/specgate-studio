@@ -10,7 +10,7 @@
 
 ## 2. Archive (on review)
 
-- [ ] 2.1 REQ-000 — `specgate archive remove-health-baseline` drops its row from
+- [x] 2.1 REQ-000 — `specgate archive remove-health-baseline` drops its row from
       `docs/specs/traceability.md`. REQ-000 lives in the root `spec.md`, not in a
       capability, so the archive does not reach it: in the same commit, remove
       its row from section 8 and its `### REQ-000` block from `spec.md`, and
