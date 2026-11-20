@@ -130,7 +130,7 @@ The system SHALL check for a newer release when it starts and offer it; it SHALL
 
 ### Requirement: REQ-157 — Idle memory under 200 MB; installer under 80 MB
 
-<!-- specgate:trace actor=Developer kind=non-functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=non-functional -->
 
 The system SHALL use under 200 MB of memory while idle with one project open, counting the window, its webview processes and the sidecar, and SHALL ship each installer under 80 MB.
 
