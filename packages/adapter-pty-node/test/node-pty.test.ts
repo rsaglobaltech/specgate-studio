@@ -22,7 +22,7 @@ const WIN = process.platform === "win32";
 const outputLines = (text: string) =>
   text
     // eslint-disable-next-line no-control-regex
-    .replace(/\x1b\][^\x07]*\x07|\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b[@-_]/g, "")
+    .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b[@-_]/g, "")
     .split(/\r?\n/)
     .map((l) => l.trim());
 
