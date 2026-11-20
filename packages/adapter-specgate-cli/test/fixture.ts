@@ -104,7 +104,9 @@ export function snapshot(dir: string): Map<string, Buffer> {
 export function withClaude(found: boolean): { restore: () => void } {
   const key = Object.keys(process.env).find((k) => k.toUpperCase() === "PATH") ?? "PATH";
   const before = process.env[key] ?? "";
-  const names = ["claude", "claude.cmd", "claude.exe"];
+  // specgate 1.4 picks Codex too when Claude Code is missing (its REQ-596):
+  // every agent it looks for is hidden, so only the fake claude can be found.
+  const names = ["claude", "claude.cmd", "claude.exe", "codex", "codex.cmd", "codex.exe"];
   const kept = before
     .split(path.delimiter)
     .filter((d) => d && !names.some((n) => fs.existsSync(path.join(d, n))));

@@ -17,12 +17,13 @@ import { HelpButton, type HelpRequest } from "../Help.js";
 type Tr = (k: string, v?: Record<string, string | number>) => string;
 
 const SCOPES: readonly SettingScope[] = ["project", "user"];
-/** The nine sections in the order Settings shows them (REQ-143); the host answers in this order too. */
+/** The ten sections in the order Settings shows them (REQ-143, REQ-223); the host answers in this order too. */
 const SECTIONS: readonly SettingSection[] = [
   "agents",
   "preferences",
   "guards",
   "quality",
+  "gate",
   "alm",
   "editor",
   "terminal",
@@ -34,6 +35,7 @@ const SCOPE_OF: Record<SettingSection, SettingScope> = {
   preferences: "project",
   guards: "project",
   quality: "project",
+  gate: "project",
   alm: "project",
   editor: "user",
   terminal: "user",
@@ -72,7 +74,7 @@ type Help = (a: HelpRequest["action"], feature: string, vars?: HelpRequest["vars
 
 /**
  * Settings as the Ajustes board draws it (draft-settings REQ-141 … REQ-143):
- * the nine sections down the side; a search, the two scopes Project and User,
+ * the ten sections down the side; a search, the two scopes Project and User,
  * and the "?" above; each setting with its name, where it is kept and its
  * control. A project setting names the `specgate config set` that saves it and
  * its file, and is saved only by it; a refusal shows specgate's code and fix.

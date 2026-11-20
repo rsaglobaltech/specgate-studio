@@ -49,7 +49,12 @@ export interface ProjectHostOptions {
   onPath?: (program: string) => boolean;
   /** The session tokens this host answers to (draft-desktop A2); a project it opens gets one of its own. */
   tokens?: readonly string[];
+  /** Whose version is checked at start (REQ-013, REQ-222); the specgate the studio runs when not given. */
+  specgateVersion?: Pick<SpecgatePort, "version">;
 }
+
+/** The specgate the studio needs: its package depends on `^` this (specgate-1-4-gate REQ-222). */
+export const SPECGATE_NEEDS = "1.4.0";
 
 /** A folder that is not a specgate project reads nothing, and no specgate runs for it (REQ-021). */
 const NOT_A_PROJECT: SectionReader = {
@@ -107,6 +112,9 @@ export async function startProjectHost(
   const host = await startHost({
     projectDir,
     reader,
+    // The installed specgate checked before anything is read (REQ-013, REQ-222).
+    specgate: options.specgateVersion ?? cli,
+    needs: SPECGATE_NEEDS,
     runner: new NodeProcessRunner({
       program: process.execPath,
       prefix: [specgateBin()],

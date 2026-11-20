@@ -108,6 +108,8 @@ export interface StudioOptions {
   locks?: HostLocks;
   /** Measure mode: the page writes its cold start to this file (REQ-035 SCN-099). */
   measure?: string;
+  /** What `specgate check` exits with: 0, a green gate, by default (specgate-1-4-gate REQ-224). */
+  checkExit?: number;
 }
 
 export async function studio(opts: StudioOptions = {}) {
@@ -191,7 +193,7 @@ export async function studio(opts: StudioOptions = {}) {
         }
       }
       onOutput("✔ Specification\n✔ Tests\n");
-      return 0;
+      return args[0] === "check" ? (opts.checkExit ?? 0) : 0;
     },
   };
   const disk: Record<string, string> = opts.files ?? {

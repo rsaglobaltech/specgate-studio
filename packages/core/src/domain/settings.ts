@@ -8,18 +8,20 @@ import type { Lang } from "./help.js";
  * saved only by `specgate config set` (REQ-142). A user setting is the
  * studio's, kept in the Developer's own settings file (A2). Names and
  * descriptions in English and Spanish: the search reads the studio's
- * language (A4). Pure.
+ * language (A4). Ten sections since specgate 1.4: Gate, its policy
+ * (specgate-1-4-gate REQ-223). Pure.
  */
 
 export type SettingScope = "project" | "user";
 export const SCOPES: readonly SettingScope[] = ["project", "user"];
 
-/** The nine sections, in the order Settings shows them (REQ-143). */
+/** The ten sections, in the order Settings shows them (REQ-143, REQ-223). */
 export const SETTING_SECTIONS = [
   "agents",
   "preferences",
   "guards",
   "quality",
+  "gate",
   "alm",
   "editor",
   "terminal",
@@ -33,6 +35,7 @@ export const SECTION_NAMES: Record<SettingSection, Record<Lang, string>> = {
   preferences: { en: "Preferences", es: "Preferencias del proyecto" },
   guards: { en: "Agent guards", es: "Protecciones del agente" },
   quality: { en: "Quality", es: "Calidad" },
+  gate: { en: "Gate", es: "Gate" },
   alm: { en: "ALM", es: "ALM" },
   editor: { en: "Editor", es: "Editor" },
   terminal: { en: "Terminal", es: "Terminal" },
@@ -46,6 +49,7 @@ export const SECTION_SCOPE: Record<SettingSection, SettingScope> = {
   preferences: "project",
   guards: "project",
   quality: "project",
+  gate: "project",
   alm: "project",
   editor: "user",
   terminal: "user",
@@ -121,6 +125,61 @@ const w = (en: string, es: string, den: string, des: string): Words => ({
  * here, shows under its own name with specgate's description.
  */
 const PROJECT_WORDS: Record<string, Words> = {
+  // The gate's policy, .specgate/gate.yaml (specgate 1.4; specgate-1-4-gate REQ-223).
+  "gate.preset": w(
+    "Preset",
+    "Preset",
+    "How strict the gate starts: minimal, standard or strict; each rule below overrides it. With no .specgate/gate.yaml, strict.",
+    "Lo estricto que empieza el gate: minimal, standard o strict; cada regla de abajo lo sobrescribe. Sin .specgate/gate.yaml, strict.",
+  ),
+  "gate.rules.tdd": w(
+    "Test for each delivered requirement",
+    "Test por cada requisito entregado",
+    "Whether the gate fails (error), reports (warning) or skips (off) its check that a delivered requirement has a test that names it (--strict-tdd).",
+    "Si el gate falla (error), avisa (warning) o se salta (off) su comprobación de que un requisito entregado tiene un test que lo nombra (--strict-tdd).",
+  ),
+  "gate.rules.scenarios": w(
+    "Scenarios that can fail",
+    "Escenarios que pueden fallar",
+    "Whether the gate fails (error), reports (warning) or skips (off) its check that every scenario can fail: real steps, capitalised keywords (--strict-scenarios).",
+    "Si el gate falla (error), avisa (warning) o se salta (off) su comprobación de que todo escenario puede fallar: pasos reales, palabras clave en mayúscula (--strict-scenarios).",
+  ),
+  "gate.rules.requirements": w(
+    "Requirements that state an obligation",
+    "Requisitos que expresan una obligación",
+    "Whether the gate fails (error), reports (warning) or skips (off) its check that every requirement states an obligation, not the sentence Specgate wrote (--strict-requirements).",
+    "Si el gate falla (error), avisa (warning) o se salta (off) su comprobación de que todo requisito expresa una obligación, no la frase que escribió Specgate (--strict-requirements).",
+  ),
+  "gate.rules.links": w(
+    "Links",
+    "Enlaces",
+    "Whether the gate fails (error), reports (warning) or skips (off) its check that every path the matrix declares exists (--strict-links).",
+    "Si el gate falla (error), avisa (warning) o se salta (off) su comprobación de que existe cada ruta que declara la matriz (--strict-links).",
+  ),
+  "gate.rules.coverage": w(
+    "Coverage",
+    "Cobertura",
+    "Whether the gate fails (error), reports (warning) or skips (off) its check that every scenario of a declared feature file is named by a test (--strict-coverage).",
+    "Si el gate falla (error), avisa (warning) o se salta (off) su comprobación de que un test nombra cada escenario de un feature declarado (--strict-coverage).",
+  ),
+  "gate.rules.ids": w(
+    "Requirement ids",
+    "Ids de requisito",
+    "Whether the gate fails (error), reports (warning) or skips (off) its check that no requirement id means something else on the base branch.",
+    "Si el gate falla (error), avisa (warning) o se salta (off) su comprobación de que ningún id de requisito significa otra cosa en la rama base.",
+  ),
+  "gate.rules.quality": w(
+    "Quality checks",
+    "Comprobaciones de calidad",
+    "Whether the gate fails (error), reports (warning) or skips (off) its check that the quality checks of harness.config.yaml pass.",
+    "Si el gate falla (error), avisa (warning) o se salta (off) su comprobación de que pasan las comprobaciones de calidad de harness.config.yaml.",
+  ),
+  "gate.enforce_from": w(
+    "Enforced from",
+    "Se exige desde",
+    "A date, YYYY-MM-DD: until then every error of the gate is reported as a warning.",
+    "Una fecha, AAAA-MM-DD: hasta entonces cada error del gate se avisa como warning.",
+  ),
   agent: w(
     "Who builds by default",
     "Quién programa por defecto",
@@ -419,6 +478,7 @@ export function sectionOfKey(key: string): SettingSection {
     key.startsWith("checks.")
   )
     return "quality";
+  if (key.startsWith("gate.")) return "gate";
   if (key.startsWith("alm.")) return "alm";
   return "preferences";
 }

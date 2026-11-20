@@ -51,6 +51,14 @@ export {
   type Tracked,
 } from "./application/Commands.js";
 export type { Finding } from "./domain/finding.js";
+export {
+  GATE_POLICY_FILE,
+  GATE_RULES,
+  gateResultOf,
+  policyLine,
+  type GateResult,
+  type ReportedRule,
+} from "./domain/gatePolicy.js";
 export type { SpecgatePort, SpecgateAnswer } from "./ports/SpecgatePort.js";
 export { isOlder, updateCommand } from "./domain/version.js";
 export { checkSpecgate, type SpecgateCheck } from "./application/checkSpecgate.js";

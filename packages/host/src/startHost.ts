@@ -43,6 +43,7 @@ import { attachChanges, type ChangesWiring } from "./changes.js";
 import { attachSetup, type SetupWiring } from "./setup.js";
 import { attachBuilds, type BuildsWiring } from "./builds.js";
 import { attachBrief, type BriefWiring } from "./brief.js";
+import { attachGate } from "./gate.js";
 import { attachAgent, type AgentWiring } from "./agent.js";
 import { attachExplorer } from "./explorer.js";
 import { attachTraceability } from "./traceability.js";
@@ -279,8 +280,18 @@ export async function startHost(given: HostOptions): Promise<Host> {
       )
     : null;
 
+  // The gate under its policy, read when Check ends (specgate-1-4-gate REQ-224, REQ-225).
+  const homeSpecgate =
+    options.builds?.specgate ?? options.changes?.specgate ?? options.brief?.specgate;
+  const gate = homeSpecgate ? attachGate(homeSpecgate) : null;
+  // Problems lists the brief's findings, then the gate's (REQ-072, REQ-224).
+  const problems = () => [...(brief?.findings() ?? []), ...(gate?.last()?.problems() ?? [])];
+  const withGate: typeof broadcast = (method, params) =>
+    method === "problems.changed"
+      ? broadcast("problems.changed", { findings: problems() })
+      : broadcast(method, params);
   const brief = options.brief
-    ? attachBrief(options.brief, commands, broadcast, (p) => state.fileChanged(p))
+    ? attachBrief(options.brief, commands, withGate, (p) => state.fileChanged(p))
     : null;
   // The agent panel: plans specgate makes and writes, never the studio (REQ-181 … REQ-183).
   const agent = options.agent
@@ -315,10 +326,9 @@ export async function startHost(given: HostOptions): Promise<Host> {
     : null;
 
   // Home's next step, route, cost and activity (draft-design-conformance REQ-173).
-  const homeSpecgate =
-    options.builds?.specgate ?? options.changes?.specgate ?? options.brief?.specgate;
   const home = attachHome(options.projectDir, {
     state,
+    ...(gate ? { gate: () => gate.last() } : {}),
     ...(options.files ? { files: options.files } : {}),
     ...(homeSpecgate ? { specgate: homeSpecgate } : {}),
     ...(options.workspace?.git ? { git: options.workspace.git } : {}),
@@ -420,7 +430,14 @@ export async function startHost(given: HostOptions): Promise<Host> {
         };
       const result = await commands.run(params as SpecgateCommand);
       // A gate run is kept by specgate: Report reads it again (draft-report REQ-132).
-      if ((params as SpecgateCommand).name === "check") forget();
+      if ((params as SpecgateCommand).name === "check") {
+        forget();
+        // What the gate found under its policy, in Problems (specgate-1-4-gate REQ-224).
+        if (gate) {
+          await gate.refresh();
+          broadcast("problems.changed", { findings: problems() });
+        }
+      }
       // What it wrote feeds sections: read them again now, not when the watcher says.
       if (result.ok)
         for (const f of result.written) await state.fileChanged(f).catch(() => undefined);
@@ -551,6 +568,8 @@ export async function startHost(given: HostOptions): Promise<Host> {
     ...setup?.handlers,
     ...builds?.handlers,
     ...brief?.handlers,
+    // The brief's findings and the gate's (REQ-072, REQ-224).
+    "problems.get": async () => problems(),
     ...agent?.handlers,
     ...traceability?.handlers,
     ...explorer?.handlers,

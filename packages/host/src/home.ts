@@ -4,6 +4,8 @@ import {
   agentUsageOf,
   briefModuleNames,
   groupChanges,
+  policyLine,
+  type GateResult,
   nextStep,
   routeOf,
   type GitPort,
@@ -20,6 +22,8 @@ export interface HomeWiring {
   /** specgate's `--json` answers: the changes to review, the brief's modules, the agent's cost. */
   specgate?: Pick<SpecgatePort, "call">;
   git?: Pick<GitPort, "log">;
+  /** The gate's last result under its policy (specgate-1-4-gate REQ-225, REQ-226). */
+  gate?: () => GateResult | null;
 }
 
 /**
@@ -53,12 +57,19 @@ export function attachHome(
       )
         .map((c) => c.id)
         .filter((id): id is string => typeof id === "string");
-      const [shows, report, commits, files] = await Promise.all([
+      const [shows, report, commits, files, config] = await Promise.all([
         Promise.all(ids.map(async (id) => [id, await call(["change", "show", id])] as const)),
         call(["harness", "report"]),
         wiring.git?.log ? wiring.git.log(projectDir, 30).catch(() => null) : null,
         wiring.files ? wiring.files.list().catch((): string[] => []) : ([] as string[]),
+        // The policy in force (specgate-1-4-gate REQ-226): the values `config list` gives.
+        call(["config", "list"]),
       ]);
+      const policy = policyLine(
+        (config as { config?: Record<string, unknown> } | null)?.config,
+        new Date().toISOString().slice(0, 10),
+      );
+      const last = wiring.gate?.() ?? null;
       const review = groupChanges(changes, status, Object.fromEntries(shows)).groups.review.map(
         (c) => c.id,
       );
@@ -88,6 +99,7 @@ export function attachHome(
         }),
         cost: agentCostOf(report),
         usage: agentUsageOf(report),
+        gate: { policy, passed: last ? last.passed : null, invalid: last?.invalid ?? null },
         activity: activityOf(commits ?? []),
       };
     },

@@ -28,6 +28,8 @@ export interface HomeProps {
   onCheck: () => void;
   /** The gate is running: Check reads "Checking…" and cannot be pressed twice (REQ-178, A19). */
   checking?: boolean;
+  /** Opens a file of the project in the editor: the gate's policy when specgate cannot read it (REQ-225). */
+  onOpenFile?: (path: string) => void;
   onDoctor: () => void;
   onFromTicket: () => void;
   onOpenTerminal: () => void;
@@ -82,7 +84,8 @@ export function Home(p: HomeProps) {
     return () => {
       live = false;
     };
-  }, [p.rpc, p.stamp]);
+    // Read again when a Check ends: the gate's result and its policy (specgate-1-4-gate REQ-225, REQ-226).
+  }, [p.rpc, p.stamp, p.checking]);
 
   const next = view?.next ?? null;
   const modules = modulesOf(p.requirements, p.report, { unapproved: p.unapproved });
@@ -241,6 +244,25 @@ export function Home(p: HomeProps) {
         </section>
       </div>
 
+      {view?.gate?.invalid && (
+        <div class="gate-invalid" role="alert" data-code="gate_policy_invalid">
+          <b>{tr("home.policyInvalid")}</b>
+          <span>{view.gate.invalid.message}</span>
+          {view.gate.invalid.fix && (
+            <span class="muted">
+              {tr("home.fix")}: {view.gate.invalid.fix}
+            </span>
+          )}
+          <button
+            type="button"
+            class="btn"
+            data-act="open-policy"
+            onClick={() => p.onOpenFile?.(view.gate!.invalid!.file ?? ".specgate/gate.yaml")}
+          >
+            {tr("home.openPolicy")}
+          </button>
+        </div>
+      )}
       <div class="actions" aria-label={tr("home.actions")}>
         <button
           type="button"
@@ -265,6 +287,11 @@ export function Home(p: HomeProps) {
             })
           }
         />
+        {view?.gate?.policy && (
+          <span class="muted mono gate-policy" data-policy>
+            {tr("home.policy", { policy: view.gate.policy })}
+          </span>
+        )}
         <button type="button" class="btn" data-act="doctor" onClick={p.onDoctor}>
           {tr("home.doctor")}
         </button>

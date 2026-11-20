@@ -14,4 +14,8 @@ export interface Finding {
   /** Where it is, relative to the project, when specgate says (draft-editor REQ-043). */
   file?: string;
   line?: number;
+  /** Which check found it, when Problems lists more than one (specgate-1-4-gate REQ-224). */
+  source?: "brief" | "gate";
+  /** A finding the gate's policy reports without failing: its rule, specgate's reason and fix (REQ-224). */
+  reported?: { rule: string; reason: string; fix?: string };
 }

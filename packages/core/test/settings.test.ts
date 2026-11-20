@@ -1,7 +1,7 @@
 /**
  * draft-settings REQ-141 … REQ-143: the settings editor as the core answers
  * it — the project's settings from specgate's catalog (`config keys --json`,
- * fixtures/config-keys-0.34.json as specgate 0.34.0 answers it) and the values
+ * fixtures/config-keys-1.4.json as specgate 1.4.2 answers it) and the values
  * set (`config list --json` with `files`), the user's in the Developer's own
  * file; nine sections, two scopes, a search in the studio's language.
  */
@@ -31,8 +31,8 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const KEYS = JSON.parse(
   fs.readFileSync(
     [
-      path.join(HERE, "fixtures", "config-keys-0.34.json"),
-      path.join(HERE, "..", "..", "test", "fixtures", "config-keys-0.34.json"),
+      path.join(HERE, "fixtures", "config-keys-1.4.json"),
+      path.join(HERE, "..", "..", "test", "fixtures", "config-keys-1.4.json"),
     ].find((p) => fs.existsSync(p))!,
     "utf8",
   ),
@@ -287,7 +287,7 @@ test("REQ-142: a key that is no specgate key, or a value with a NUL, is refused 
 
 // ── REQ-143 ─────────────────────────────────────────────────────────────
 
-test("REQ-143 SCN-425: nine sections in order; Agents and profiles holds the agent and the profiles claude-sonnet and claude-opus", async () => {
+test("REQ-143 SCN-425: ten sections in order; Agents and profiles holds the agent and the profiles claude-sonnet and claude-opus", async () => {
   assert.deepEqual(
     SETTING_SECTIONS.map((s) => SECTION_NAMES[s].en),
     [
@@ -295,6 +295,7 @@ test("REQ-143 SCN-425: nine sections in order; Agents and profiles holds the age
       "Preferences",
       "Agent guards",
       "Quality",
+      "Gate",
       "ALM",
       "Editor",
       "Terminal",

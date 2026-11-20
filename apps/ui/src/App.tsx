@@ -1374,6 +1374,7 @@ export function App({ rpc }: { rpc: Rpc }) {
                           }
                           onDoctor={() => void runCommand(tr("home.doctor"), { name: "doctor" })}
                           checking={gate === "running"}
+                          onOpenFile={openFile}
                           onFromTicket={() => (show("changes"), setTicketPanel(true))}
                           onOpenTerminal={() => {
                             setPanel({ open: true, tab: "terminal" });
