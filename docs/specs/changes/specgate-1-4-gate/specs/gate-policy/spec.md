@@ -24,7 +24,7 @@ The system SHALL depend on specgate `^1.4.0` and SHALL, when a project's host st
 
 ### Requirement: REQ-223 — The gate's policy in Settings: preset, rules and the date
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL show in Settings a project section "Gate" / "Gate" — after Quality — holding `gate.preset` (minimal, standard, strict), one row per rule of `gate.rules` (tdd, scenarios, requirements, links, coverage, ids, quality) with its three levels (error, warning, off), and `gate.enforce_from` (a date, YYYY-MM-DD), each with a name and description in English and Spanish, its value from `config list --json`, its default from `config keys --json` and its file `.specgate/gate.yaml`; and SHALL save each one only through `specgate config set`, showing a refusal (`config_value_invalid`) on the row as every other setting shows its own.
 

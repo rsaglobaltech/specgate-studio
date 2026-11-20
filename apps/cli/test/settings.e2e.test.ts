@@ -1,7 +1,7 @@
 /**
  * draft-settings in a real browser: `specgate-studio serve` with the UI
  * bundle, the host fed by fakes (REQ-141 … REQ-143). specgate's answers are
- * 0.34.0's: `config keys --json` (fixtures/config-keys-0.34.json), `config
+ * 1.4.2's: `config keys --json` (fixtures/config-keys-1.4.json), `config
  * list --json` and `config set --json` with `files`. The desktop scenarios run
  * the same bundle in the desktop app's webview (A11).
  */
@@ -11,7 +11,7 @@ import type { SpecgateAnswer } from "@specgate-studio/core";
 import { close, open, studio, type Page, type StudioOptions } from "./support.js";
 import { coreFixture } from "./fixtures.js";
 
-const KEYS = coreFixture("config-keys-0.34.json") as { keys: unknown[] };
+const KEYS = coreFixture("config-keys-1.4.json") as { keys: unknown[] };
 
 /** The file specgate keeps each of sprich's settings in (specgate 0.34, REQ-505). */
 const FILE: Record<string, string> = {
@@ -20,7 +20,12 @@ const FILE: Record<string, string> = {
   "alm.token_env": "alm.config.yaml",
 };
 const fileOf = (key: string) =>
-  FILE[key] ?? (key.startsWith("profiles.") ? ".harness/profiles.yaml" : "harness.config.yaml");
+  FILE[key] ??
+  (key.startsWith("profiles.")
+    ? ".harness/profiles.yaml"
+    : key.startsWith("gate.")
+      ? ".specgate/gate.yaml"
+      : "harness.config.yaml");
 
 /**
  * sprich as specgate answers it (A1): `npm test`, the agent, two profiles, the
@@ -42,10 +47,14 @@ function sprich(): {
     "profiles.claude-opus.agent": "claude -p --model opus < {prompt_file}",
     "alm.provider": "jira",
     "alm.token_env": "JIRA_API_TOKEN",
+    // The policy specgate 1.4 writes on adoption (specgate-1-4-gate REQ-223).
+    "gate.preset": "standard",
+    "gate.rules.coverage": "warning",
   };
   const files = {
     "harness.config.yaml":
       'test_cmd: "npm test"\nagent: "claude -p < {prompt_file}"\nquality: "basic"\n',
+    ".specgate/gate.yaml": 'gate.preset: "standard"\ngate.rules.coverage: "warning"\n',
     "spec.md": "# spec.md\n",
   };
   const list = (): SpecgateAnswer => ({
@@ -59,6 +68,19 @@ function sprich(): {
   const set =
     (key: string, value: string) =>
     (_: unknown, disk: Record<string, string>): SpecgateAnswer => {
+      if (key === "gate.enforce_from" && !/^\d{4}-\d{2}-\d{2}$/.test(value))
+        return {
+          data: { config: null },
+          findings: [
+            {
+              severity: "error",
+              code: "config_value_invalid",
+              message: `${value} is not a valid gate.enforce_from.`,
+              fix: "Give a date as YYYY-MM-DD, e.g. 2026-12-15.",
+            },
+          ],
+          exitCode: 2,
+        };
       if (key === "agent" && !value.includes("{prompt_file}"))
         return {
           data: { config: null },
@@ -92,6 +114,8 @@ function sprich(): {
       "config set agent claude -p": set("agent", "claude -p"),
       "config set quality strict": set("quality", "strict"),
       "config set agent_guard off": set("agent_guard", "off"),
+      "config set gate.rules.coverage error": set("gate.rules.coverage", "error"),
+      "config set gate.enforce_from next month": set("gate.enforce_from", "next month"),
     },
   };
 }
@@ -270,7 +294,7 @@ test("REQ-142 SCN-424: an agent without {prompt_file} refused, in the browser �
 
 // ── REQ-143 ─────────────────────────────────────────────────────────────
 
-test("REQ-143 SCN-425: the nine sections, on the desktop — in order, and under Agents and profiles the agent of harness.config.yaml and the profiles claude-sonnet and claude-opus", async () => {
+test("REQ-143 SCN-425: the ten sections, on the desktop — in order, and under Agents and profiles the agent of harness.config.yaml and the profiles claude-sonnet and claude-opus", async () => {
   const { answers, files } = sprich();
   const s = await studio({ specgate: answers, files });
   const page = await open(s);
@@ -283,6 +307,7 @@ test("REQ-143 SCN-425: the nine sections, on the desktop — in order, and under
         "Preferences",
         "Agent guards",
         "Quality",
+        "Gate",
         "ALM",
         "Editor",
         "Terminal",
@@ -418,6 +443,62 @@ test("REQ-143: the editor's font size chosen under User is kept in the user's fi
     await page.waitForSelector('.notice[data-tone="ok"]');
     assert.deepEqual(await s.userSettings.read(), { "editor.fontSize": "16" });
     assert.deepEqual(s.writes, []);
+  } finally {
+    await close(s, page);
+  }
+});
+
+// ── specgate-1-4-gate REQ-223: the gate's policy ────────────────────────
+
+test("REQ-223 SCN-993: coverage raised to error, on the desktop — Gate after Quality, the command and .specgate/gate.yaml, then the file says error", async () => {
+  const { answers, files } = sprich();
+  const s = await studio({ specgate: answers, files });
+  const page = await open(s);
+  try {
+    await openSettings(page);
+    await page.click('.settings .snav .tr[data-section="gate"]');
+    const preset = `[data-section="gate"] ${setting("gate.preset")}`;
+    assert.equal(
+      await page.$eval(`${preset} select`, (e) => (e as HTMLSelectElement).value),
+      "standard",
+    );
+    const row = `[data-section="gate"] ${setting("gate.rules.coverage")}`;
+    assert.equal(await textOf(page, `${row} .setting-name`), "Coverage");
+    assert.equal(
+      await page.$eval(`${row} select`, (e) => (e as HTMLSelectElement).value),
+      "warning",
+    );
+    await page.selectOption(`${row} select`, "error");
+    assert.equal(
+      await textOf(page, `${row} .setting-cmd`),
+      "On save: specgate config set gate.rules.coverage error → .specgate/gate.yaml",
+    );
+    await page.click(`${row} button:has-text("Save")`);
+    await page.waitForSelector('.notice[data-tone="ok"]');
+    assert.ok(s.calls.some((c) => c.join(" ") === "config set gate.rules.coverage error"));
+    assert.match(s.disk[".specgate/gate.yaml"]!, /^gate\.rules\.coverage: "error"$/m);
+    assert.deepEqual(s.writes, []);
+  } finally {
+    await close(s, page);
+  }
+});
+
+test("REQ-223 SCN-994: a date that is no date, in the browser — specgate's refusal with its fix, and .specgate/gate.yaml unchanged", async () => {
+  const { answers, files } = sprich();
+  const s = await studio({ specgate: answers, files });
+  const page = await open(s);
+  try {
+    await openSettings(page);
+    await page.click('.settings .snav .tr[data-section="gate"]');
+    const row = `[data-section="gate"] ${setting("gate.enforce_from")}`;
+    const before = s.disk[".specgate/gate.yaml"];
+    await page.fill(`${row} input`, "next month");
+    await page.click(`${row} button:has-text("Save")`);
+    await page.waitForSelector('.notice[data-tone="refused"]');
+    const notice = await textOf(page, '.notice[data-tone="refused"]');
+    assert.match(notice, /config_value_invalid/);
+    assert.match(notice, /YYYY-MM-DD/);
+    assert.equal(s.disk[".specgate/gate.yaml"], before);
   } finally {
     await close(s, page);
   }

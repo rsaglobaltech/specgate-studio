@@ -6,3 +6,4 @@ skip_specs: false
 retire_capabilities: false
 req_range: [REQ-222, REQ-226]
 approved: 2026-11-20
+based_on: [REQ-143@5cfad45f2674]
