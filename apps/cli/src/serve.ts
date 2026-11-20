@@ -52,6 +52,8 @@ export interface ServeOptions {
   /** 4180 by default (draft-core-host A2); 0 picks a free one. */
   port?: number;
   ui?: string;
+  /** Measure mode: the page's cold start written to this file (REQ-035 SCN-099). */
+  measure?: string;
   /** Fakes for tests; given any of them, the host runs on fakes alone. */
   reader?: SectionReader;
   runner?: ProcessRunner;
@@ -127,6 +129,7 @@ export async function serve(options: ServeOptions): Promise<Host> {
       terminals: { ...terminals, home },
       port,
       ui,
+      ...(options.measure ? { measure: options.measure } : {}),
       folders: { ...folders, none: true },
       ...(options.tokens ? { tokens: options.tokens } : {}),
     });
@@ -161,12 +164,14 @@ export async function serve(options: ServeOptions): Promise<Host> {
       terminals,
       port,
       ui,
+      ...(options.measure ? { measure: options.measure } : {}),
       ...(options.tokens ? { tokens: options.tokens } : {}),
     });
   }
   return startProjectHost(projectDir, {
     port,
     ui,
+    ...(options.measure ? { measure: options.measure } : {}),
     ...(options.tokens ? { tokens: options.tokens } : {}),
     terminals,
     ...(options.home ? { home: options.home } : {}),

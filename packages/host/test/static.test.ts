@@ -142,3 +142,49 @@ test("REQ-001: only the studio's own page may open the WebSocket — another sit
     await host.close();
   }
 });
+
+test("REQ-035 SCN-099: in measure mode the index tells the page to measure, and its cold start is written to the file", async () => {
+  const { parent, dir } = ui();
+  const out = path.join(parent, "cold-start.json");
+  const host = await startHost({
+    projectDir: "/tmp/sprich",
+    reader,
+    runner,
+    port: 0,
+    ui: dir,
+    measure: out,
+  });
+  try {
+    const base = host.url.replace(/^ws/, "http");
+    assert.match(await (await fetch(base)).text(), /<meta name="studio-measure"/);
+    // The assets are served as they are.
+    assert.equal(await (await fetch(`${base}assets/app.js`)).text(), "console.log(1)");
+    const moments = { origin: 1, visible: 2, palette: 3 };
+    const posted = await fetch(`${base}__studio/measure`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(moments),
+    });
+    assert.equal(posted.status, 204);
+    assert.deepEqual(JSON.parse(fs.readFileSync(out, "utf8")), moments);
+    const bad = await fetch(`${base}__studio/measure`, { method: "POST", body: "[1]" });
+    assert.equal(bad.status, 400);
+  } finally {
+    await host.close();
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test("REQ-035 SCN-099: outside measure mode the index is served as built and nothing is written", async () => {
+  const { parent, dir } = ui();
+  const host = await startHost({ projectDir: "/tmp/sprich", reader, runner, port: 0, ui: dir });
+  try {
+    const base = host.url.replace(/^ws/, "http");
+    assert.doesNotMatch(await (await fetch(base)).text(), /studio-measure/);
+    const posted = await fetch(`${base}__studio/measure`, { method: "POST", body: "{}" });
+    assert.equal(posted.status, 404);
+  } finally {
+    await host.close();
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});

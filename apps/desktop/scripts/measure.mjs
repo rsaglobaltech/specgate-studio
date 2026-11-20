@@ -13,6 +13,13 @@
  *     processes and the sidecar with its children — then quits it and checks
  *     no sidecar is left. Fails at 200 MB or more.
  *
+ *   node scripts/measure.mjs --cold-start --project <folder> [--app <path>] [--target <triple>]
+ *     starts the release build on <folder> with STUDIO_MEASURE set: its page,
+ *     as soon as the activity bar shows, presses the palette's shortcut and
+ *     reports both moments (apps/ui/src/measure.ts). Fails unless the window
+ *     shows in under 300 ms and the palette opens in under 1 s, both from the
+ *     launch (draft-workbench REQ-035 SCN-099).
+ *
  * "MB" is 10^6 bytes, the stricter reading. On macOS the webview's processes
  * (com.apple.WebKit.*) are not the app's children: the ones that appear while
  * the app starts are counted as its own, so a browser opening WebKit pages at
@@ -20,6 +27,7 @@
  */
 import { execFileSync, spawn } from "node:child_process";
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -28,6 +36,8 @@ const TARGET_DIR = path.join(DESKTOP, "src-tauri", "target");
 const MB = 1_000_000;
 const INSTALLER_BUDGET = 80 * MB;
 const MEMORY_BUDGET = 200 * MB;
+const VISIBLE_BUDGET_MS = 300;
+const INTERACTIVE_BUDGET_MS = 1000;
 
 function flag(name) {
   return process.argv.includes(`--${name}`);
@@ -173,14 +183,7 @@ async function memory() {
   // Quit as the Developer does, then check nothing of the sidecar is left.
   const sidecars = own.filter(isSidecar).map((p) => p.pid);
   const left = own.filter((p) => p.pid !== app.pid && !isWebKit(p)).map((p) => p.pid);
-  if (process.platform === "darwin") {
-    try {
-      execFileSync("osascript", ["-e", 'quit app "Specgate Studio"']);
-    } catch {
-      app.kill("SIGTERM");
-    }
-  } else app.kill("SIGTERM");
-  await new Promise((r) => (app.exitCode !== null ? r() : app.once("exit", r)));
+  await quit(app);
   await new Promise((r) => setTimeout(r, 4_000));
   const still = processes().filter((p) => left.includes(p.pid));
   console.log(
@@ -191,11 +194,58 @@ async function memory() {
   return within && still.length === 0;
 }
 
+/** Quits the app as the Developer does. */
+async function quit(app) {
+  if (process.platform === "darwin") {
+    try {
+      execFileSync("osascript", ["-e", 'quit app "Specgate Studio"']);
+    } catch {
+      app.kill("SIGTERM");
+    }
+  } else app.kill("SIGTERM");
+  await new Promise((r) => (app.exitCode !== null ? r() : app.once("exit", r)));
+}
+
+async function coldStart() {
+  const project = value("project");
+  if (!project || !fs.existsSync(project))
+    throw new Error("--project <a scratch project folder> is required");
+  const out = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "studio-measure-")), "cold-start.json");
+  const launched = Date.now();
+  const app = spawn(appPath(), [path.resolve(project)], {
+    stdio: "ignore",
+    env: { ...process.env, STUDIO_MEASURE: out },
+  });
+  for (let i = 0; i < 300 && !fs.existsSync(out); i++) await new Promise((r) => setTimeout(r, 50));
+  if (!fs.existsSync(out)) {
+    await quit(app);
+    console.log("OVER the page reported no cold start within 15 s");
+    return false;
+  }
+  const m = JSON.parse(fs.readFileSync(out, "utf8"));
+  await quit(app);
+  fs.rmSync(path.dirname(out), { recursive: true, force: true });
+  const visible = m.visible - launched;
+  const palette = m.palette - launched;
+  const rows = [
+    ["window with the activity bar", visible, VISIBLE_BUDGET_MS],
+    ["command palette open", palette, INTERACTIVE_BUDGET_MS],
+  ];
+  let ok = true;
+  for (const [what, ms, budget] of rows) {
+    ok &&= ms < budget;
+    console.log(`${ms < budget ? "ok  " : "OVER"} ${ms.toFixed(0).padStart(6)} ms  ${what}  (budget ${budget} ms)`);
+  }
+  console.log(`  (the page itself started ${(m.origin - launched).toFixed(0)} ms after the launch)`);
+  return ok;
+}
+
 let ok = true;
 if (flag("sizes")) ok = sizes() && ok;
 if (flag("memory")) ok = (await memory()) && ok;
-if (!flag("sizes") && !flag("memory")) {
-  console.error("say --sizes, --memory, or both");
+if (flag("cold-start")) ok = (await coldStart()) && ok;
+if (!flag("sizes") && !flag("memory") && !flag("cold-start")) {
+  console.error("say --sizes, --memory, --cold-start, or several");
   process.exit(2);
 }
 process.exit(ok ? 0 : 1);
