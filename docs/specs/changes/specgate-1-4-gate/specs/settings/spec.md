@@ -32,4 +32,4 @@ The system SHALL group Settings in ten sections, in this order — Agents and pr
 - WHEN the Developer sets Quality to strict and saves
 - THEN the setting showed its `specgate config set` command and `harness.config.yaml` before saving, and the notice names that command, that file and the next step `specgate check`
 
-<!-- specgate:trace actor=Developer feature=features/settings/REQ-143.feature kind=functional -->
+<!-- specgate:trace status=Implemented feature=features/settings/REQ-143.feature actor=Developer kind=functional -->

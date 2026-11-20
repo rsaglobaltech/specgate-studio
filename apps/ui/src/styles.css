@@ -1442,6 +1442,44 @@ textarea.ask {
   cursor: pointer;
   padding: 0;
 }
+/* The gate's findings, and what its policy only reports (specgate-1-4-gate REQ-224). */
+.problems-group {
+  margin-top: 8px;
+}
+.problems-group h3 {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+}
+.problems-group[data-group="reported"] h3 {
+  color: var(--warn);
+}
+.problems-group [data-reason] {
+  margin: 2px 0 0;
+  font-size: 11px;
+}
+
+/* Home: the policy in force, and a policy specgate cannot read (REQ-225, REQ-226). */
+.gate-policy {
+  align-self: center;
+  font-size: 11px;
+}
+.gate-invalid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin: 8px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--bad);
+  border-radius: 6px;
+}
+.gate-invalid b {
+  color: var(--bad);
+}
+.gate-invalid .btn {
+  margin-left: auto;
+}
 
 /* The Brief view's modules (draft-brief REQ-073). */
 .brief .modules {

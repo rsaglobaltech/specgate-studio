@@ -50,7 +50,7 @@ The system SHALL show in Settings a project section "Gate" / "Gate" — after Qu
 
 ### Requirement: REQ-224 — Findings the policy reports, apart from those that fail
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL list in Problems the findings of the gate's last `validate --strict`, and SHALL, for each rule `validate --strict` reports with `gate_rule_reported`, group that rule's findings under "Reported, not failed" / "Reportado, no falla" with the rule's name, the reason specgate gives and its fix — apart from the findings that fail the gate — and SHALL show the gate as passed when only such findings remain.
 
@@ -70,7 +70,7 @@ The system SHALL list in Problems the findings of the gate's last `validate --st
 
 ### Requirement: REQ-225 — A policy specgate cannot read is shown with each fix
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL, when specgate answers `gate_policy_invalid`, show in Problems and on Home's gate result that `.specgate/gate.yaml` cannot be read, with specgate's message naming every problem and its fix, and an action that opens `.specgate/gate.yaml` in the editor — never a gate that fails with nothing said.
 
@@ -90,7 +90,7 @@ The system SHALL, when specgate answers `gate_policy_invalid`, show in Problems 
 
 ### Requirement: REQ-226 — Home says the policy in force beside the gate's result
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL show on Home, beside the gate's result, the policy in force as `check` prints it — its preset and each rule whose level differs from error, or the date errors are enforced from while it is ahead — read from `config list --json`; and SHALL show no policy line for a project with no `.specgate/gate.yaml`, as before.
 

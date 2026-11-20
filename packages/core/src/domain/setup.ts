@@ -118,6 +118,8 @@ export const ADOPT_FILES: readonly string[] = [
   "docs/specs/adr/README.md",
   // specgate 1.0 writes the project's glossary too (specgate-1-0).
   "docs/specs/glossary.md",
+  // specgate 1.4 writes the gate's policy, preset standard (specgate-1-4-gate).
+  ".specgate/gate.yaml",
 ];
 /** Written when adoption finds areas in the code (REQ-115, A9). */
 export const ADOPTION_AREAS = "docs/specs/adoption.md";

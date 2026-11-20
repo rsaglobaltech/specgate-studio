@@ -8,6 +8,8 @@ import type { Lang } from "../i18n.js";
 const en = {
   "problems.none": "No problem: the brief's last check found nothing.",
   "problems.fix": "Fix",
+  "problems.gate": "The gate's last run",
+  "problems.reported": "Reported, not failed",
   "problems.feature": "The brief's checks",
   "problems.help": "What the brief's checks do",
   "brief.intro":
@@ -55,6 +57,8 @@ const en = {
 const es: Record<keyof typeof en, string> = {
   "problems.none": "Ningún problema: la última comprobación del brief no encontró nada.",
   "problems.fix": "Arreglo",
+  "problems.gate": "La última ejecución del gate",
+  "problems.reported": "Reportado, no falla",
   "problems.feature": "Las comprobaciones del brief",
   "problems.help": "Qué hacen las comprobaciones del brief",
   "brief.intro":

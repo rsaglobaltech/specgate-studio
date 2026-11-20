@@ -1,3 +1,4 @@
+import type { Finding } from "./finding.js";
 /**
  * Home as the boards draw it (draft-design-conformance REQ-173, A8, A9): the
  * next step as a sentence with its reason and its button, the route a
@@ -251,6 +252,12 @@ export interface HomeView {
   /** What the agent spent, as usage (demo-findings REQ-211). */
   usage: AgentUsage | null;
   activity: Activity[];
+  /**
+   * The gate's policy and last result (specgate-1-4-gate REQ-225, REQ-226):
+   * the policy line as `check` prints it, null with no policy file; whether
+   * the last Check passed, null before one; a policy specgate cannot read.
+   */
+  gate?: { policy: string | null; passed: boolean | null; invalid: Finding | null };
 }
 
 /**

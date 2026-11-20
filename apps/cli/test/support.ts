@@ -106,6 +106,8 @@ export interface StudioOptions {
   user?: Record<string, unknown>;
   /** Started as the desktop app's sidecar starts it: its lock written there (draft-desktop REQ-158). */
   locks?: HostLocks;
+  /** What `specgate check` exits with: 0, a green gate, by default (specgate-1-4-gate REQ-224). */
+  checkExit?: number;
 }
 
 export async function studio(opts: StudioOptions = {}) {
@@ -189,7 +191,7 @@ export async function studio(opts: StudioOptions = {}) {
         }
       }
       onOutput("✔ Specification\n✔ Tests\n");
-      return 0;
+      return args[0] === "check" ? (opts.checkExit ?? 0) : 0;
     },
   };
   const disk: Record<string, string> = opts.files ?? {

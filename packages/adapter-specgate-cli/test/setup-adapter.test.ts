@@ -81,7 +81,10 @@ test("REQ-113 SCN-336: no test and no Claude Code — adoption saves neither, as
     assert.deepEqual(preview.settings, { test_cmd: null, agent: null });
     assert.ok(preview.noTest);
     assert.equal(adopt(dir).status, 0);
-    assert.deepEqual(await setup(dir).config(), {});
+    // Neither a test command nor an agent; specgate 1.4 still writes its gate policy and the stack.
+    const saved = await setup(dir).config();
+    assert.equal(saved.test_cmd, undefined);
+    assert.equal(saved.agent, undefined);
     assert.ok(!fs.existsSync(path.join(dir, "harness.config.yaml")));
     for (const f of ADOPT_FILES) assert.ok(fs.existsSync(path.join(dir, f)), f);
   } finally {
