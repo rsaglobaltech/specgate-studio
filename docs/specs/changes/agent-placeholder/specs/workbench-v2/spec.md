@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-232 — The agent's input suggests a question about the project's own draft
 
-<!-- specgate:trace status=Draft actor=Reviewer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Reviewer kind=functional -->
 
 The system SHALL show in the agent's input, while it is empty, "¿Qué falta para aprobar <module>?" / "What is missing to approve <module>?" when the project has exactly one open draft change (`draft-<module>`), naming that module; and "Pregunta sobre la spec…" / "Ask about the spec…" when it has none or more than one. The suggestion SHALL change when the open changes change, and SHALL NOT name a module that is not the project's.
 
