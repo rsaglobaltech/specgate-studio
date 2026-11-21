@@ -313,6 +313,119 @@ test('REQ-074 SCN-219: in the browser, the proposed form shown, "Discard" — do
   }
 });
 
+/** sprich whose agent answers only when the test says, with this answer (brief-paste-progress). */
+function withSlowProposal(answer: SpecgateAnswer) {
+  let release!: () => void;
+  const answered = new Promise<void>((r) => (release = r));
+  const { s } = withForm({
+    "propose --from-brief --brief /scratch/client-brief.md --agent claude -p": async () => {
+      await answered;
+      return answer;
+    },
+  });
+  return { s, release };
+}
+
+async function pasted(page: Page) {
+  await briefView(page);
+  await page.click('[data-action="brief-paste"]');
+  await page.fill("#brief-client", CLIENT);
+  await page.click('[data-action="brief-propose"]');
+  await page.waitForSelector('[data-testid="paste-steps"]');
+}
+
+const stepStates = (page: Page) =>
+  page.$$eval('[data-testid="paste-steps"] [data-step]', (els) =>
+    els.map((e) => [e.getAttribute("data-step"), e.getAttribute("data-state")]),
+  );
+
+test('REQ-235 SCN-1014: in the browser, the proposal under way — the text read-only, a click outside keeps the dialog, the steps with "claude", its seconds and the command', async () => {
+  const { s: made, release } = withSlowProposal({
+    data: { draft: null, form: PROPOSED.form },
+    findings: [],
+    exitCode: 0,
+  });
+  const s = await made;
+  const page = await open(s);
+  try {
+    await pasted(page);
+    assert.equal(
+      await page.$eval("#brief-client", (e) => (e as HTMLTextAreaElement).readOnly),
+      true,
+    );
+    await page.mouse.click(5, 5);
+    await page.keyboard.press("Escape");
+    assert.ok(await page.isVisible('[data-testid="brief-paste"]'), "the dialog stays open");
+    assert.deepEqual(await stepStates(page), [
+      ["file", "done"],
+      ["agent", "now"],
+      ["form", "todo"],
+    ]);
+    await page.waitForSelector('[data-step="agent"] >> text=claude reads it and proposes the form');
+    await page.waitForFunction(() =>
+      document
+        .querySelector('[data-step="agent"] [data-testid="paste-command"]')
+        ?.textContent?.includes("specgate propose --from-brief"),
+    );
+    await page.waitForFunction(
+      () =>
+        Number(
+          document
+            .querySelector('[data-step="agent"] [data-testid="paste-seconds"]')
+            ?.getAttribute("data-seconds"),
+        ) >= 1,
+    );
+    release();
+    await page.waitForSelector('[data-testid="brief-proposal"]');
+    assert.equal(
+      await page.isVisible('[data-testid="brief-paste"]'),
+      false,
+      "closed with the proposal",
+    );
+  } finally {
+    release();
+    await close(s, page);
+  }
+});
+
+test("REQ-235 SCN-1015: on the desktop, specgate refuses with draft_no_front_matter — the agent's step failed with its fix, the text editable again, docs/brief.md unchanged", async () => {
+  const { s: made, release } = withSlowProposal({
+    data: { draft: null },
+    findings: [
+      {
+        severity: "error",
+        code: "draft_no_front_matter",
+        message: "The agent wrote no front matter.",
+        fix: "Give the agent edit permission.",
+      },
+    ],
+    exitCode: 1,
+  });
+  const s = await made;
+  const page = await open(s);
+  try {
+    await pasted(page);
+    release();
+    await page.waitForSelector('[data-step="agent"][data-state="failed"]');
+    assert.equal(
+      (await page.textContent('[data-step="agent"] [data-testid="paste-failure"]'))?.trim(),
+      "The agent wrote no front matter.",
+    );
+    assert.equal(
+      (await page.textContent('[data-step="agent"] [data-testid="paste-fix"]'))?.trim(),
+      "Give the agent edit permission.",
+    );
+    assert.equal(
+      await page.$eval("#brief-client", (e) => (e as HTMLTextAreaElement).readOnly),
+      false,
+    );
+    assert.equal(s.disk["docs/brief.md"], BRIEF);
+  } finally {
+    release();
+    await close(s, page);
+  }
+});
+
 /** sprich whose brief has only its front matter (brief-keep-client-text). */
 function withProposalOn(brief: string) {
   const made = withProposal();

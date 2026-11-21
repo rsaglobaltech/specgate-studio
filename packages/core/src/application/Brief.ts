@@ -45,6 +45,8 @@ export type BriefFormResult =
       code: "form_invalid" | "no_agent" | "no_proposal" | "write_busy" | "failed";
       message: string;
       notice?: Record<Lang, Notice>;
+      /** specgate's errors when it refused to propose the form, with their fix (REQ-235). */
+      findings?: Finding[];
     };
 
 const DISCARDED: Record<Lang, Notice> = {
@@ -152,10 +154,12 @@ export class Brief {
       const command: SpecgateCommand = { name: "brief-propose", file, agent };
       const args = commandLine(command)!.args;
       let proposed: BriefForm | null = null;
+      let refusals: Finding[] = [];
       const run = await track(shown(args), false, async (output): Promise<Tracked> => {
         const answer = await this.specgate.call(args);
         for (const f of answer.findings) output(findingLine(f));
         proposed = briefFormOf(answer.data);
+        refusals = answer.findings.filter((f) => f.severity === "error");
         const refused = !proposed || answer.findings.some((f) => f.severity === "error");
         return {
           exitCode: refused ? answer.exitCode || 1 : 0,
@@ -171,6 +175,7 @@ export class Brief {
           ok: false,
           code: "failed",
           message: "The agent proposed no form: see the terminal.",
+          ...(refusals.length ? { findings: refusals } : {}),
         };
       this.proposal = proposed;
       this.client = text;

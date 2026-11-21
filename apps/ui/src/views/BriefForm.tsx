@@ -1,9 +1,16 @@
 import { useEffect, useState } from "preact/hooks";
-import type { BriefForm, BriefFormResult, BriefFormView, Notice } from "@specgate-studio/protocol";
+import type {
+  BriefForm,
+  BriefFormResult,
+  BriefFormView,
+  CommandEvent,
+  Notice,
+} from "@specgate-studio/protocol";
 import type { Rpc } from "../rpc.js";
 import type { Lang } from "../i18n.js";
 import { HelpButton, type HelpRequest } from "../Help.js";
 import { bt, type BriefKey } from "./briefText.js";
+import { pasteSteps, type PasteFailure, type PasteStep } from "../pasteSteps.js";
 
 export interface BriefFormProps {
   rpc: Rpc;
@@ -38,6 +45,24 @@ export function BriefFormPanel(p: BriefFormProps) {
   const [pasting, setPasting] = useState(false);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  // What the dialog shows while the agent proposes the form (REQ-235).
+  const [seconds, setSeconds] = useState(0);
+  const [running, setRunning] = useState<string | null>(null);
+  const [failure, setFailure] = useState<PasteFailure | null>(null);
+  useEffect(() => {
+    if (!busy) return;
+    const started = Date.now();
+    const tick = setInterval(() => setSeconds(Math.floor((Date.now() - started) / 1000)), 250);
+    return () => clearInterval(tick);
+  }, [busy]);
+  // Listened to while the dialog is open: specgate's run can start before a render marks it busy.
+  useEffect(() => {
+    if (!pasting) return;
+    return p.rpc.on("command.event", (e: CommandEvent) => {
+      if (e.type === "started" && e.command.includes("propose --from-brief --brief"))
+        setRunning(e.command);
+    });
+  }, [pasting, p.rpc]);
   const [unread, setUnread] = useState(false);
 
   const read = () =>
@@ -68,6 +93,9 @@ export function BriefFormPanel(p: BriefFormProps) {
     done(await p.rpc.ask("brief.form.save", { form }));
   };
   const propose = async () => {
+    setSeconds(0);
+    setRunning(null);
+    setFailure(null);
     setBusy(true);
     p.announce(t("form.propose"));
     try {
@@ -75,6 +103,9 @@ export function BriefFormPanel(p: BriefFormProps) {
       if (r.ok) {
         setPasting(false);
         setText("");
+      } else {
+        const f = r.findings?.[0];
+        setFailure({ message: f?.message ?? r.message, fix: f?.fix ?? null });
       }
     } finally {
       setBusy(false);
@@ -318,7 +349,14 @@ export function BriefFormPanel(p: BriefFormProps) {
         </div>
       </div>
       {pasting && (
-        <div class="scrim" onClick={() => !busy && setPasting(false)}>
+        <div
+          class="scrim"
+          onClick={() => !busy && setPasting(false)}
+          // While the agent works the dialog closes by no accident (REQ-235).
+          onKeyDown={(e) => {
+            if (busy && e.key === "Escape") e.stopPropagation();
+          }}
+        >
           <div
             class="help"
             role="dialog"
@@ -335,9 +373,19 @@ export function BriefFormPanel(p: BriefFormProps) {
               class="ask"
               rows={10}
               value={text}
+              readOnly={busy}
               onInput={(e) => setText((e.target as HTMLTextAreaElement).value)}
             />
-            {busy && <p class="muted">{t("form.proposing")}</p>}
+            {(busy || failure) && (
+              <PasteStepsList
+                t={t}
+                steps={pasteSteps(
+                  busy
+                    ? { state: "busy", seconds, command: running }
+                    : { state: "failed", seconds, command: running, failure: failure! },
+                )}
+              />
+            )}
             <div class="actions">
               <button
                 type="button"
@@ -356,5 +404,54 @@ export function BriefFormPanel(p: BriefFormProps) {
         </div>
       )}
     </aside>
+  );
+}
+
+type BriefT = (key: BriefKey, vars?: Record<string, string | number>) => string;
+
+/** The three steps of a proposal under way, or refused (brief-paste-progress REQ-235). */
+function PasteStepsList(p: { t: BriefT; steps: PasteStep[] }) {
+  const { t } = p;
+  const mark: Record<PasteStep["state"], string> = { done: "✓", now: "⧗", todo: "○", failed: "✖" };
+  const label = (s: PasteStep) =>
+    s.key === "file"
+      ? t("paste.file")
+      : s.key === "form"
+        ? t("paste.form")
+        : s.agent
+          ? t("paste.agent", { agent: s.agent })
+          : t("paste.agentAny");
+  return (
+    <ol class="paste-steps" data-testid="paste-steps" aria-live="polite">
+      {p.steps.map((s) => (
+        <li key={s.key} data-step={s.key} data-state={s.state}>
+          <span class="paste-mark" aria-hidden="true">
+            {mark[s.state]}
+          </span>
+          <div>
+            <span>{label(s)}</span>
+            {s.seconds !== null && s.state === "now" && (
+              <span class="muted" data-testid="paste-seconds" data-seconds={s.seconds}>
+                {" · "}
+                {t("paste.seconds", { n: s.seconds })}
+              </span>
+            )}
+            {s.command && <code data-testid="paste-command">{s.command}</code>}
+            {s.failure && (
+              <>
+                <p class="paste-failure" data-testid="paste-failure">
+                  {s.failure.message}
+                </p>
+                {s.failure.fix && (
+                  <p class="muted">
+                    {t("paste.fix")}: <span data-testid="paste-fix">{s.failure.fix}</span>
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        </li>
+      ))}
+    </ol>
   );
 }
