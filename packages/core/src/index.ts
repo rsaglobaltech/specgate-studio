@@ -320,6 +320,7 @@ export type { FoldersPort, ProgramPort } from "./ports/FoldersPort.js";
 /** The agent panel: a plan, its diff, applied or discarded (draft-workbench-v2 REQ-181 … REQ-183). */
 export {
   PLAN_ID,
+  agentModuleOf,
   agentPlanOf,
   appliedOf,
   mentions,

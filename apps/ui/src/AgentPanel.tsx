@@ -178,7 +178,12 @@ export function AgentPanel(props: AgentPanelProps) {
             type="text"
             autocomplete="off"
             data-testid="agent-input"
-            placeholder={tr("agent.placeholder")}
+            // The project's own draft, never the demo's (agent-placeholder REQ-232).
+            placeholder={
+              view?.module
+                ? tr("agent.placeholder", { module: view.module })
+                : tr("agent.placeholderAny")
+            }
             value={text}
             onInput={(ev) => {
               const el = ev.currentTarget;

@@ -32,6 +32,7 @@ export function attachAgent(
   sections: {
     section(s: Section): Promise<SectionData>;
     fileChanged(path: string): Promise<unknown>;
+    onChange?(listener: (sections: Section[]) => void): unknown;
   },
   broadcast: Broadcast,
   files: () => Promise<string[]>,
@@ -43,11 +44,16 @@ export function attachAgent(
     specgate: wiring.specgate,
     project: projectDir,
     ...(store ? { store } : {}),
+    // The module the input suggests asking about (agent-placeholder REQ-232).
+    changes: () => sections.section("changes"),
     onChange: (view) => broadcast("agent.changed", view),
     onWritten: async (paths) => {
       for (const p of paths) await sections.fileChanged(p).catch(() => undefined);
       broadcast("files.changed", { paths });
     },
+  });
+  sections.onChange?.((read) => {
+    if (read.includes("changes")) void agent.changesRead().catch(() => undefined);
   });
   return {
     agent,
