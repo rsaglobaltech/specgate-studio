@@ -157,3 +157,24 @@ export function acceptProposal(current: BriefForm | null, proposed: BriefForm): 
     }),
   };
 }
+
+/**
+ * docs/brief.md with the client's text kept as its body (brief-keep-client-text
+ * REQ-238): the front matter untouched; the text the whole body when there was
+ * none, else after the body and a blank line; unchanged when the body already
+ * holds it (line endings and outer blank lines aside) or the text is empty.
+ */
+export function withClientText(brief: string, text: string): string {
+  const client = text.replace(/\r\n/g, "\n").trim();
+  if (!client) return brief;
+  const fm = /^---\r?\n[\s\S]*?\r?\n---[ \t]*(\r?\n|$)/.exec(brief);
+  const head = fm ? fm[0] : "";
+  const body = brief.slice(head.length);
+  if (body.replace(/\r\n/g, "\n").includes(client)) return brief;
+  const eol = brief.includes("\r\n") ? "\r\n" : "\n";
+  const kept = client.replace(/\n/g, eol) + eol;
+  const withHead = head && !/\n$/.test(head) ? head + eol : head;
+  return body.trim()
+    ? `${withHead}${body.replace(/\s*$/, "")}${eol}${eol}${kept}`
+    : withHead + kept;
+}
