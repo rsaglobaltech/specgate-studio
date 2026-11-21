@@ -30,6 +30,11 @@ export function attachBrief(
   broadcast: Broadcast,
   /** The sections a write of the brief feeds: read again. */
   fileChanged: (path: string) => Promise<unknown> = async () => undefined,
+  /** The project's files: the client's text kept in docs/brief.md once accepted (REQ-238). */
+  files?: {
+    read(path: string): Promise<string>;
+    write?(path: string, text: string): Promise<void>;
+  },
 ): {
   handlers: Record<string, (params: unknown) => Promise<unknown>>;
   /** A file the person saved: the brief's checks run when it is the brief. */
@@ -37,7 +42,7 @@ export function attachBrief(
   /** What the brief's last check found, for the editor's underlines. */
   findings(): Finding[];
 } {
-  const brief = new Brief(commands, wiring.specgate, wiring.scratch);
+  const brief = new Brief(commands, wiring.specgate, wiring.scratch, files);
   /** A write of the form: Problems, and what reads the brief, told (REQ-071, REQ-072). */
   const told = async (r: BriefFormResult) => {
     if (r.ok && r.written.length) {
