@@ -1375,6 +1375,7 @@ export function App({ rpc }: { rpc: Rpc }) {
                           onDoctor={() => void runCommand(tr("home.doctor"), { name: "doctor" })}
                           checking={gate === "running"}
                           onOpenFile={openFile}
+                          onDecideStack={() => setSetup("created")}
                           onFromTicket={() => (show("changes"), setTicketPanel(true))}
                           onOpenTerminal={() => {
                             setPanel({ open: true, tab: "terminal" });
@@ -1965,13 +1966,14 @@ function View(p: ViewProps) {
         return (
           <>
             <h1>{p.project || p.tr("view.home")}</h1>
-            <div class="cards">
-              <div class="card">
-                <div class="k">{p.tr("home.requirements")}</div>
-                <div class="v">{p.total}</div>
-              </div>
-            </div>
-            <AdoptedAreas tr={p.tr} byKind={p.areas.byKind} areas={p.areas.areas} />
+            <AdoptedAreas
+              rpc={p.rpc}
+              tr={p.tr}
+              total={p.total}
+              byKind={p.areas.byKind}
+              areas={p.areas.areas}
+              onDecideStack={() => p.openSetup("created")}
+            />
           </>
         );
       return p.homeView;

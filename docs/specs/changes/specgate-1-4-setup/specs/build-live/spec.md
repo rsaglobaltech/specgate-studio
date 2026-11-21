@@ -44,4 +44,4 @@ The system SHALL list in Build every requirement ready to build — approved, wi
 - WHEN the Developer opens its "?", then presses "Aplicar"
 - THEN the Developer first reads that it runs `specgate apply REQ-142`, then sees the terminal echo "Aplicar REQ-142" · `specgate apply REQ-142`, and its notice
 
-<!-- specgate:trace actor=Developer feature=features/build-live/REQ-101.feature kind=functional -->
+<!-- specgate:trace status=Implemented feature=features/build-live/REQ-101.feature actor=Developer kind=functional -->

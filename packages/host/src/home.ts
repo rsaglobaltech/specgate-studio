@@ -7,7 +7,9 @@ import {
   policyLine,
   type GateResult,
   nextStep,
+  pendingBaseline,
   routeOf,
+  undecidedOf,
   type GitPort,
   type HomeView,
   type ProjectState,
@@ -45,10 +47,12 @@ export function attachHome(
       : null;
   const handlers: Record<string, (params: unknown) => Promise<unknown>> = {
     "home.get": async (): Promise<HomeView> => {
-      const [status, changes, questions] = await Promise.all([
+      const [status, changes, questions, specReport] = await Promise.all([
         wiring.state.section("home").catch(() => null),
         wiring.state.section("changes").catch(() => null),
         wiring.state.section("questions").catch(() => null),
+        // The adoption baseline's feature and title (specgate-1-4-setup REQ-230).
+        wiring.state.section("report").catch(() => null),
       ]);
       const ids = (
         ((changes as { changes?: Array<{ id?: unknown }> } | null)?.changes ?? []) as Array<{
@@ -65,10 +69,15 @@ export function attachHome(
         // The policy in force (specgate-1-4-gate REQ-226): the values `config list` gives.
         call(["config", "list"]),
       ]);
-      const policy = policyLine(
-        (config as { config?: Record<string, unknown> } | null)?.config,
-        new Date().toISOString().slice(0, 10),
+      const values = (config as { config?: Record<string, unknown> } | null)?.config ?? {};
+      // The stack AGENTS.md leaves TBD: decided before Build (specgate-1-4-setup REQ-228).
+      const undecided = undecidedOf(
+        Object.fromEntries(
+          Object.entries(values).filter((e): e is [string, string] => typeof e[1] === "string"),
+        ),
       );
+      const baseline = pendingBaseline(status, specReport);
+      const policy = policyLine(values, new Date().toISOString().slice(0, 10));
       const last = wiring.gate?.() ?? null;
       const review = groupChanges(changes, status, Object.fromEntries(shows)).groups.review.map(
         (c) => c.id,
@@ -87,7 +96,7 @@ export function attachHome(
       ).length;
       const pending = Number((status as { pending?: unknown } | null)?.pending ?? 0) || 0;
       return {
-        next: nextStep(status, questions, review),
+        next: nextStep(status, questions, review, undecided),
         review,
         route: routeOf({
           brief: files.includes("docs/brief.md"),
@@ -95,12 +104,14 @@ export function attachHome(
           undrafted: modules.filter((m) => !drafted(m)).length,
           openQuestions: open,
           toReview: review.length,
-          pending,
+          // The baseline is closed by a test that names it, not built (REQ-230).
+          pending: baseline ? Math.max(0, pending - 1) : pending,
         }),
         cost: agentCostOf(report),
         usage: agentUsageOf(report),
         gate: { policy, passed: last ? last.passed : null, invalid: last?.invalid ?? null },
         activity: activityOf(commits ?? []),
+        baseline,
       };
     },
   };

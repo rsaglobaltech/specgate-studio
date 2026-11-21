@@ -1,0 +1,32 @@
+[
+  {
+    "layer": "discover",
+    "by": {
+      "name": "Full Stack Engineer | Oracle Certified Java Programmer",
+      "email": "alejandrosalas0891@gmail.com"
+    },
+    "role": "product",
+    "hash": "sha256:a4471959263294a64ed2c58675c634167caae38e94b2ae05bd7b9c999976b666",
+    "at": "2026-11-21"
+  },
+  {
+    "layer": "design",
+    "by": {
+      "name": "Full Stack Engineer | Oracle Certified Java Programmer",
+      "email": "alejandrosalas0891@gmail.com"
+    },
+    "role": "architect",
+    "hash": "sha256:ef97e80093d83ac8ca034233ded1c52508b717f464c3bffec473e9d7b4269e08",
+    "at": "2026-11-21"
+  },
+  {
+    "layer": "tasks",
+    "by": {
+      "name": "Full Stack Engineer | Oracle Certified Java Programmer",
+      "email": "alejandrosalas0891@gmail.com"
+    },
+    "role": "developer",
+    "hash": "sha256:46c064a692b2d756716a043d1e82544831d1c178df31116cf0b541ef3b7ad0b2",
+    "at": "2026-11-21"
+  }
+]

@@ -14,6 +14,7 @@ import {
   type Resolution,
   type StopResult,
 } from "../domain/build.js";
+import { baselineOf } from "../domain/baseline.js";
 import { approvalsOf, groupChanges, changeIds } from "../domain/changes.js";
 import {
   foldLive,
@@ -103,12 +104,14 @@ export class Builds {
 
   constructor(private readonly options: BuildsOptions) {}
 
-  /** What Build lists (REQ-101); REQ-000 among it only when `named` names it (A10). */
+  /** What Build lists (REQ-101); the adoption baseline among it only when `named` names it (A10, REQ-230). */
   async list(named: string | null = null): Promise<BuildList> {
-    const [status, changes, questions] = await Promise.all([
+    const [status, changes, questions, specReport] = await Promise.all([
       this.options.sections.section("home"),
       this.options.sections.section("changes"),
       this.options.sections.section("questions").catch(() => null),
+      // The adoption baseline's feature and title (specgate-1-4-setup REQ-230).
+      this.options.sections.section("report").catch(() => null),
     ]);
     const shows: Record<string, unknown> = {};
     const [report, config, plan] = await Promise.all([
@@ -143,6 +146,7 @@ export class Builds {
       questions,
       own,
       named,
+      baselineOf(status, specReport),
     );
   }
 

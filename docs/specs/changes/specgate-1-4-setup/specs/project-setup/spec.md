@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-228 — An undecided stack is something to settle, in the readiness list and on Home
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL add Stack and Testing to the readiness list after setup, each set with the value `AGENTS.md` states or, when specgate answers `TBD` for `stack` or `testing` in `config list --json`, shown as to decide with a field whose save runs `specgate config set stack "<value>"` or `specgate config set testing "<value>"`; and SHALL, while either is `TBD`, make Home's next step "Decide the stack" / "Decide el stack", before Build, saying that the agent stops until it is decided.
 
@@ -30,7 +30,7 @@ The system SHALL add Stack and Testing to the readiness list after setup, each s
 
 ### Requirement: REQ-229 — Stack and testing in Settings
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL show `stack` and `testing` under Preferences in Settings, each with a name and a description in English and Spanish, the file specgate gives (`AGENTS.md`) and its value from `config list --json`, saved only through `specgate config set`.
 
@@ -44,7 +44,7 @@ The system SHALL show `stack` and `testing` under Preferences in Settings, each 
 
 ### Requirement: REQ-230 — Home does not count the baseline of adopted code as work to do
 
-<!-- specgate:trace actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL take as the adoption baseline the requirement tagged in `features/adoption/baseline.feature` whose title is "Preserve existing behaviour" — REQ-001 since specgate 1.4, REQ-000 before — and SHALL leave it out of Home's requirements and to-do counters while it is pending, saying under the counters that the baseline of the existing code is closed by a test that names it; a project adopted with no code, whose baseline is "Build and test the project", SHALL count it as any other requirement.
 
