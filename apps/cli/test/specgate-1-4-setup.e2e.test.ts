@@ -66,6 +66,8 @@ test(
       assert.equal(await text(page, '[data-testid="next-title"]'), "Decide the stack");
       await page.click('[data-testid="next-go"]');
       await page.waitForSelector('[data-ready="stack"]', SLOW);
+      // The project exists: what is ready, not "Create the project".
+      assert.equal(await text(page, "h1"), "What is ready");
       for (const id of ["stack", "testing"]) {
         const row = `[data-ready="${id}"]`;
         assert.equal(await page.getAttribute(row, "data-undecided"), "true", id);

@@ -613,7 +613,16 @@ export function SetupPane(p: SetupProps) {
   const [done, setDone] = useState(p.step === "created");
   return (
     <>
-      <h1>{p.tr(p.step === "adopt" ? "setup.adopt" : "setup.create")}</h1>
+      {/* Opened on what is ready (Home's "Decide it", REQ-228): the project exists, nothing to create. */}
+      <h1>
+        {p.tr(
+          p.step === "created"
+            ? "setup.readyTitle"
+            : p.step === "adopt"
+              ? "setup.adopt"
+              : "setup.create",
+        )}
+      </h1>
       {done ? (
         <>
           <Readiness {...p} />

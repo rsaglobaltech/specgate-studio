@@ -308,6 +308,7 @@ const en = {
     "No agent will be saved: none was found on the PATH. Set one from the readiness list after adoption.",
   "setup.adoptButton": "Adopt",
   "setup.ready": "Ready",
+  "setup.readyTitle": "What is ready",
   "setup.home": "Go to Home",
   "workspace.kind":
     "A specgate workspace: {n} repositories, {stories} stories. Each keeps its own specification and its own gate.",
@@ -875,6 +876,7 @@ const es: Record<MessageKey, string> = {
     "No se guardará un agente: no se encontró ninguno en el PATH. Fija uno desde la lista de preparación tras adoptar.",
   "setup.adoptButton": "Adoptar",
   "setup.ready": "Preparación",
+  "setup.readyTitle": "Qué está listo",
   "setup.home": "Ir a Inicio",
   "workspace.kind":
     "Un workspace de specgate: {n} repositorios, {stories} historias. Cada uno mantiene su propia especificación y su propio gate.",
