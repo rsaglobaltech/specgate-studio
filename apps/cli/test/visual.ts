@@ -89,6 +89,8 @@ export const ALWAYS_COVERED = [
   '[data-testid="panel-shell"]',
   // The status bar's branch: `main` or `master`, as the runner's git names it.
   '[data-testid="status-branch"]',
+  // Settings' User note names the Developer's settings file, in the run's temporary folder.
+  '.settings-scope[data-scope="user"] > .settings-where',
 ];
 
 /**
