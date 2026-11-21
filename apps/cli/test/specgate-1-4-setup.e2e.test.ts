@@ -103,6 +103,8 @@ test(
     const page = await open(s);
     try {
       // SCN-1006: 0 requirements, 0 to do; below, the baseline a test closes.
+      // Home first reads `status`, then the areas adoption found: wait for the adopted Home.
+      await page.waitForSelector('[data-next="specify"]', SLOW);
       await page.waitForSelector('[data-testid="home-baseline"]', SLOW);
       assert.equal(await text(page, ".cards .card .v"), "0");
       assert.match(await text(page, ".cards .card .sub"), /0 to do/);
