@@ -24,6 +24,9 @@ import {
   type BriefForm,
 } from "../domain/briefForm.js";
 
+/** The agent's passes over a draft left with errors, before "Draft the modules" stops (REQ-241). */
+export const FIX_PASSES = 2;
+
 /** What runs the brief's commands: Commands, which tells every run and guards writes. */
 export interface CommandRunner {
   run(command: SpecgateCommand): Promise<RunResult>;
@@ -72,6 +75,8 @@ export type DraftResult =
       drafted: string[];
       /** The module whose draft did not pass: the ones after it did not run. */
       stopped?: string;
+      /** specgate's errors on that module's draft after its fix passes (REQ-241). */
+      findings?: Finding[];
       /** Told when nothing ran; each draft's own notice ends its run. */
       notice?: Record<Lang, Notice>;
     }
@@ -332,14 +337,20 @@ export class Brief {
           };
         }
         this.drafting = shown(line.args);
-        const result = await this.commands.run(command);
-        // Another write runs (an Apply, an Archive): refused, as any write (A7).
-        if (!result.ok)
-          return result.code === "write_busy"
-            ? { ...result, notice: busyNotice(this.drafting, result.message) }
-            : result;
-        const refused = (result.findings ?? []).some((f) => f.severity === "error");
-        if (result.exitCode !== 0 || refused) return { ok: true, drafted, stopped: module };
+        // A draft left with errors gets the agent again, up to FIX_PASSES times (REQ-241).
+        let errors: Finding[] = [];
+        let passed = false;
+        for (let pass = 0; pass <= FIX_PASSES && !passed; pass++) {
+          const result = await this.commands.run(command);
+          // Another write runs (an Apply, an Archive): refused, as any write (A7).
+          if (!result.ok)
+            return result.code === "write_busy"
+              ? { ...result, notice: busyNotice(this.drafting, result.message) }
+              : result;
+          errors = (result.findings ?? []).filter((f) => f.severity === "error");
+          passed = result.exitCode === 0 && errors.length === 0;
+        }
+        if (!passed) return { ok: true, drafted, stopped: module, findings: errors };
         drafted.push(module);
       }
       return { ok: true, drafted };

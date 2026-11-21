@@ -322,6 +322,7 @@ export interface Requests {
   "changes.ticket": { params: { key: string }; result: TicketReview };
   /** "Draft again with N requested changes": the agent, handed the open notes (REQ-083). */
   "changes.redraft": { params: { change: string }; result: RedraftResult };
+  "changes.fix": { params: { change: string }; result: RedraftResult };
   /** What the five questions offer, and the folder's name (draft-project-setup REQ-111). */
   "setup.options": {
     params: Record<string, never>;

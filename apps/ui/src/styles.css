@@ -4446,12 +4446,99 @@ pre.skeleton {
 }
 
 /* The steps of a proposal under way (brief-paste-progress REQ-235). */
-.paste-steps { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; font-size: 13px; }
-.paste-steps li { display: grid; grid-template-columns: 18px 1fr; gap: 6px; align-items: start; }
-.paste-steps li[data-state="todo"] { opacity: 0.55; }
+.paste-steps {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+}
+.paste-steps li {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 6px;
+  align-items: start;
+}
+.paste-steps li[data-state="todo"] {
+  opacity: 0.55;
+}
 .paste-steps li[data-state="failed"] .paste-mark,
-.paste-steps .paste-failure { color: var(--bad); }
-.paste-steps li[data-state="now"] .paste-mark { color: var(--accent); }
-.paste-steps code { display: block; margin-top: 4px; font-size: 11px; white-space: pre-wrap; word-break: break-all; opacity: 0.8; }
-.paste-steps p { margin: 4px 0 0; }
-#brief-client[readonly] { opacity: 0.7; cursor: not-allowed; }
+.paste-steps .paste-failure {
+  color: var(--bad);
+}
+.paste-steps li[data-state="now"] .paste-mark {
+  color: var(--accent);
+}
+.paste-steps code {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  opacity: 0.8;
+}
+.paste-steps p {
+  margin: 4px 0 0;
+}
+#brief-client[readonly] {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* "Draft the modules" as it runs (draft-flow-clarity REQ-241). */
+.drafting {
+  border: 1px solid var(--line, #333);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin: 12px 0;
+}
+.drafting-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.drafting ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}
+.drafting li {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.drafting li[data-state="todo"] {
+  opacity: 0.55;
+}
+.drafting li[data-state="now"] .drafting-mark,
+.drafting li[data-state="fixing"] .drafting-mark {
+  color: var(--accent);
+}
+.drafting li[data-state="done"] .drafting-mark {
+  color: var(--ok, #3fb950);
+}
+.drafting li[data-state="stopped"] .drafting-mark {
+  color: var(--bad);
+}
+
+/* What blocks an approval, and the action under way (draft-flow-clarity REQ-242, REQ-243). */
+.blockers {
+  border-left: 3px solid var(--bad);
+  padding: 6px 10px;
+  margin: 8px 0;
+  font-size: 13px;
+}
+.blockers ul {
+  margin: 4px 0 8px;
+  padding-left: 18px;
+}
+.running {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--accent);
+}

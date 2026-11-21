@@ -1,10 +1,14 @@
-import { useEffect, useState } from "preact/hooks";
-import type { BriefView, Notice } from "@specgate-studio/protocol";
+import { useEffect, useRef, useState } from "preact/hooks";
+import type { BriefView, CommandEvent, DraftResult, Notice } from "@specgate-studio/protocol";
 import type { Rpc } from "../rpc.js";
 import type { Lang } from "../i18n.js";
 import { HelpButton, type HelpRequest } from "../Help.js";
 import { bt } from "./briefText.js";
 import { BriefFormPanel } from "./BriefForm.js";
+import { draftSteps, moduleOfRun, type DraftEnd } from "../draftSteps.js";
+
+/** The agent's fix passes the host runs on a draft with findings (core FIX_PASSES, REQ-241). */
+const FIX_PASSES = 2;
 
 export interface BriefProps {
   rpc: Rpc;
@@ -12,8 +16,10 @@ export interface BriefProps {
   /** What the view is made of: when one changes, the modules are read again. */
   stamp: readonly unknown[];
   openFile: (path: string) => void;
-  /** "Draft the modules": the host drafts each module not drafted yet (REQ-073). */
-  onDraft: (label: string) => void;
+  /** "Draft the modules": the host drafts each module not drafted yet (REQ-073); its result, or null. */
+  onDraft: (label: string) => Promise<DraftResult | null>;
+  /** Opens a view: "See it in Changes" (REQ-241). */
+  onOpen?: (view: "changes") => void;
   onHelp: (feature: string, requests: HelpRequest[]) => void;
   /** Names the button that runs a command, for the terminal's echo (REQ-053). */
   announce: (label: string) => void;
@@ -32,6 +38,44 @@ export function Brief(p: BriefProps) {
     bt(p.lang, key, vars);
   const [view, setView] = useState<BriefView | null>(null);
   const [unreadable, setUnreadable] = useState(false);
+  // "Draft the modules" as it runs (REQ-241): the modules it drafts, the runs started, its end.
+  const [todo, setTodo] = useState<string[] | null>(null);
+  const [started, setStarted] = useState<string[]>([]);
+  const [end, setEnd] = useState<DraftEnd | null>(null);
+  const [seconds, setSeconds] = useState(0);
+  const running = todo !== null && end === null;
+  useEffect(() => {
+    if (!running) return;
+    const at = Date.now();
+    const tick = setInterval(() => setSeconds(Math.floor((Date.now() - at) / 1000)), 250);
+    return () => clearInterval(tick);
+  }, [running]);
+  // Listened to from the start: a draft's run can start before a render marks drafting as running.
+  const collecting = useRef(false);
+  useEffect(
+    () =>
+      p.rpc.on("command.event", (e: CommandEvent) => {
+        const module = e.type === "started" && collecting.current ? moduleOfRun(e.command) : null;
+        if (module) setStarted((s) => [...s, module]);
+      }),
+    [p.rpc],
+  );
+  const draft = async () => {
+    // Pressed again while it runs: the host refuses it (write_busy, REQ-073 SCN-216); the panel stays.
+    if (running) {
+      await p.onDraft(label);
+      return;
+    }
+    const list = view?.modules.filter((m) => !m.drafted).map((m) => m.module) ?? [];
+    setStarted([]);
+    setEnd(null);
+    setSeconds(0);
+    setTodo(list);
+    collecting.current = true;
+    const r = await p.onDraft(label).finally(() => (collecting.current = false));
+    if (r && r.ok) setEnd({ drafted: r.drafted, stopped: r.stopped, findings: r.findings });
+    else setTodo(null);
+  };
 
   useEffect(() => {
     let live = true;
@@ -45,6 +89,8 @@ export function Brief(p: BriefProps) {
   }, [p.rpc, ...p.stamp]);
 
   const label = t("brief.draft");
+  const steps = todo && todo.length > 0 ? draftSteps(todo, started, end) : null;
+  const clock = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
   const next = view?.modules.find((m) => !m.drafted)?.module;
   return (
     <div class="brief-split">
@@ -83,6 +129,47 @@ export function Brief(p: BriefProps) {
             ))}
           </ul>
         )}
+        {steps && (
+          <section class="drafting" data-testid="drafting" aria-live="polite">
+            <div class="drafting-head">
+              <b>{t("drafting.head")}</b>
+              <span class="muted" data-testid="drafting-count">
+                {t("drafting.count", { done: steps.done, total: steps.total })} · {clock}
+              </span>
+            </div>
+            <ol>
+              {steps.rows.map((r) => (
+                <li key={r.module} data-module={r.module} data-state={r.state}>
+                  <span class="drafting-mark" aria-hidden="true">
+                    {{ done: "✓", now: "⧗", fixing: "↻", todo: "○", stopped: "✖" }[r.state]}
+                  </span>
+                  <b class="mono">{r.module}</b>
+                  <span class="muted">
+                    {r.state === "done"
+                      ? t("drafting.done")
+                      : r.state === "now"
+                        ? t("drafting.now", { agent: view?.agent ?? "agent" })
+                        : r.state === "fixing"
+                          ? t("drafting.fixing", { pass: r.pass, passes: FIX_PASSES })
+                          : r.state === "stopped"
+                            ? t("drafting.stopped", { n: r.findings, passes: r.pass })
+                            : t("drafting.todo")}
+                  </span>
+                  {r.state === "stopped" && p.onOpen && (
+                    <button
+                      type="button"
+                      class="btn"
+                      data-action="see-changes"
+                      onClick={() => p.onOpen?.("changes")}
+                    >
+                      {t("drafting.see")}
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ol>
+          </section>
+        )}
         {view && (
           <p class="muted" data-part="agent">
             {view.agent ? t("brief.agent", { agent: view.agent }) : t("brief.noAgent")}
@@ -93,7 +180,7 @@ export function Brief(p: BriefProps) {
             type="button"
             class="btn pri"
             data-action="draft-modules"
-            onClick={() => p.onDraft(label)}
+            onClick={() => void draft()}
           >
             {label}
           </button>

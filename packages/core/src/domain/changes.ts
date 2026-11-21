@@ -18,6 +18,20 @@ export interface ChangeRequirement {
   applied: boolean;
   /** What it still needs, as specgate status says it. */
   needs: string | null;
+  /**
+   * Its next step, from specgate status' category (REQ-243): `build` when it
+   * needs a test, code or both; `answer` when a question blocks it; `apply`
+   * only when its test and code are there; null once Implemented.
+   */
+  next: "build" | "answer" | "apply" | null;
+}
+
+/** What specgate would refuse an approval with (specgate REQ-619), with its fix. */
+export interface ChangeBlocker {
+  code: string;
+  message: string;
+  fix: string | null;
+  target: string | null;
 }
 
 /** One layer of a change as specgate 1.0 approves it (specgate-1-0 REQ-214). */
@@ -49,6 +63,28 @@ export interface ChangeCard {
   review: ChangeReview | null;
   /** Its written layers and their approvals, when specgate waits for them (REQ-214); empty otherwise. */
   layers: LayerState[];
+  /** What blocks its approval, as `change show --json` says (REQ-242); empty when nothing does, or specgate does not say. */
+  blockers: ChangeBlocker[];
+}
+
+/** A requirement's next step from specgate status' category (REQ-243). */
+export function nextStepOf(category: unknown): ChangeRequirement["next"] {
+  if (category === "DONE") return null;
+  if (category === "WAITING_FOR_ANSWER") return "answer";
+  if (category === "NEEDS_STATUS_UPDATE") return "apply";
+  return "build";
+}
+
+/** The blockers of `change show --json` (specgate REQ-619), or none. */
+export function blockersOf(show: unknown): ChangeBlocker[] {
+  const list = (show as { change?: { blockers?: unknown } } | null)?.change?.blockers;
+  return (Array.isArray(list) ? list : []).flatMap((b) => {
+    const x = (b ?? {}) as Record<string, unknown>;
+    const message = str(x.message);
+    return message
+      ? [{ code: str(x.code) ?? "", message, fix: str(x.fix), target: str(x.target) }]
+      : [];
+  });
 }
 
 /** A piece of a requirement's text, marked when a redraft changed it (REQ-082, SCN-244). */
@@ -256,6 +292,7 @@ export function groupChanges(
         title: str(r.title),
         applied: r.category === "DONE",
         needs: str(r.needs),
+        next: nextStepOf(r.category),
       }));
     const toApply = reqs.filter((r) => !r.applied).map((r) => r.id);
     // One specgate could not show is never offered for archive.
@@ -276,6 +313,7 @@ export function groupChanges(
       toApply,
       review: reviewOf(shows[id]),
       layers: gate?.layers ?? [],
+      blockers: blockersOf(shows[id]),
     });
   }
   return { groups };

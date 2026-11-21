@@ -58,6 +58,13 @@ export function attachChanges(
           throw fail("a change id, like draft-pedidos");
         return changes.redraft(change);
       },
+      // "Fix with the agent": a draft specgate would not approve yet (REQ-242).
+      "changes.fix": async (params) => {
+        const change = (params as { change?: unknown } | null)?.change;
+        if (typeof change !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(change))
+          throw fail("a change id, like draft-pedidos");
+        return changes.fix(change);
+      },
     },
     commands: {
       json: wiring.specgate,
