@@ -153,11 +153,28 @@ async function host(dir: string) {
   });
 }
 
+/**
+ * Wait until the core host's matrix holds this scenario's row. On opening,
+ * specgate's `status` and `report` regenerate docs/specs/traceability.md
+ * while `matrix` is read beside them; the host reads the matrix again once
+ * the file settles (REQ-003). Asking before that can meet the first read
+ * without the row — seen once on Ubuntu CI as "No row for SCN-020b."
+ */
+async function rowShown(ui: Awaited<ReturnType<typeof client>>, scenario: string) {
+  for (let i = 0; i < 50; i++) {
+    const view = (await ui.ask<TraceView>("trace.get")).result!;
+    if (view.rows.some((r) => r.scenario === scenario)) return;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  assert.fail(`the matrix never showed ${scenario}`);
+}
+
 test("REQ-121 REQ-123: a real specgate 0.34 — two rows for REQ-020, SCN-020b a gap; Fix writes nothing until confirmed, then specgate links the test to SCN-020b", async () => {
   const { parent, dir, at } = sprich();
   const h = await host(dir);
   const ui = await client(h.url);
   try {
+    await rowShown(ui, "SCN-020b");
     const view = (await ui.ask<TraceView>("trace.get")).result!;
     assert.ok(view.available, JSON.stringify(view));
     const rows = view.rows.filter((r) => r.requirement === "REQ-020");
@@ -208,6 +225,7 @@ test("REQ-123: a real specgate 0.34 asked to complete the test — its plan mode
   const h = await host(dir);
   const ui = await client(h.url);
   try {
+    await rowShown(ui, "SCN-020b");
     const asked = (
       await ui.ask<TraceAgentResult>("trace.ask", { requirement: "REQ-020", scenario: "SCN-020b" })
     ).result!;
