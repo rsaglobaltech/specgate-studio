@@ -2,3 +2,4 @@ harness_version: 1
 test_cmd: "npm test"
 arch_cmd: "npm run arch"
 test_cmd_affected: "npm run build && node scripts/affected-tests.mjs {files}"
+agent: "claude --output-format stream-json --verbose --permission-mode acceptEdits -p < {prompt_file} | specgate harness events --from claude"
