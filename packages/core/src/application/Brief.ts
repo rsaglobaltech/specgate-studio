@@ -219,6 +219,13 @@ export class Brief {
     if (after === before) return;
     await files.write(BRIEF_FILE, after);
     if (!r.written.includes(BRIEF_FILE)) r.written.push(BRIEF_FILE);
+    // Checked again with its body (REQ-072): the check before it said the body was empty.
+    // Read quietly: the notice of Accept stays the one the person sees.
+    const check = await this.read({ name: "brief-check" }).catch(() => null);
+    if (check) {
+      this.checks++;
+      this.findings = posixFindings(check.findings);
+    }
     r.view = await this.form();
   }
 
