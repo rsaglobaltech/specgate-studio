@@ -53,15 +53,16 @@ export function BriefFormPanel(p: BriefFormProps) {
     if (!busy) return;
     const started = Date.now();
     const tick = setInterval(() => setSeconds(Math.floor((Date.now() - started) / 1000)), 250);
-    const off = p.rpc.on("command.event", (e: CommandEvent) => {
+    return () => clearInterval(tick);
+  }, [busy]);
+  // Listened to while the dialog is open: specgate's run can start before a render marks it busy.
+  useEffect(() => {
+    if (!pasting) return;
+    return p.rpc.on("command.event", (e: CommandEvent) => {
       if (e.type === "started" && e.command.includes("propose --from-brief --brief"))
         setRunning(e.command);
     });
-    return () => {
-      clearInterval(tick);
-      off();
-    };
-  }, [busy, p.rpc]);
+  }, [pasting, p.rpc]);
   const [unread, setUnread] = useState(false);
 
   const read = () =>
