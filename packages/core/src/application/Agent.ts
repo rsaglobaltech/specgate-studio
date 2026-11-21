@@ -4,6 +4,7 @@ import type { ActionId, HelpVars, Lang, Notice } from "../domain/help.js";
 import { findingLine } from "../domain/changes.js";
 import { agentProgram, SET_AGENT } from "../domain/build.js";
 import {
+  agentModuleOf,
   agentPlanOf,
   appliedOf,
   validRequest,
@@ -28,6 +29,8 @@ export interface AgentOptions {
   store?: StorePort;
   /** The project, the key its applied plans are kept under. */
   project?: string;
+  /** `change list --json`, as the host holds it: the module the input suggests (REQ-232). */
+  changes?: () => Promise<unknown>;
 }
 
 /** What pressing a button of the panel answers. */
@@ -62,13 +65,17 @@ export class Agent {
 
   /** What the panel shows: the agent, its mode and every request of this session. */
   async view(): Promise<AgentView> {
-    const config = await this.call({ name: "config-list" }).catch(() => null);
+    const [config, changes] = await Promise.all([
+      this.call({ name: "config-list" }).catch(() => null),
+      this.options.changes ? this.options.changes().catch(() => null) : null,
+    ]);
     const command = (config?.data as { config?: { agent?: unknown } } | null)?.config?.agent;
     return {
       agent: typeof command === "string" && command.trim() ? agentProgram(command) : null,
       mode: "spec",
       entries: structuredClone(this.entries),
       setAgent: SET_AGENT,
+      module: agentModuleOf(changes),
     };
   }
 
@@ -242,6 +249,11 @@ export class Agent {
     }
     const all = (await this.options.store.read<Record<string, AppliedPlan[]>>(APPLIED_KEY)) ?? {};
     await this.options.store.write(APPLIED_KEY, { ...all, [key]: list });
+  }
+
+  /** The open changes were read again: the input's suggestion may name another module (REQ-232). */
+  changesRead(): Promise<void> {
+    return this.tell();
   }
 
   private async tell(): Promise<void> {

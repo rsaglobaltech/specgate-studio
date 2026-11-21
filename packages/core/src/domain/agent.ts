@@ -72,6 +72,27 @@ export interface AgentView {
   entries: AgentEntry[];
   /** The command that sets an agent, when none is. */
   setAgent: string;
+  /**
+   * The module of the project's only open draft change (`draft-pagos` →
+   * `pagos`), the one the input's suggestion names; null with none or
+   * several (agent-placeholder REQ-232).
+   */
+  module: string | null;
+}
+
+/**
+ * The module the agent's input suggests asking about (REQ-232): of
+ * `change list --json`, the only change named `draft-<module>`; null when
+ * there is none, or more than one.
+ */
+export function agentModuleOf(list: unknown): string | null {
+  const changes = (list as { changes?: Array<{ id?: unknown }> } | null)?.changes;
+  const modules = (Array.isArray(changes) ? changes : []).flatMap((c) =>
+    typeof c?.id === "string" && c.id.startsWith("draft-") && c.id.length > "draft-".length
+      ? [c.id.slice("draft-".length)]
+      : [],
+  );
+  return modules.length === 1 ? modules[0]! : null;
 }
 
 /** An applied plan's diff, kept in Changes under its change (REQ-182). */
