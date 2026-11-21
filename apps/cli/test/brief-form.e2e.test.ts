@@ -9,7 +9,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { SpecgateAnswer } from "@specgate-studio/core";
-import { close, open, untilTerm, type Page } from "./support.js";
+import { close, open, showPanel, untilTerm, type Page } from "./support.js";
 import { sprich } from "./sprich.js";
 
 const BRIEF = `---
@@ -232,8 +232,9 @@ const PROPOSED = {
   },
 };
 
-function withProposal() {
+function withProposal(extra: Record<string, unknown> = {}) {
   const made = withForm({
+    ...extra,
     "propose --from-brief --brief /scratch/client-brief.md --agent claude -p": {
       data: { draft: null, form: PROPOSED.form },
       findings: [],
@@ -427,8 +428,8 @@ test("REQ-235 SCN-1015: on the desktop, specgate refuses with draft_no_front_mat
 });
 
 /** sprich whose brief has only its front matter (brief-keep-client-text). */
-function withProposalOn(brief: string) {
-  const made = withProposal();
+function withProposalOn(brief: string, extra: Record<string, unknown> = {}) {
+  const made = withProposal(extra);
   return {
     ...made,
     s: made.s.then((s) => {
@@ -468,6 +469,44 @@ test("REQ-238 SCN-1017: on the desktop, the same text accepted twice — the bod
     await page.waitForSelector('.notice[data-tone="ok"]');
     const after = s.disk["docs/brief.md"]!;
     assert.equal(after.split(CLIENT.trim()).length - 1, 1, after);
+  } finally {
+    await close(s, page);
+  }
+});
+
+/** specgate's brief check as it reads the file: B2 while the body is empty. */
+const checkOnDisk = (_: unknown, disk: Record<string, string>) => {
+  const body = (disk["docs/brief.md"] ?? "").replace(/^---[\s\S]*?\n---\n?/, "").trim();
+  return {
+    data: { draft: {} },
+    findings: body
+      ? []
+      : [
+          {
+            severity: "error",
+            code: "B2_empty_brief",
+            message: "The brief below the front matter says nothing yet.",
+            file: "docs/brief.md",
+          },
+        ],
+    exitCode: 0,
+  };
+};
+
+test("REQ-238 REQ-072: the proposal accepted on a brief with no body — checked again once its body is written, Problems has no B2", async () => {
+  const { s: made } = withProposalOn(FRONT, {
+    "propose --from-brief --check --brief docs/brief.md": checkOnDisk,
+  });
+  const s = await made;
+  const page = await open(s);
+  try {
+    await propose(page);
+    await page.click('[data-action="brief-accept"]');
+    await page.waitForSelector('.notice[data-tone="ok"]');
+    await showPanel(page);
+    await page.click('.ptab:has-text("Problems")');
+    await page.waitForSelector('[data-panel="problems"] [data-empty]');
+    assert.equal(await page.$('[data-panel="problems"] [data-code="B2_empty_brief"]'), null);
   } finally {
     await close(s, page);
   }
