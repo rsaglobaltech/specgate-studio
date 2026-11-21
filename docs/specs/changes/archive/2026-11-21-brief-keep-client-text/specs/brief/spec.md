@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-238 — The accepted proposal keeps the client's text in the brief
 
-<!-- specgate:trace status=Draft actor=Developer kind=business-rule -->
+<!-- specgate:trace status=Implemented actor=Developer kind=business-rule -->
 
 The system SHALL, when the Developer accepts the form proposed from the client's text (REQ-074), write into `docs/brief.md` both the proposed front matter and the client's text itself, as the brief's body below the front matter: the whole body when the brief had none, and after the existing body, separated by a blank line, when it had one; and SHALL NOT add the text again when the body already holds it. Discarding the proposal SHALL still write nothing.
 
