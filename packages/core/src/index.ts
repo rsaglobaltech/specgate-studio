@@ -274,6 +274,7 @@ export {
 export {
   acceptProposal,
   briefFormInput,
+  withClientText,
   briefFormOf,
   formFromWire,
   type BriefForm,

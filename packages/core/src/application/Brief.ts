@@ -20,6 +20,7 @@ import {
   briefFormInput,
   briefFormOf,
   formFromWire,
+  withClientText,
   type BriefForm,
 } from "../domain/briefForm.js";
 
@@ -95,12 +96,19 @@ export class Brief {
   private drafting: string | null = null;
   /** What the client's text proposed, until it is accepted or discarded (REQ-074). */
   private proposal: BriefForm | null = null;
+  /** The client's text the proposal came from: kept in the brief once accepted (REQ-238). */
+  private client: string | null = null;
 
   constructor(
     private readonly commands: CommandRunner & Partial<Pick<Commands, "track">>,
     private readonly specgate: Pick<SpecgatePort, "call">,
     /** Files outside the project for what specgate reads from a file (REQ-071, REQ-074). */
     private readonly scratch?: ScratchPort,
+    /** The project's files: the client's text written into docs/brief.md once accepted (REQ-238). */
+    private readonly files?: {
+      read(path: string): Promise<string>;
+      write?(path: string, text: string): Promise<void>;
+    },
   ) {}
 
   /** The brief as a form, read by specgate; and the proposal waiting, if any (REQ-071, REQ-074). */
@@ -170,6 +178,7 @@ export class Brief {
           ...(refusals.length ? { findings: refusals } : {}),
         };
       this.proposal = proposed;
+      this.client = text;
       return { ok: true, view: await this.form(), written: [] };
     } finally {
       await scratch.remove(file).catch(() => undefined);
@@ -183,15 +192,35 @@ export class Brief {
     const current = (await this.form()).form;
     const r = await this.write(acceptProposal(current, this.proposal));
     if (r.ok) {
+      await this.keepClientText(r);
       this.proposal = null;
+      this.client = null;
       r.view.proposal = null;
     }
     return r;
   }
 
+  /**
+   * The client's text below the front matter (REQ-238): specgate's form has
+   * no body, so the studio writes it — into the file the person accepted, and
+   * only when it is not there yet.
+   */
+  private async keepClientText(r: Extract<BriefFormResult, { ok: true }>): Promise<void> {
+    const { client, files } = this;
+    if (!client || !files?.write) return;
+    const before = await files.read(BRIEF_FILE).catch(() => null);
+    if (before === null) return;
+    const after = withClientText(before, client);
+    if (after === before) return;
+    await files.write(BRIEF_FILE, after);
+    if (!r.written.includes(BRIEF_FILE)) r.written.push(BRIEF_FILE);
+    r.view = await this.form();
+  }
+
   /** Discard the proposal (REQ-074): nothing runs, nothing is written. */
   async discard(): Promise<BriefFormResult & { notice?: Record<Lang, Notice> }> {
     this.proposal = null;
+    this.client = null;
     return { ok: true, view: await this.form(), written: [], notice: DISCARDED };
   }
 

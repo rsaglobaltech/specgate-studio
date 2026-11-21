@@ -425,3 +425,50 @@ test("REQ-235 SCN-1015: on the desktop, specgate refuses with draft_no_front_mat
     await close(s, page);
   }
 });
+
+/** sprich whose brief has only its front matter (brief-keep-client-text). */
+function withProposalOn(brief: string) {
+  const made = withProposal();
+  return {
+    ...made,
+    s: made.s.then((s) => {
+      s.disk["docs/brief.md"] = brief;
+      return s;
+    }),
+  };
+}
+
+const FRONT = BRIEF.slice(0, BRIEF.indexOf("---\n", 4) + 4);
+
+test("REQ-238 SCN-1016: in the browser, a brief with no body, the proposal accepted — docs/brief.md has the front matter and the client's text below it", async () => {
+  const { s: made } = withProposalOn(FRONT);
+  const s = await made;
+  const page = await open(s);
+  try {
+    await propose(page);
+    assert.equal(s.disk["docs/brief.md"], FRONT, "nothing written before Accept");
+    await page.click('[data-action="brief-accept"]');
+    await page.waitForSelector('.notice[data-tone="ok"]');
+    const after = s.disk["docs/brief.md"]!;
+    assert.ok(after.startsWith("---\n"), after.slice(0, 80));
+    assert.ok(after.includes(CLIENT.trim()), "the client's text kept");
+    assert.ok(after.indexOf(CLIENT.trim()) > after.indexOf("---\n", 4), "below the front matter");
+  } finally {
+    await close(s, page);
+  }
+});
+
+test("REQ-238 SCN-1017: on the desktop, the same text accepted twice — the body holds it once", async () => {
+  const { s: made } = withProposalOn(`${FRONT}${CLIENT}`);
+  const s = await made;
+  const page = await open(s);
+  try {
+    await propose(page);
+    await page.click('[data-action="brief-accept"]');
+    await page.waitForSelector('.notice[data-tone="ok"]');
+    const after = s.disk["docs/brief.md"]!;
+    assert.equal(after.split(CLIENT.trim()).length - 1, 1, after);
+  } finally {
+    await close(s, page);
+  }
+});

@@ -291,7 +291,7 @@ export async function startHost(given: HostOptions): Promise<Host> {
       ? broadcast("problems.changed", { findings: problems() })
       : broadcast(method, params);
   const brief = options.brief
-    ? attachBrief(options.brief, commands, withGate, (p) => state.fileChanged(p))
+    ? attachBrief(options.brief, commands, withGate, (p) => state.fileChanged(p), options.files)
     : null;
   // The agent panel: plans specgate makes and writes, never the studio (REQ-181 … REQ-183).
   const agent = options.agent
