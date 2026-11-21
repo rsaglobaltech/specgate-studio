@@ -13,4 +13,4 @@
 
 - [x] 2.1 REQ-231 — the comparison, tested on synthetic images (SCN-1008 … SCN-1011)
 - [x] 2.2 REQ-231 — sixteen key screens and their macOS references
-- [ ] 2.3 REQ-231 — the Linux references, from CI's `visual` artifact
+- [x] 2.3 REQ-231 — the Linux references, from CI's `visual` artifact
