@@ -274,12 +274,15 @@ test("REQ-073: only the modules not drafted yet, in the brief's order; one that 
     return drafted("envios");
   });
   const result = await b.brief.draft();
+  // Its draft fails, and so do its two fix passes (REQ-241): then the rest do not run.
   assert.deepEqual(b.calls, [
     "config list",
     "propose --from-brief",
     "propose --from-brief pagos --agent claude -p",
+    "propose --from-brief pagos --agent claude -p",
+    "propose --from-brief pagos --agent claude -p",
   ]);
-  assert.deepEqual(result, { ok: true, drafted: [], stopped: "pagos" });
+  assert.deepEqual(result, { ok: true, drafted: [], stopped: "pagos", findings: [] });
 
   const done = brief((args) =>
     args === "config list" ? config("claude -p") : modules({ pedidos: "ready", pagos: "archived" }),
@@ -362,4 +365,53 @@ test('REQ-073: "Draft the modules" explains itself in English and Spanish', () =
   const es = explain("draft-modules", "es", {});
   assert.equal(es.command, "specgate propose --from-brief <module> --agent <agent>");
   assert.match(es.does, /de uno en uno/);
+});
+
+test("REQ-241 SCN-1018: a draft left with a finding is fixed on the next pass, and drafting goes on", async () => {
+  let pedidos = 0;
+  const b = brief((args) => {
+    if (args === "config list") return config("claude -p");
+    if (args === "propose --from-brief")
+      return modules({ pedidos: "not started", pagos: "not started" });
+    if (args.startsWith("propose --from-brief pedidos")) {
+      pedidos++;
+      return pedidos === 1
+        ? {
+            data: { draft: { module: "pedidos", state: "drafting" } },
+            findings: [
+              { severity: "error", code: "D6_unlisted_value", message: "SCN-031 states 0." },
+            ],
+            exitCode: 1,
+          }
+        : drafted("pedidos");
+    }
+    return drafted("pagos");
+  });
+  const result = await b.brief.draft();
+  assert.deepEqual(result, { ok: true, drafted: ["pedidos", "pagos"] });
+  assert.equal(b.calls.filter((c) => c.startsWith("propose --from-brief pedidos")).length, 2);
+});
+
+test("REQ-241 SCN-1019: still a finding after two fix passes — stopped with it, the next module not drafted", async () => {
+  const finding: Finding = {
+    severity: "error",
+    code: "D6_unlisted_value",
+    message: "SCN-031 states 0.",
+  };
+  const b = brief((args) => {
+    if (args === "config list") return config("claude -p");
+    if (args === "propose --from-brief")
+      return modules({ pedidos: "not started", pagos: "not started" });
+    if (args.startsWith("propose --from-brief pedidos"))
+      return {
+        data: { draft: { module: "pedidos", state: "drafting" } },
+        findings: [finding],
+        exitCode: 1,
+      };
+    return drafted("pagos");
+  });
+  const result = await b.brief.draft();
+  assert.equal(b.calls.filter((c) => c.startsWith("propose --from-brief pedidos")).length, 3);
+  assert.ok(!b.calls.some((c) => c.startsWith("propose --from-brief pagos")));
+  assert.deepEqual(result, { ok: true, drafted: [], stopped: "pedidos", findings: [finding] });
 });

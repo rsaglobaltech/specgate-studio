@@ -98,6 +98,34 @@ export class Changes {
     };
   }
 
+  /**
+   * "Fix with the agent" (REQ-242): a draft specgate would not approve yet,
+   * drafted again by the project's agent — `propose --from-brief <module>
+   * --agent <agent>`, which fixes what specgate found. Nothing runs for a
+   * change that is no draft of a module, or with no agent set.
+   */
+  async fix(change: string): Promise<RedraftResult> {
+    const module = /^draft-[a-z0-9][a-z0-9-]*$/.test(change) ? change.slice("draft-".length) : null;
+    if (!module)
+      return {
+        ok: false,
+        code: "command_unknown",
+        message: `${change} is no draft of a brief's module: the agent cannot draft it again.`,
+      };
+    const agent = agentOf((await this.read({ name: "config-list" }).catch(() => null))?.data);
+    if (!agent)
+      return {
+        ok: false,
+        code: "no_agent",
+        message: "No agent is set for the project.",
+        notice: NO_AGENT,
+      };
+    if (!this.commands) throw new Error("Changes is not wired to run commands in this host.");
+    const r = await this.commands.run({ name: "draft-module", module, agent });
+    if (!r.ok) return { ok: false, code: r.code, message: r.message };
+    return { ok: true, module, open: 0, exitCode: r.exitCode, findings: r.findings ?? [] };
+  }
+
   async view(): Promise<ChangesView> {
     const [list, status] = await Promise.all([
       this.sections.section("changes"),

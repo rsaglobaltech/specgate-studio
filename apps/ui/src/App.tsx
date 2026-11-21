@@ -31,6 +31,7 @@ import type {
   Question,
   QuestionsSection,
   Requests,
+  DraftResult,
   RedraftResult,
   RunResult,
   Unreadable,
@@ -601,12 +602,34 @@ export function App({ rpc }: { rpc: Rpc }) {
     [rpc, announce],
   );
 
+  /** "Fix with the agent" (draft-flow-clarity REQ-242): the draft's module, drafted again by the project's agent. */
+  const fixDraft = useCallback(
+    async (label: string, change: string): Promise<RedraftResult> => {
+      announce(label);
+      try {
+        const r = await rpc.ask("changes.fix", { change });
+        if (!r.ok) {
+          echoes.current.forget();
+          if (r.notice) setEnded(r.notice);
+          else setNotice(r.message);
+        }
+        return r;
+      } catch (e) {
+        echoes.current.forget();
+        const message = e instanceof Error ? e.message : String(e);
+        setNotice(message);
+        return { ok: false, code: "command_unknown", message };
+      }
+    },
+    [rpc, announce],
+  );
+
   /**
    * "Draft the modules" (draft-brief REQ-073): the host drafts each module in
    * turn; the echo names the button for each, and the end says what happened.
    */
   const draftModules = useCallback(
-    async (label: string) => {
+    async (label: string): Promise<DraftResult | null> => {
       announce(label);
       const mine = draftLabel.current === null;
       if (mine) draftLabel.current = label;
@@ -616,9 +639,11 @@ export function App({ rpc }: { rpc: Rpc }) {
         if (!r.ok || r.drafted.length === 0) echoes.current.forget();
         if (r.notice) setEnded(r.notice);
         else if (!r.ok) setNotice(r.message);
+        return r;
       } catch (e) {
         echoes.current.forget();
         setNotice(e instanceof Error ? e.message : String(e));
+        return null;
       } finally {
         if (mine) {
           draftLabel.current = null;
@@ -1323,6 +1348,8 @@ export function App({ rpc }: { rpc: Rpc }) {
                             setHelp({ title: tr("help.title", { feature }), requests })
                           }
                           onRedraft={redraft}
+                          onFix={fixDraft}
+                          onOpen={(v) => show(v)}
                         />
                       }
                       briefView={
@@ -1331,7 +1358,8 @@ export function App({ rpc }: { rpc: Rpc }) {
                           lang={lang}
                           stamp={[sections.home, sections.changes, briefRead]}
                           openFile={openFile}
-                          onDraft={(label) => void draftModules(label)}
+                          onDraft={(label) => draftModules(label)}
+                          onOpen={(v) => show(v)}
                           onHelp={(feature, requests) =>
                             setHelp({ title: tr("help.title", { feature }), requests })
                           }

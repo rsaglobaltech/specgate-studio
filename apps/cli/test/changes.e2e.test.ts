@@ -104,16 +104,16 @@ function sprich(o: { applyPasses?: boolean; req030?: boolean; branch?: string } 
       ? {
           id: "REQ-030",
           title: "A coupon",
-          category: "NEEDS_TEST",
-          needs: "its test",
+          category: "NEEDS_STATUS_UPDATE", // Apply is offered for it (REQ-243)
+          needs: "its status",
           change: "add-coupons",
         }
       : { id: "REQ-030", title: "A coupon", category: "DONE", needs: null, change: "add-coupons" },
     {
       id: "REQ-031",
       title: "A coupon once",
-      category: "NEEDS_TEST",
-      needs: "its test",
+      category: "NEEDS_STATUS_UPDATE", // Apply is offered for it (REQ-243)
+      needs: "its status",
       change: "add-coupons",
     },
     {

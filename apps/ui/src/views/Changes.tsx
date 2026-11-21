@@ -34,6 +34,10 @@ export interface ChangesProps {
   onHelp: (feature: string, requests: HelpRequest[]) => void;
   /** "Draft again with N requested changes": the host runs it, named in the terminal (REQ-083). */
   onRedraft: (label: string, change: string) => Promise<RedraftResult>;
+  /** "Fix with the agent": a draft specgate would not approve yet (REQ-242). */
+  onFix?: (label: string, change: string) => Promise<RedraftResult>;
+  /** "Build" and "Answer" open their view (REQ-243). */
+  onOpen?: (view: "build" | "questions") => void;
 }
 
 /**
@@ -52,6 +56,24 @@ export function Changes(p: ChangesProps) {
   const [selected, setSelected] = useState<string | null>(null);
   // The agent's applied plans: each diff stays under its change (draft-workbench-v2 REQ-182).
   const [applied, setApplied] = useState<AppliedPlan[]>([]);
+  // The action under way on a card, with its seconds (REQ-243).
+  const [busy, setBusy] = useState<{ change: string; label: string } | null>(null);
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    if (!busy) return;
+    const at = Date.now();
+    setSeconds(0);
+    const tick = setInterval(() => setSeconds(Math.floor((Date.now() - at) / 1000)), 250);
+    return () => clearInterval(tick);
+  }, [busy]);
+  const doing = async <T,>(change: string, label: string, act: () => Promise<T>): Promise<T> => {
+    setBusy({ change, label });
+    try {
+      return await act();
+    } finally {
+      setBusy(null);
+    }
+  };
 
   useEffect(() => setTicketOpen((o) => o || p.ticketPanel), [p.ticketPanel]);
   useEffect(() => {
@@ -109,13 +131,17 @@ export function Changes(p: ChangesProps) {
                     type="button"
                     class="btn"
                     data-action="approve"
-                    onClick={() =>
-                      void p.run(t("approve.label", { layer: l.layer }), {
-                        name: "change-approve",
-                        change: c.id,
-                        layer: l.layer as ApproveCommand["layer"],
-                      })
-                    }
+                    disabled={c.blockers.length > 0 || busy !== null}
+                    onClick={() => {
+                      const label = t("approve.label", { layer: l.layer });
+                      void doing(c.id, label, () =>
+                        p.run(label, {
+                          name: "change-approve",
+                          change: c.id,
+                          layer: l.layer as ApproveCommand["layer"],
+                        }),
+                      );
+                    }}
                   >
                     {t("approve.label", { layer: l.layer })}
                   </button>
@@ -136,6 +162,43 @@ export function Changes(p: ChangesProps) {
             </li>
           ))}
         </ul>
+      )}
+      {c.blockers.length > 0 && c.layers.some((l) => !l.approved) && (
+        <div class="blockers" data-testid="blockers">
+          <b>{t("blockers.head", { n: c.blockers.length })}</b>
+          <ul>
+            {c.blockers.map((b, i) => (
+              <li key={i} data-code={b.code}>
+                <span data-part="message">{b.message}</span>
+                {b.fix && (
+                  <span class="muted" data-part="fix">
+                    {" "}
+                    {t("blockers.fix")}: {b.fix}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+          {c.module && p.onFix && (
+            <button
+              type="button"
+              class="btn pri"
+              data-action="fix"
+              disabled={busy !== null}
+              onClick={() => {
+                const label = t("fix.label");
+                void doing(c.id, label, () => p.onFix!(label, c.id));
+              }}
+            >
+              {t("fix.label")}
+            </button>
+          )}
+        </div>
+      )}
+      {busy && busy.change === c.id && (
+        <p class="running" data-testid="running" data-seconds={seconds}>
+          ⧗ {t("running", { label: busy.label, s: seconds })}
+        </p>
       )}
       {c.requirements.length === 0 && (
         <p class="muted" style="margin:6px 0 0">
@@ -158,15 +221,37 @@ export function Changes(p: ChangesProps) {
               >
                 {r.applied ? t("req.implemented") : (r.needs ?? t("req.toApply"))}
               </span>
-              {!r.applied && c.group === "progress" && (
+              {!r.applied && c.group === "progress" && r.next === "build" && p.onOpen && (
+                <button
+                  type="button"
+                  class="btn pri"
+                  data-action="build"
+                  onClick={() => p.onOpen?.("build")}
+                >
+                  {t("build.label", { req: r.id })}
+                </button>
+              )}
+              {!r.applied && c.group === "progress" && r.next === "answer" && p.onOpen && (
+                <button
+                  type="button"
+                  class="btn"
+                  data-action="answer"
+                  onClick={() => p.onOpen?.("questions")}
+                >
+                  {t("answer.label", { req: r.id })}
+                </button>
+              )}
+              {!r.applied && c.group === "progress" && (r.next === "apply" || !p.onOpen) && (
                 <>
                   <button
                     type="button"
                     class="btn"
                     data-action="apply"
-                    onClick={() =>
-                      void p.run(t("apply.label", { req: r.id }), { name: "apply", req: r.id })
-                    }
+                    disabled={busy !== null}
+                    onClick={() => {
+                      const label = t("apply.label", { req: r.id });
+                      void doing(c.id, label, () => p.run(label, { name: "apply", req: r.id }));
+                    }}
                   >
                     {t("apply.label", { req: r.id })}
                   </button>
@@ -199,7 +284,10 @@ export function Changes(p: ChangesProps) {
             type="button"
             class="btn pri"
             data-action="archive"
-            onClick={() => void previewArchive(c.id)}
+            disabled={busy !== null}
+            onClick={() =>
+              void doing(c.id, t("archive.label", { change: c.id }), () => previewArchive(c.id))
+            }
           >
             {t("archive.label", { change: c.id })}
           </button>
