@@ -355,9 +355,15 @@ export async function studio(opts: StudioOptions = {}) {
 
 export async function open(
   host: { url: string },
-  init?: { lang?: "en" | "es"; theme?: "dark" | "light" },
+  init?: {
+    lang?: "en" | "es";
+    theme?: "dark" | "light";
+    /** The page's clock held at this time: dates and "2 h ago" the same on every run (visual-regression REQ-231). */
+    clock?: Date;
+  },
 ): Promise<Page> {
   const page = await browser.newPage({ locale: "en-US" });
+  if (init?.clock) await page.clock.setFixedTime(init.clock);
   // A slow CI runner, reproduced: STUDIO_CPU_THROTTLE=6 runs the page six times slower.
   const throttle = Number(process.env.STUDIO_CPU_THROTTLE ?? 0);
   if (throttle > 1) {
