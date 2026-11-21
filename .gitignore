@@ -12,3 +12,6 @@ dist/
 *.tsbuildinfo
 coverage/
 dist-test/
+
+# visual-regression REQ-231: the screens a failed comparison writes.
+apps/cli/test-results/

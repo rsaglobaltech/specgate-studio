@@ -61,6 +61,18 @@ jobs:
       # mutation, dependencies, secrets — `specgate quality list`). They run in
       # Docker, so on Ubuntu only. Not configured yet: says how, and passes.
       # Remove: delete this step.
+      # visual-regression REQ-231: a screen that changed, or has no Linux
+      # reference yet, leaves the screen as it is now (and its differences in
+      # red) under apps/cli/test-results/visual/ — uploaded to be reviewed,
+      # and committed as the reference when the change is intended.
+      - name: Upload the screens that changed
+        if: failure() && matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual
+          path: apps/cli/test-results/visual/
+          if-no-files-found: ignore
+
       - name: Quality checks
         if: matrix.os == 'ubuntu-latest'
         run: |
