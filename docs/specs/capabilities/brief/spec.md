@@ -87,3 +87,43 @@ The system SHALL, when the Developer pastes the client's text into the Brief vie
 - THEN `docs/brief.md` is unchanged byte for byte, and no file of sprich was written
 
 <!-- specgate:trace actor=Developer feature=features/brief/REQ-074.feature kind=business-rule status=Implemented -->
+
+### Requirement: REQ-238 — The accepted proposal keeps the client's text in the brief
+
+The system SHALL, when the Developer accepts the form proposed from the client's text (REQ-074), write into `docs/brief.md` both the proposed front matter and the client's text itself, as the brief's body below the front matter: the whole body when the brief had none, and after the existing body, separated by a blank line, when it had one; and SHALL NOT add the text again when the body already holds it. Discarding the proposal SHALL still write nothing.
+
+> In a real project the accepted brief held only its front matter: the client's text had been read from a temporary file and was gone, so specgate refused to draft (`B2_empty_brief`) and no requirement could be written.
+
+#### Scenario: SCN-1016 — A brief with no body, the proposal accepted
+
+- GIVEN sprich in the browser, `docs/brief.md` with its front matter and no body, an agent set
+- WHEN the Developer pastes the client's text, the form is proposed, and the Developer presses "Accept"
+- THEN `docs/brief.md` has the proposed front matter and, below it, the client's text as it was pasted
+
+#### Scenario: SCN-1017 — The same text accepted twice, on the desktop
+
+- GIVEN sprich on the desktop, `docs/brief.md` whose body already holds the client's text
+- WHEN the Developer pastes the same text again and accepts the proposal
+- THEN the body holds the client's text once
+
+<!-- specgate:trace actor=Developer feature=features/brief/REQ-238.feature kind=business-rule status=Implemented -->
+
+### Requirement: REQ-235 — While the agent proposes the form, the client's text is locked and the dialog shows what the studio is doing
+
+The system SHALL, from the moment the Developer presses "Propose the form" in "Paste the client's text" until specgate answers, keep the client's text read-only and the dialog open — neither a click outside it nor Escape closes it — and SHALL show in the dialog, in order, what the studio is doing: (1) "The text is kept in a temporary file, outside the project" — done; (2) "<agent> reads it and proposes the form; specgate checks it" — under way, with the seconds it has taken so far and the specgate command that runs it, as the terminal shows it; (3) "The proposed form, to review" — still to come. When specgate answers with a proposal, the dialog SHALL close and the proposal be shown as before (REQ-074); when it refuses, step (2) SHALL show as failed with specgate's message and its fix, and the text SHALL be editable again.
+
+> In a real project the Developer could edit the pasted text while the agent was reading it, and saw only "The agent is reading the client's text…" for a minute or more, with no sign of what was running.
+
+#### Scenario: SCN-1014 — The proposal under way, in the browser
+
+- GIVEN sprich open in the browser, an agent set, and the client's text pasted into "Paste the client's text"
+- WHEN the Developer presses "Propose the form" and specgate has not answered yet
+- THEN the text cannot be edited, a click outside the dialog leaves it open, and the dialog shows the temporary file as done, "claude reads it and proposes the form; specgate checks it" under way with its seconds and the `specgate propose --from-brief` command, and the proposed form still to come
+
+#### Scenario: SCN-1015 — specgate refuses, on the desktop
+
+- GIVEN sprich open in the desktop app, the proposal under way
+- WHEN specgate answers `draft_no_front_matter` with its fix
+- THEN the dialog shows the agent's step as failed with "The agent wrote no front matter." and its fix, the text can be edited again, and `docs/brief.md` is unchanged
+
+<!-- specgate:trace actor=Developer feature=features/brief/REQ-235.feature kind=functional status=Implemented -->

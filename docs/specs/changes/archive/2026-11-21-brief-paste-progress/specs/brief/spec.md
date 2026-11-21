@@ -4,7 +4,7 @@
 
 ### Requirement: REQ-235 — While the agent proposes the form, the client's text is locked and the dialog shows what the studio is doing
 
-<!-- specgate:trace status=Draft actor=Developer kind=functional -->
+<!-- specgate:trace status=Implemented actor=Developer kind=functional -->
 
 The system SHALL, from the moment the Developer presses "Propose the form" in "Paste the client's text" until specgate answers, keep the client's text read-only and the dialog open — neither a click outside it nor Escape closes it — and SHALL show in the dialog, in order, what the studio is doing: (1) "The text is kept in a temporary file, outside the project" — done; (2) "<agent> reads it and proposes the form; specgate checks it" — under way, with the seconds it has taken so far and the specgate command that runs it, as the terminal shows it; (3) "The proposed form, to review" — still to come. When specgate answers with a proposal, the dialog SHALL close and the proposal be shown as before (REQ-074); when it refuses, step (2) SHALL show as failed with specgate's message and its fix, and the text SHALL be editable again.
 

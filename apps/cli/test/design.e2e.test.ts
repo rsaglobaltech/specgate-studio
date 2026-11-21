@@ -227,6 +227,10 @@ test("REQ-174 SCN-517: an empty folder — the five questions as cards, Claude C
     assert.match(await page.innerText(".setup-runs"), /specgate init/);
     assert.match(await page.innerText('[data-testid="have-code"]'), /Already have code\?/);
     assert.equal(await page.textContent('[data-act="open-folder"]'), "Open folder…");
+    // The recent projects are read after the cards: wait for both rows.
+    await page.waitForFunction(
+      () => document.querySelectorAll('[data-testid="recent"] .recent-row').length >= 2,
+    );
     const recent = await page.$$eval('[data-testid="recent"] .recent-row span:first-child', (els) =>
       els.map((e) => e.textContent),
     );
