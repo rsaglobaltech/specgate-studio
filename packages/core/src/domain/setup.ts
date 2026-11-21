@@ -189,13 +189,29 @@ export function hasTests(packageJson: string | null, files: readonly string[]): 
   );
 }
 
-/** The readiness list's items, in its order (REQ-114, A7). */
-export type ReadyId = "tests" | "agent" | "architecture" | "ci";
+/**
+ * The readiness list's items, in its order (REQ-114, A7): the stack and its
+ * testing first, as `AGENTS.md` states them (specgate-1-4-setup REQ-228).
+ */
+export type ReadyId = "stack" | "testing" | "tests" | "agent" | "architecture" | "ci";
 
 export interface ReadyItem {
   id: ReadyId;
   /** What is set; null when it is not. */
   value: string | null;
+  /** `TBD` in `AGENTS.md`: to decide, with a field (REQ-228). */
+  undecided?: true;
+}
+
+/** The keys `AGENTS.md` keeps that the agent may not choose itself (REQ-228). */
+export const STACK_KEYS = ["stack", "testing"] as const;
+export type StackKey = (typeof STACK_KEYS)[number];
+
+const isTbd = (v: string | undefined) => typeof v === "string" && /^tbd$/i.test(v.trim());
+
+/** The stack keys specgate answers `TBD` for: to decide before Build (REQ-228). */
+export function undecidedOf(config: Readonly<Record<string, string>>): StackKey[] {
+  return STACK_KEYS.filter((k) => isTbd(config[k]));
 }
 
 /** The agent's name from Build's command: Claude Code for `claude …`. */
@@ -209,7 +225,14 @@ export function readiness(
   config: Readonly<Record<string, string>>,
   ciFile: string | null,
 ): ReadyItem[] {
+  // A specgate that gives no stack (before 1.4.2): the list as before.
+  const stack: ReadyItem[] = STACK_KEYS.filter((k) => k in config).map((k) =>
+    isTbd(config[k])
+      ? { id: k, value: null, undecided: true }
+      : { id: k, value: config[k] || null },
+  );
   return [
+    ...stack,
     { id: "tests", value: config.test_cmd || null },
     { id: "agent", value: config.agent ? agentLabel(config.agent) : null },
     { id: "architecture", value: config.arch_cmd || null },

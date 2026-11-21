@@ -169,6 +169,7 @@ export {
   initConfig,
   initProblem,
   readiness,
+  undecidedOf,
   setupStep,
   type AdoptPreview,
   type AgentTool,
@@ -184,6 +185,13 @@ export {
 export type { Onboarding, SetupPort } from "./ports/SetupPort.js";
 export { Setup, type SetupOptions } from "./application/Setup.js";
 export {
+  BASELINE,
+  BASELINE_FEATURE,
+  BASELINE_TITLE,
+  baselineOf,
+  pendingBaseline,
+} from "./domain/baseline.js";
+export {
   REQ_ID,
   agentProgram,
   buildList,
@@ -194,7 +202,6 @@ export {
   codedError,
   saveSpecification,
   uncommittedWork,
-  BASELINE,
   type BuildItem,
   type BuildList,
   type BuildStart,

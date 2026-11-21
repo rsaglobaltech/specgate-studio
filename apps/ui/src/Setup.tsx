@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "preact/hooks";
 import type {
+  HomeView,
   AdoptPreview,
   Area,
   InitAnswers,
@@ -50,16 +51,71 @@ export function SetupNext(p: { tr: Tr; step: SetupStep; onOpen: () => void }) {
  * folder and tests — a map, not requirements — or none and why, and the next
  * step: specify a behaviour you rely on.
  */
-export function AdoptedAreas(p: { tr: Tr; byKind: boolean; areas: Area[] }) {
+export function AdoptedAreas(p: {
+  rpc: Rpc;
+  tr: Tr;
+  /** The requirements `status` counts. */
+  total: number;
+  byKind: boolean;
+  areas: Area[];
+  /** Opens the readiness list, where an undecided stack is decided (REQ-228). */
+  onDecideStack: () => void;
+}) {
+  // The baseline left out of the count, and an undecided stack first (specgate-1-4-setup REQ-228, REQ-230).
+  const [view, setView] = useState<HomeView | null>(null);
+  useEffect(() => {
+    let live = true;
+    p.rpc.ask("home.get", {}).then(
+      (v) => live && setView(v),
+      () => undefined,
+    );
+    return () => {
+      live = false;
+    };
+  }, [p.rpc]);
+  const baseline = view?.baseline ?? null;
   return (
     <>
-      <div class="next" data-next="specify">
-        <div class="k">[ {p.tr("home.next").toUpperCase()} ]</div>
-        <div style="margin-top:6px;font-weight:600">{p.tr("setup.specify")}</div>
-        <div class="mono muted" style="margin-top:4px">
-          specgate new "&lt;a behaviour you rely on&gt;"
+      <div class="cards">
+        <div class="card">
+          <div class="k">{p.tr("home.requirements")}</div>
+          <div class="v">{p.total - (baseline ? 1 : 0)}</div>
+          <div class="sub">{p.tr("home.toDo", { n: p.total - (baseline ? 1 : 0) })}</div>
         </div>
       </div>
+      {baseline && (
+        <p class="muted home-baseline" data-testid="home-baseline" data-req={baseline}>
+          {p.tr("home.baseline", { req: baseline })}
+        </p>
+      )}
+      {view?.next.kind === "stack" ? (
+        <div class="next" data-next="stack" data-kind="stack">
+          <div class="k">[ {p.tr("home.next").toUpperCase()} ]</div>
+          <div style="margin-top:6px;font-weight:600" data-testid="next-title">
+            {p.tr("next.stack.title")}
+          </div>
+          <div class="muted" style="margin-top:4px">
+            {p.tr("next.stack.why")}
+          </div>
+          <button
+            type="button"
+            class="btn pri"
+            data-testid="next-go"
+            style="margin-top:8px"
+            onClick={p.onDecideStack}
+          >
+            {p.tr("next.stack.go")}
+          </button>
+        </div>
+      ) : (
+        <div class="next" data-next="specify">
+          <div class="k">[ {p.tr("home.next").toUpperCase()} ]</div>
+          <div style="margin-top:6px;font-weight:600">{p.tr("setup.specify")}</div>
+          <div class="mono muted" style="margin-top:4px">
+            specgate new "&lt;a behaviour you rely on&gt;"
+          </div>
+        </div>
+      )}
       <section class="card setup-areas" style="margin-top:16px" aria-label={p.tr("setup.areas")}>
         <h2 style="margin:0 0 6px;font-size:16px">{p.tr("setup.areas")}</h2>
         {p.areas.length ? (
@@ -439,20 +495,29 @@ export function Readiness(p: Omit<SetupProps, "step" | "onDone" | "announce">) {
       <ul class="setup-list setup-ready">
         {items.map((i) => {
           const name = p.tr(`ready.${i.id}`);
-          const key = i.id === "tests" ? "test_cmd" : "arch_cmd";
+          // The stack and its testing are values AGENTS.md keeps; the others, commands (REQ-228).
+          const stackKey = i.id === "stack" || i.id === "testing";
+          const key = stackKey ? i.id : i.id === "tests" ? "test_cmd" : "arch_cmd";
           return (
-            <li key={i.id} data-ready={i.id} data-set={String(i.value !== null)}>
+            <li
+              key={i.id}
+              data-ready={i.id}
+              data-set={String(i.value !== null)}
+              data-undecided={i.undecided ? "true" : undefined}
+            >
               <b>{name}</b>{" "}
               {i.value !== null ? (
                 <span class="mono">{i.value}</span>
               ) : (
                 <span class="setup-fix">
-                  <span class="muted">{p.tr("ready.notSet")}</span>
-                  {(i.id === "tests" || i.id === "architecture") && (
+                  <span class="muted">{p.tr(i.undecided ? "ready.toDecide" : "ready.notSet")}</span>
+                  {(stackKey || i.id === "tests" || i.id === "architecture") && (
                     <>
                       <input
                         class="filter"
-                        aria-label={p.tr("ready.command", { item: name })}
+                        aria-label={p.tr(stackKey ? "ready.value" : "ready.command", {
+                          item: name,
+                        })}
                         value={typed[i.id] ?? ""}
                         onInput={(e) =>
                           setTyped({ ...typed, [i.id]: (e.target as HTMLInputElement).value })
@@ -548,7 +613,16 @@ export function SetupPane(p: SetupProps) {
   const [done, setDone] = useState(p.step === "created");
   return (
     <>
-      <h1>{p.tr(p.step === "adopt" ? "setup.adopt" : "setup.create")}</h1>
+      {/* Opened on what is ready (Home's "Decide it", REQ-228): the project exists, nothing to create. */}
+      <h1>
+        {p.tr(
+          p.step === "created"
+            ? "setup.readyTitle"
+            : p.step === "adopt"
+              ? "setup.adopt"
+              : "setup.create",
+        )}
+      </h1>
       {done ? (
         <>
           <Readiness {...p} />

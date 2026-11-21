@@ -26,6 +26,8 @@ export type NextStep =
   | { kind: "command"; command: string }
   /** specgate 1.0's `status --json` asks for `migrate 1.0` (specgate-1-0 REQ-215). */
   | { kind: "migrate"; changes: number; config: boolean; command: string }
+  /** `AGENTS.md` says `TBD`: decide it before Build (specgate-1-4-setup REQ-228). */
+  | { kind: "stack"; keys: Array<"stack" | "testing"> }
   | { kind: "done" };
 
 interface OpenQuestionLike {
@@ -51,7 +53,12 @@ export function nextCommandOf(status: unknown): string | null {
  * reason. Answering is said with the questions still open and what they
  * block; a draft no person approved, with its change.
  */
-export function nextStep(status: unknown, questions: unknown, review: readonly string[]): NextStep {
+export function nextStep(
+  status: unknown,
+  questions: unknown,
+  review: readonly string[],
+  undecided: ReadonlyArray<"stack" | "testing"> = [],
+): NextStep {
   // Open changes written for 0.x come first: specgate 1.0 says so (REQ-215).
   const migrate = (status as { migrate?: unknown } | null)?.migrate as
     { changes?: unknown; config?: unknown; command?: unknown } | null | undefined;
@@ -63,6 +70,8 @@ export function nextStep(status: unknown, questions: unknown, review: readonly s
       command: str(migrate.command) ?? "specgate migrate 1.0",
     };
   }
+  // The agent stops while the stack is undecided: decide it first (REQ-228).
+  if (undecided.length > 0) return { kind: "stack", keys: [...undecided] };
   const command = nextCommandOf(status);
   const open = (
     ((questions as { questions?: { open?: unknown } } | null)?.questions?.open ?? []) as unknown[]
@@ -252,6 +261,8 @@ export interface HomeView {
   /** What the agent spent, as usage (demo-findings REQ-211). */
   usage: AgentUsage | null;
   activity: Activity[];
+  /** The adoption baseline while pending, left out of the counters (specgate-1-4-setup REQ-230). */
+  baseline?: string | null;
   /**
    * The gate's policy and last result (specgate-1-4-gate REQ-225, REQ-226):
    * the policy line as `check` prints it, null with no policy file; whether

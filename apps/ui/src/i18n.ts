@@ -308,6 +308,7 @@ const en = {
     "No agent will be saved: none was found on the PATH. Set one from the readiness list after adoption.",
   "setup.adoptButton": "Adopt",
   "setup.ready": "Ready",
+  "setup.readyTitle": "What is ready",
   "setup.home": "Go to Home",
   "workspace.kind":
     "A specgate workspace: {n} repositories, {stories} stories. Each keeps its own specification and its own gate.",
@@ -437,6 +438,15 @@ const en = {
   "next.migrate.whyConfig":
     "harness.config.yaml still names the lanes under roles:, as 0.35 did: specgate migrate 1.0 moves them to lanes:.",
   "next.migrate.go": "Open the terminal",
+  "next.stack.title": "Decide the stack",
+  "next.stack.why": "AGENTS.md says TBD: the agent stops until the stack is decided.",
+  "next.stack.go": "Decide it",
+  "home.baseline":
+    "{req}, the baseline of the existing code, is not counted: a test that names it closes it.",
+  "ready.stack": "Stack",
+  "ready.testing": "Testing",
+  "ready.toDecide": "to decide",
+  "ready.value": "{item}: the value",
   "next.done.title": "Everything is built",
   "next.done.why": "specgate status names nothing left: the report is next.",
   "next.done.go": "Open the report",
@@ -866,6 +876,7 @@ const es: Record<MessageKey, string> = {
     "No se guardará un agente: no se encontró ninguno en el PATH. Fija uno desde la lista de preparación tras adoptar.",
   "setup.adoptButton": "Adoptar",
   "setup.ready": "Preparación",
+  "setup.readyTitle": "Qué está listo",
   "setup.home": "Ir a Inicio",
   "workspace.kind":
     "Un workspace de specgate: {n} repositorios, {stories} historias. Cada uno mantiene su propia especificación y su propio gate.",
@@ -999,6 +1010,15 @@ const es: Record<MessageKey, string> = {
   "next.migrate.whyConfig":
     "harness.config.yaml aún nombra los carriles bajo roles:, como en 0.35: specgate migrate 1.0 los pasa a lanes:.",
   "next.migrate.go": "Abrir el terminal",
+  "next.stack.title": "Decide el stack",
+  "next.stack.why": "AGENTS.md dice TBD: el agente se para hasta que se decida el stack.",
+  "next.stack.go": "Decidirlo",
+  "home.baseline":
+    "{req}, la base del código existente, no se cuenta: la cierra un test que la nombre.",
+  "ready.stack": "Stack",
+  "ready.testing": "Testing",
+  "ready.toDecide": "por decidir",
+  "ready.value": "{item}: el valor",
   "next.done.title": "Todo está construido",
   "next.done.why": "specgate status no nombra nada pendiente: ahora el informe.",
   "next.done.go": "Abrir el informe",

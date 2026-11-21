@@ -125,3 +125,29 @@ export function withClaude(found: boolean): { restore: () => void } {
     },
   };
 }
+
+/**
+ * A folder adopted by the real `specgate adopt --yes` (specgate-1-4-setup):
+ * with code, `codeFolder`'s Node.js project, its stack detected; with none,
+ * an empty folder, its `AGENTS.md` saying `Stack: TBD` and `Testing: TBD`.
+ * Committed, inside a parent of its own: remove the parent.
+ */
+export function adopted(name: string, opts: { code: boolean }): string {
+  let dir: string;
+  if (opts.code) dir = codeFolder(name, ["billing"], { tests: true });
+  else {
+    dir = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "sg-setup-")), name);
+    fs.mkdirSync(dir);
+  }
+  const git = (...a: string[]) =>
+    spawnSync("git", ["-c", "user.name=T", "-c", "user.email=t@example.com", ...a], { cwd: dir });
+  if (!opts.code) git("init", "-q");
+  const adopt = spawnSync(process.execPath, [specgateBin(), "adopt", "--yes"], {
+    cwd: dir,
+    encoding: "utf8",
+  });
+  assert.equal(adopt.status, 0, adopt.stdout + adopt.stderr);
+  git("add", "-A");
+  git("commit", "-qm", "adopted");
+  return dir;
+}

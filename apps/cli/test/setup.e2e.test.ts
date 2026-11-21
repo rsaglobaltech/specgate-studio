@@ -109,7 +109,7 @@ test(
 );
 
 test(
-  "REQ-116 REQ-112 REQ-113 REQ-114 REQ-115 SCN-341 SCN-333 SCN-335 SCN-334 SCN-337 SCN-339: shop — Adopt this folder, its preview with npm test and Claude Code, adopted with its code untouched, ready but for the architecture, then its areas",
+  "REQ-116 REQ-112 REQ-113 REQ-114 REQ-115 SCN-341 SCN-333 SCN-335 SCN-334 SCN-337 SCN-339, REQ-228 SCN-1004, REQ-230: shop — Adopt this folder, its preview with npm test and Claude Code, adopted with its code untouched, ready but for the architecture, then its areas",
   SLOW,
   async () => {
     const dir = codeFolder("shop", ["billing", "invoices", "utils"], { tests: true });
@@ -147,6 +147,12 @@ test(
       const after = snapshot(dir);
       for (const [f, bytes] of before) assert.ok(after.get(f)?.equals(bytes), `${f} unchanged`);
 
+      // SCN-1004: the stack adoption detected, set; nothing to decide.
+      assert.match(await text(page, '[data-ready="stack"]'), /Node\.js/);
+      assert.match(await text(page, '[data-ready="testing"]'), /npm test/);
+      assert.equal(await page.getAttribute('[data-ready="stack"]', "data-set"), "true");
+      assert.equal(await page.$('[data-undecided="true"]'), null);
+
       // SCN-337: what is ready, and the architecture check set from its button.
       assert.match(await text(page, '[data-ready="tests"]'), /npm test/);
       assert.match(await text(page, '[data-ready="agent"]'), /Claude Code/);
@@ -166,7 +172,10 @@ test(
       assert.match(areas[0]!, /Billing.*src\/billing/);
       assert.match(areas[1]!, /Invoices.*src\/invoices/);
       assert.equal(await page.$('[data-area="Utils"]'), null);
-      assert.equal(await text(page, ".cards .card .v"), "1");
+      // REQ-001 alone, the adoption baseline: not counted, said below (REQ-230).
+      await page.waitForSelector('[data-testid="home-baseline"]', SLOW);
+      assert.equal(await text(page, ".cards .card .v"), "0");
+      assert.equal(await page.getAttribute('[data-testid="home-baseline"]', "data-req"), "REQ-001");
       assert.match(await text(page, '[data-next="specify"]'), /Specify a behaviour you rely on/);
     } finally {
       await s.done(page);

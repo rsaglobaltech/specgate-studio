@@ -321,4 +321,5 @@ jobs:
           gh release upload "$TAG" latest.json --clobber
       - name: No update manifest
         if: env.HAS_UPDATER != 'true'
-        run: echo "TAURI_SIGNING_PRIVATE_KEY is not set: no latest.json — see docs/desktop.md."
+        run: |
+          echo "TAURI_SIGNING_PRIVATE_KEY is not set: no latest.json — see docs/desktop.md."

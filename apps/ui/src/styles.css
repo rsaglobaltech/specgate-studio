@@ -4438,3 +4438,9 @@ pre.skeleton {
     background: #fff;
   }
 }
+
+/* The adoption baseline, left out of the counters (specgate-1-4-setup REQ-230). */
+.home-baseline {
+  margin: 8px 0 16px;
+  font-size: 12px;
+}

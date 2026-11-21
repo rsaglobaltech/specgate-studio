@@ -1,3 +1,4 @@
+import { BASELINE } from "./baseline.js";
 import type { Finding } from "./finding.js";
 import { SPECIFICATION_GROUP, groupOf, toPosix } from "./workspace.js";
 
@@ -85,13 +86,6 @@ export interface BuildList {
   setAgent: string;
 }
 
-/**
- * The adoption baseline (draft-live-polish REQ-101, A10): delivered by
- * `specgate apply REQ-000` once the project is healthy, not code for an
- * agent — Build lists it only when the Developer names it.
- */
-export const BASELINE = "REQ-000";
-
 /** The command Build names when no agent is set (A4). */
 export const SET_AGENT = "specgate agents init --tool claude";
 
@@ -137,6 +131,8 @@ export function buildList(
   questions: unknown = null,
   estimates: Readonly<Record<string, ReqEstimate>> = {},
   named: string | null = null,
+  /** The adoption baseline (REQ-230): listed only once named (A10). */
+  baseline: string | null = BASELINE,
 ): BuildList {
   const all = (status as { requirements?: unknown } | null)?.requirements;
   // `status --json` does not always say a question blocks a requirement:
@@ -158,7 +154,7 @@ export function buildList(
     const category = str(r.category);
     if (!id || !category || category === "DONE") continue;
     // The adoption baseline, only once named (A10): not even among what waits.
-    if (id === BASELINE && named !== BASELINE) continue;
+    if (id === baseline && named !== baseline) continue;
     const item: BuildItem = {
       id,
       title: str(r.title),

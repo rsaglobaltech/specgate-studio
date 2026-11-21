@@ -125,6 +125,19 @@ const w = (en: string, es: string, den: string, des: string): Words => ({
  * here, shows under its own name with specgate's description.
  */
 const PROJECT_WORDS: Record<string, Words> = {
+  // The stack AGENTS.md states to the agent (specgate 1.4.2; specgate-1-4-setup REQ-229).
+  stack: w(
+    "Stack",
+    "Stack",
+    "The project's stack, as AGENTS.md states it to the agent, which may not choose one itself. TBD: to decide before building.",
+    "El stack del proyecto, como AGENTS.md se lo dice al agente, que no puede elegirlo por su cuenta. TBD: por decidir antes de construir.",
+  ),
+  testing: w(
+    "Testing",
+    "Testing",
+    "The project's test toolchain, as AGENTS.md states it to the agent. TBD: to decide before building.",
+    "Las herramientas de test del proyecto, como AGENTS.md se las dice al agente. TBD: por decidir antes de construir.",
+  ),
   // The gate's policy, .specgate/gate.yaml (specgate 1.4; specgate-1-4-gate REQ-223).
   "gate.preset": w(
     "Preset",

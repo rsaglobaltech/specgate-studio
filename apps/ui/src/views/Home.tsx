@@ -30,6 +30,8 @@ export interface HomeProps {
   checking?: boolean;
   /** Opens a file of the project in the editor: the gate's policy when specgate cannot read it (REQ-225). */
   onOpenFile?: (path: string) => void;
+  /** Opens the readiness list, where an undecided stack is decided (specgate-1-4-setup REQ-228). */
+  onDecideStack?: () => void;
   onDoctor: () => void;
   onFromTicket: () => void;
   onOpenTerminal: () => void;
@@ -48,6 +50,7 @@ const STEP_ACTION: Record<NextStep["kind"], ActionId> = {
   archive: "archive",
   command: "check",
   migrate: "check",
+  stack: "config-set",
   done: "check",
 };
 
@@ -60,6 +63,7 @@ const STEP_VIEW: Record<NextStep["kind"], ViewId> = {
   archive: "changes",
   command: "home",
   migrate: "home",
+  stack: "home",
   done: "report",
 };
 
@@ -101,6 +105,9 @@ export function Home(p: HomeProps) {
       .map((r) => r.requirement),
   );
   const proven = p.requirements.filter((r) => r.category === "DONE" && tested.has(r.id)).length;
+  // The adoption baseline is closed by a test that names it, not counted as work (REQ-230).
+  const baseline = view?.baseline ?? null;
+  const total = p.total - (baseline ? 1 : 0);
 
   return (
     <div class="home">
@@ -134,7 +141,11 @@ export function Home(p: HomeProps) {
               type="button"
               class="btn pri"
               data-testid="next-go"
-              onClick={() => p.show(STEP_VIEW[next.kind])}
+              onClick={() =>
+                next.kind === "stack" && p.onDecideStack
+                  ? p.onDecideStack()
+                  : p.show(STEP_VIEW[next.kind])
+              }
             >
               {tr(`next.${next.kind}.go`)}
             </button>
@@ -155,13 +166,13 @@ export function Home(p: HomeProps) {
       <div class="cards four">
         <div class="card">
           <div class="k">{tr("home.requirements")}</div>
-          <div class="v">{p.total}</div>
+          <div class="v">{total}</div>
           <div class="sub">{tr("home.inDraft", { n: inDraft })}</div>
         </div>
         <div class="card">
           <div class="k">{tr("home.built")}</div>
           <div class="v">{p.done}</div>
-          <div class="sub">{tr("home.toDo", { n: p.total - p.done })}</div>
+          <div class="sub">{tr("home.toDo", { n: total - p.done })}</div>
         </div>
         <div class="card">
           <div class="k">{tr("home.proven")}</div>
@@ -184,6 +195,12 @@ export function Home(p: HomeProps) {
           </div>
         </div>
       </div>
+
+      {baseline && (
+        <p class="muted home-baseline" data-testid="home-baseline" data-req={baseline}>
+          {tr("home.baseline", { req: baseline })}
+        </p>
+      )}
 
       <div class="home-row">
         <section class="card route" aria-label={tr("route.title")}>
@@ -324,6 +341,8 @@ function vars(n: NextStep): Record<string, string> {
       return { req: n.req };
     case "archive":
       return { change: n.change };
+    case "stack":
+      return { key: n.keys[0]! };
     default:
       return {};
   }
@@ -348,6 +367,8 @@ export function sentence(tr: HomeProps["tr"], n: NextStep): string {
       return tr("next.command.title", { command: n.command });
     case "migrate":
       return tr("next.migrate.title");
+    case "stack":
+      return tr("next.stack.title");
     default:
       return tr("next.done.title");
   }
